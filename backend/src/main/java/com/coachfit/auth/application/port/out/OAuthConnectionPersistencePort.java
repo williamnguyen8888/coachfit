@@ -28,4 +28,24 @@ public interface OAuthConnectionPersistencePort {
      * Used on callback to detect returning users without loading the full user.
      */
     Optional<UUID> findUserIdByProviderAndProviderId(String provider, String providerUserId);
+
+    /**
+     * Loads the raw (encrypted) OAuth tokens for a user + provider pair.
+     * Used by the sync worker to obtain Strava access/refresh tokens.
+     *
+     * @return tokens if the connection exists, empty if the user has not connected this provider
+     */
+    Optional<OAuthTokens> findTokensByUserAndProvider(UUID userId, String provider);
+
+    // ── Data carrier ─────────────────────────────────────────────────────────
+
+    /**
+     * Encrypted token data as stored in {@code oauth_connections}.
+     * Decrypt with {@code AesTokenEncryptionUtil} before use.
+     */
+    record OAuthTokens(
+            String  encryptedAccessToken,
+            String  encryptedRefreshToken,
+            Instant tokenExpiresAt
+    ) {}
 }

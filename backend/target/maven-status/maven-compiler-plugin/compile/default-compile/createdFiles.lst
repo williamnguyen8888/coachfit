@@ -19,7 +19,6 @@ com/coachfit/wellness/package-info.class
 com/coachfit/auth/application/service/GoogleOAuthService$GoogleTokenResponse.class
 com/coachfit/shared/adapter/in/package-info.class
 com/coachfit/auth/domain/model/AuthUser.class
-com/coachfit/auth/adapter/out/persistence/OAuthConnectionPersistenceAdapter.class
 com/coachfit/shared/adapter/in/security/jwt/JwtTokenProvider.class
 com/coachfit/athlete/adapter/in/package-info.class
 com/coachfit/workout/application/port/in/package-info.class

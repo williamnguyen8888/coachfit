@@ -71,6 +71,23 @@ public interface ActivityPersistencePort {
     /** Returns whether an activity row exists for the given source + sourceId. */
     boolean existsByUserSourceAndSourceId(UUID userId, String source, String sourceId);
 
+    /**
+     * Returns the activity UUID for the given source + sourceId (used on update events to
+     * locate the existing row before merging new data).
+     */
+    Optional<UUID> findIdByUserSourceAndSourceId(UUID userId, String source, String sourceId);
+
+    /**
+     * Partially updates an activity row from a Strava "activity_updated" event.
+     * Only non-null fields are applied.
+     */
+    void updateFromStrava(UUID activityId, String name, String description,
+                          Integer avgHeartRate, Integer maxHeartRate,
+                          Integer avgPower, Integer maxPower, Integer normalizedPower,
+                          java.math.BigDecimal tss, java.math.BigDecimal intensityFactor,
+                          Integer avgCadence, java.math.BigDecimal distanceMeters,
+                          Integer calories, java.math.BigDecimal elevationGainMeters);
+
     /** Soft-deletes an activity by setting {@code deleted_at = now()}. */
     void softDelete(UUID activityId);
 

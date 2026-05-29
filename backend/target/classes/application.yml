@@ -79,4 +79,11 @@ app:
     garmin:
       consumer-key: ${GARMIN_CONSUMER_KEY:}
       consumer-secret: ${GARMIN_CONSUMER_SECRET:}
+  sync:
+    strava:
+      stream-name: ${SYNC_STREAM_NAME:sync:jobs}
+      consumer-group: ${SYNC_CONSUMER_GROUP:sync-workers}
+      consumer-name: ${SYNC_CONSUMER_NAME:worker-1}
+      max-attempts: ${SYNC_MAX_ATTEMPTS:3}
+      pending-min-idle-seconds: ${SYNC_PENDING_MIN_IDLE:60}
 

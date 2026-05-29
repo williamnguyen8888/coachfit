@@ -1,12 +1,22 @@
 {
   "groups": [
     {
+      "name": "app.google",
+      "type": "com.coachfit.auth.adapter.in.GoogleOAuthProperties",
+      "sourceType": "com.coachfit.auth.adapter.in.GoogleOAuthProperties"
+    },
+    {
       "name": "app.providers.strava",
       "type": "com.coachfit.auth.adapter.in.StravaOAuthProperties",
       "sourceType": "com.coachfit.auth.adapter.in.StravaOAuthProperties"
     }
   ],
   "properties": [
+    {
+      "name": "app.google.callback-url",
+      "type": "java.lang.String",
+      "sourceType": "com.coachfit.auth.adapter.in.GoogleOAuthProperties"
+    },
     {
       "name": "app.providers.strava.client-id",
       "type": "java.lang.String",

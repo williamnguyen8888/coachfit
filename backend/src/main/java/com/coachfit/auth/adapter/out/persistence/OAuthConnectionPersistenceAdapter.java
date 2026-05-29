@@ -77,6 +77,26 @@ class OAuthConnectionPersistenceAdapter implements OAuthConnectionPersistencePor
                 .optional();
     }
 
+    @Override
+    public Optional<OAuthConnectionPersistencePort.OAuthTokens> findTokensByUserAndProvider(
+            UUID userId, String provider) {
+        return jdbcClient.sql("""
+                SELECT access_token, refresh_token, token_expires_at
+                  FROM oauth_connections
+                 WHERE user_id  = :userId
+                   AND provider = :provider
+                """)
+                .param("userId",   userId)
+                .param("provider", provider)
+                .query((rs, rowNum) -> new OAuthConnectionPersistencePort.OAuthTokens(
+                        rs.getString("access_token"),
+                        rs.getString("refresh_token"),
+                        rs.getTimestamp("token_expires_at") != null
+                                ? rs.getTimestamp("token_expires_at").toInstant()
+                                : null))
+                .optional();
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private String buildPgArray(String[] values) {

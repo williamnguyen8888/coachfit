@@ -134,6 +134,66 @@ class ActivityPersistenceAdapter implements ActivityPersistencePort {
     }
 
     @Override
+    public Optional<UUID> findIdByUserSourceAndSourceId(UUID userId, String source, String sourceId) {
+        return jdbcClient.sql("""
+                SELECT id FROM activities
+                WHERE user_id   = :userId
+                  AND source    = :source
+                  AND source_id = :sourceId
+                  AND deleted_at IS NULL
+                LIMIT 1
+                """)
+                .param("userId",   userId)
+                .param("source",   source)
+                .param("sourceId", sourceId)
+                .query(UUID.class)
+                .optional();
+    }
+
+    @Override
+    @Transactional
+    public void updateFromStrava(UUID activityId, String name, String description,
+                                 Integer avgHeartRate, Integer maxHeartRate,
+                                 Integer avgPower, Integer maxPower, Integer normalizedPower,
+                                 java.math.BigDecimal tss, java.math.BigDecimal intensityFactor,
+                                 Integer avgCadence, java.math.BigDecimal distanceMeters,
+                                 Integer calories, java.math.BigDecimal elevationGainMeters) {
+        jdbcClient.sql("""
+                UPDATE activities SET
+                    name                  = COALESCE(:name, name),
+                    description           = COALESCE(:description, description),
+                    avg_heart_rate        = COALESCE(:avgHeartRate, avg_heart_rate),
+                    max_heart_rate        = COALESCE(:maxHeartRate, max_heart_rate),
+                    avg_power             = COALESCE(:avgPower, avg_power),
+                    max_power             = COALESCE(:maxPower, max_power),
+                    normalized_power      = COALESCE(:normalizedPower, normalized_power),
+                    tss                   = COALESCE(:tss, tss),
+                    intensity_factor      = COALESCE(:intensityFactor, intensity_factor),
+                    avg_cadence           = COALESCE(:avgCadence, avg_cadence),
+                    distance_meters       = COALESCE(:distanceMeters, distance_meters),
+                    calories              = COALESCE(:calories, calories),
+                    elevation_gain_meters = COALESCE(:elevationGainMeters, elevation_gain_meters),
+                    updated_at            = now()
+                WHERE id = :id AND deleted_at IS NULL
+                """)
+                .param("id",                activityId)
+                .param("name",              name)
+                .param("description",       description)
+                .param("avgHeartRate",      avgHeartRate)
+                .param("maxHeartRate",      maxHeartRate)
+                .param("avgPower",          avgPower)
+                .param("maxPower",          maxPower)
+                .param("normalizedPower",   normalizedPower)
+                .param("tss",               tss)
+                .param("intensityFactor",   intensityFactor)
+                .param("avgCadence",        avgCadence)
+                .param("distanceMeters",    distanceMeters)
+                .param("calories",          calories)
+                .param("elevationGainMeters", elevationGainMeters)
+                .update();
+    }
+
+    @Override
     @Transactional
     public void softDelete(UUID activityId) {
         jdbcClient.sql("""
