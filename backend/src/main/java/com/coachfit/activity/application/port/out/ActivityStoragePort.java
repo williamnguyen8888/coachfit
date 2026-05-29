@@ -22,4 +22,13 @@ public interface ActivityStoragePort {
      * @return the object path stored in MinIO (used as {@code raw_file_path} in the DB)
      */
     String storeRawFile(UUID userId, String filename, byte[] bytes, String contentType);
+
+    /**
+     * Generates a short-lived pre-signed GET URL for an existing object.
+     *
+     * @param objectPath the object key previously returned by {@link #storeRawFile}
+     * @param expirySeconds URL lifetime in seconds
+     * @return the pre-signed URL string
+     */
+    String generatePresignedDownloadUrl(String objectPath, int expirySeconds);
 }

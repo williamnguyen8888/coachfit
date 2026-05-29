@@ -1,5 +1,8 @@
 package com.coachfit.activity.adapter.out.persistence;
 
+import com.coachfit.activity.application.port.in.GetActivityUseCase.ActivityDetail;
+import com.coachfit.activity.application.port.in.GetActivityUseCase.GearRef;
+import com.coachfit.activity.application.port.in.ListActivitiesUseCase.ActivityListItem;
 import com.coachfit.activity.application.port.in.UploadActivityUseCase.ActivitySummary;
 import com.coachfit.activity.application.port.out.ActivityPersistencePort;
 import com.coachfit.activity.domain.model.ParsedActivity;
@@ -9,8 +12,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -204,4 +212,193 @@ class ActivityPersistenceAdapter implements ActivityPersistencePort {
                 .param("id", activityId)
                 .update();
     }
+
+    // ── Read API ──────────────────────────────────────────────────────────────
+
+    /** Allowlisted sort columns to prevent SQL injection from user-supplied sort params. */
+    private static final Set<String> ALLOWED_SORT_FIELDS = Set.of(
+            "startedAt", "durationSeconds", "distanceMeters", "tss", "createdAt"
+    );
+
+    private static String toColumnName(String sortField) {
+        return switch (sortField) {
+            case "startedAt"       -> "started_at";
+            case "durationSeconds" -> "duration_seconds";
+            case "distanceMeters"  -> "distance_meters";
+            case "tss"             -> "tss";
+            case "createdAt"       -> "created_at";
+            default                -> "started_at";  // safe fallback
+        };
+    }
+
+    @Override
+    public List<ActivityListItem> list(UUID userId, String sport, String source,
+                                       Instant from, Instant to,
+                                       int page, int size,
+                                       String sortField, String sortDir) {
+
+        String col = toColumnName(
+                ALLOWED_SORT_FIELDS.contains(sortField) ? sortField : "startedAt");
+        String dir = "asc".equalsIgnoreCase(sortDir) ? "ASC" : "DESC";
+
+        // Build dynamic WHERE clause
+        StringBuilder sql = new StringBuilder("""
+                SELECT id, sport, name, started_at, duration_seconds,
+                       distance_meters, avg_heart_rate, avg_power, tss, source
+                  FROM activities
+                 WHERE user_id = :userId
+                   AND deleted_at IS NULL
+                """);
+        if (sport  != null) sql.append("  AND sport  = :sport\n");
+        if (source != null) sql.append("  AND source = :source\n");
+        if (from   != null) sql.append("  AND started_at >= :from\n");
+        if (to     != null) sql.append("  AND started_at <= :to\n");
+        sql.append(" ORDER BY ").append(col).append(" ").append(dir).append("\n");
+        sql.append(" LIMIT :size OFFSET :offset");
+
+        var stmt = jdbcClient.sql(sql.toString())
+                .param("userId", userId)
+                .param("size",   size)
+                .param("offset", (long) page * size);
+        if (sport  != null) stmt = stmt.param("sport",  sport);
+        if (source != null) stmt = stmt.param("source", source);
+        if (from   != null) stmt = stmt.param("from",   from);
+        if (to     != null) stmt = stmt.param("to",     to);
+
+        return stmt.query((rs, rowNum) -> new ActivityListItem(
+                rs.getObject("id", UUID.class),
+                rs.getString("sport"),
+                rs.getString("name"),
+                rs.getObject("started_at", Instant.class),
+                rs.getInt("duration_seconds"),
+                rs.getBigDecimal("distance_meters"),
+                nullableInt(rs, "avg_heart_rate"),
+                nullableInt(rs, "avg_power"),
+                rs.getBigDecimal("tss"),
+                rs.getString("source")
+        )).list();
+    }
+
+    @Override
+    public long count(UUID userId, String sport, String source, Instant from, Instant to) {
+        StringBuilder sql = new StringBuilder("""
+                SELECT COUNT(*) FROM activities
+                 WHERE user_id = :userId
+                   AND deleted_at IS NULL
+                """);
+        if (sport  != null) sql.append("  AND sport  = :sport\n");
+        if (source != null) sql.append("  AND source = :source\n");
+        if (from   != null) sql.append("  AND started_at >= :from\n");
+        if (to     != null) sql.append("  AND started_at <= :to\n");
+
+        var stmt = jdbcClient.sql(sql.toString()).param("userId", userId);
+        if (sport  != null) stmt = stmt.param("sport",  sport);
+        if (source != null) stmt = stmt.param("source", source);
+        if (from   != null) stmt = stmt.param("from",   from);
+        if (to     != null) stmt = stmt.param("to",     to);
+
+        return stmt.query(Long.class).single();
+    }
+
+    @Override
+    public Optional<ActivityDetail> findDetailById(UUID userId, UUID activityId) {
+        return jdbcClient.sql("""
+                SELECT a.id, a.sport, a.sub_sport, a.name, a.description,
+                       a.started_at, a.duration_seconds, a.moving_time_seconds,
+                       a.distance_meters, a.elevation_gain_meters, a.calories,
+                       a.avg_heart_rate, a.max_heart_rate,
+                       a.avg_power, a.max_power, a.normalized_power,
+                       a.intensity_factor, a.tss, a.avg_cadence, a.avg_speed,
+                       a.start_lat, a.start_lng,
+                       a.gear_id, g.name AS gear_name,
+                       a.source, a.raw_file_format
+                  FROM activities a
+                  LEFT JOIN gear g ON g.id = a.gear_id
+                 WHERE a.id = :id
+                   AND a.user_id = :userId
+                   AND a.deleted_at IS NULL
+                """)
+                .param("id",     activityId)
+                .param("userId", userId)
+                .query((rs, rowNum) -> {
+                    UUID gearId = rs.getObject("gear_id", UUID.class);
+                    GearRef gear = gearId != null
+                            ? new GearRef(gearId, rs.getString("gear_name"))
+                            : null;
+                    return new ActivityDetail(
+                            rs.getObject("id", UUID.class),
+                            rs.getString("sport"),
+                            rs.getString("sub_sport"),
+                            rs.getString("name"),
+                            rs.getString("description"),
+                            rs.getObject("started_at", Instant.class),
+                            rs.getInt("duration_seconds"),
+                            nullableInt(rs, "moving_time_seconds"),
+                            rs.getBigDecimal("distance_meters"),
+                            rs.getBigDecimal("elevation_gain_meters"),
+                            nullableInt(rs, "calories"),
+                            nullableInt(rs, "avg_heart_rate"),
+                            nullableInt(rs, "max_heart_rate"),
+                            nullableInt(rs, "avg_power"),
+                            nullableInt(rs, "max_power"),
+                            nullableInt(rs, "normalized_power"),
+                            rs.getBigDecimal("intensity_factor"),
+                            rs.getBigDecimal("tss"),
+                            nullableInt(rs, "avg_cadence"),
+                            rs.getBigDecimal("avg_speed"),
+                            rs.getBigDecimal("start_lat"),
+                            rs.getBigDecimal("start_lng"),
+                            gear,
+                            rs.getString("source"),
+                            rs.getString("raw_file_format")
+                    );
+                })
+                .optional();
+    }
+
+    @Override
+    @Transactional
+    public boolean updateUserFields(UUID activityId, UUID userId,
+                                    String name, String description, UUID gearId) {
+        int updated = jdbcClient.sql("""
+                UPDATE activities SET
+                    name        = COALESCE(:name, name),
+                    description = COALESCE(:description, description),
+                    gear_id     = COALESCE(:gearId, gear_id),
+                    updated_at  = now()
+                WHERE id = :id
+                  AND user_id = :userId
+                  AND deleted_at IS NULL
+                """)
+                .param("id",          activityId)
+                .param("userId",      userId)
+                .param("name",        name)
+                .param("description", description)
+                .param("gearId",      gearId)
+                .update();
+        return updated > 0;
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    @Override
+    public Optional<String> findRawFilePath(UUID userId, UUID activityId) {
+        return jdbcClient.sql("""
+                SELECT raw_file_path FROM activities
+                 WHERE id = :id
+                   AND user_id = :userId
+                   AND deleted_at IS NULL
+                   AND raw_file_path IS NOT NULL
+                """)
+                .param("id",     activityId)
+                .param("userId", userId)
+                .query(String.class)
+                .optional();
+    }
+
+    private static Integer nullableInt(ResultSet rs, String col) throws SQLException {
+        int v = rs.getInt(col);
+        return rs.wasNull() ? null : v;
+    }
 }
+

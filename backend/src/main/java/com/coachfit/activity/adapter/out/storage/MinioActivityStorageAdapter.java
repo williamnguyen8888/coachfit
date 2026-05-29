@@ -2,8 +2,10 @@ package com.coachfit.activity.adapter.out.storage;
 
 import com.coachfit.activity.application.port.out.ActivityStoragePort;
 import com.coachfit.activity.domain.exception.FileParseException;
+import io.minio.GetPresignedObjectUrlArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
+import io.minio.http.Method;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -11,6 +13,7 @@ import org.springframework.stereotype.Component;
 
 import java.io.ByteArrayInputStream;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Stores raw activity files in MinIO, implementing {@link ActivityStoragePort}.
@@ -61,6 +64,25 @@ class MinioActivityStorageAdapter implements ActivityStoragePort {
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
+
+    @Override
+    public String generatePresignedDownloadUrl(String objectPath, int expirySeconds) {
+        try {
+            String url = minioClient.getPresignedObjectUrl(
+                    GetPresignedObjectUrlArgs.builder()
+                            .method(Method.GET)
+                            .bucket(bucket)
+                            .object(objectPath)
+                            .expiry(expirySeconds, TimeUnit.SECONDS)
+                            .build()
+            );
+            log.debug("Generated presigned URL: bucket={} key={} expirySeconds={}", bucket, objectPath, expirySeconds);
+            return url;
+        } catch (Exception e) {
+            log.error("Failed to generate presigned URL for object={}: {}", objectPath, e.getMessage(), e);
+            throw new RuntimeException("Failed to generate download URL: " + e.getMessage(), e);
+        }
+    }
 
     /**
      * Strips path separators from the filename to prevent directory traversal in the object key.

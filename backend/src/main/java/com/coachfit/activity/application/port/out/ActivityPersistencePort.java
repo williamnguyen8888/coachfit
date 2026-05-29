@@ -1,10 +1,14 @@
 package com.coachfit.activity.application.port.out;
 
+import com.coachfit.activity.application.port.in.GetActivityUseCase.ActivityDetail;
+import com.coachfit.activity.application.port.in.GetActivityUseCase.GearRef;
+import com.coachfit.activity.application.port.in.ListActivitiesUseCase.ActivityListItem;
 import com.coachfit.activity.application.port.in.UploadActivityUseCase.ActivitySummary;
 import com.coachfit.activity.domain.model.ParsedActivity;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -90,6 +94,63 @@ public interface ActivityPersistencePort {
 
     /** Soft-deletes an activity by setting {@code deleted_at = now()}. */
     void softDelete(UUID activityId);
+
+    /**
+     * Returns the {@code raw_file_path} for a non-deleted activity owned by the user.
+     * Returns empty if the activity has no raw file (e.g. synced from Strava without upload).
+     */
+    Optional<String> findRawFilePath(UUID userId, UUID activityId);
+
+    // ── Read API ──────────────────────────────────────────────────────────────
+
+    /**
+     * Paginated, filterable list of a user's activities (non-deleted).
+     *
+     * @param userId    owner filter (required)
+     * @param sport     optional sport filter
+     * @param source    optional source filter
+     * @param from      optional lower bound on started_at (inclusive)
+     * @param to        optional upper bound on started_at (inclusive)
+     * @param page      0-indexed page
+     * @param size      page size
+     * @param sortField field to sort by (e.g. "startedAt")
+     * @param sortDir   "asc" or "desc"
+     * @return matching items (may be empty)
+     */
+    List<ActivityListItem> list(UUID userId, String sport, String source,
+                                Instant from, Instant to,
+                                int page, int size,
+                                String sortField, String sortDir);
+
+    /**
+     * Total count matching the list filters (for pagination metadata).
+     */
+    long count(UUID userId, String sport, String source, Instant from, Instant to);
+
+    /**
+     * Full detail view used by GET /activities/{id}.
+     * Returns empty if the activity is deleted or belongs to a different user.
+     *
+     * <p>The {@code gear} field is populated from the {@code gear} table when
+     * {@code gear_id} is set, otherwise null.
+     */
+    Optional<ActivityDetail> findDetailById(UUID userId, UUID activityId);
+
+    // ── Update API ────────────────────────────────────────────────────────────
+
+    /**
+     * Applies a user-editable partial update (name, description, gearId).
+     * Null parameters leave the existing value unchanged.
+     *
+     * @param activityId target activity (must belong to userId and not be deleted)
+     * @param userId     owner — used for safety check in the WHERE clause
+     * @param name       new name, or null to keep current
+     * @param description new description, or null to keep current
+     * @param gearId     new gear reference, or null to keep current
+     * @return true if the row was found and updated
+     */
+    boolean updateUserFields(UUID activityId, UUID userId,
+                             String name, String description, UUID gearId);
 
     // ── Shared read model ─────────────────────────────────────────────────────
 

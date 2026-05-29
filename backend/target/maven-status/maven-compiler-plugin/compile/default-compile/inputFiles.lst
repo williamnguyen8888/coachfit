@@ -1,7 +1,14 @@
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/CoachFitApplication.java
+/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/activity/adapter/in/ActivityController.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/activity/adapter/in/ActivityExceptionHandler.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/activity/adapter/in/ActivityUploadController.java
+/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/activity/adapter/in/dto/ActivityDetailResponse.java
+/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/activity/adapter/in/dto/ActivityDownloadResponse.java
+/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/activity/adapter/in/dto/ActivityLapsResponse.java
+/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/activity/adapter/in/dto/ActivityListResponse.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/activity/adapter/in/dto/ActivityResponse.java
+/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/activity/adapter/in/dto/ActivityStreamsResponse.java
+/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/activity/adapter/in/dto/ActivityUpdateRequest.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/activity/adapter/in/package-info.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/activity/adapter/out/package-info.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/activity/adapter/out/persistence/ActivityEntity.java
@@ -15,6 +22,13 @@
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/activity/adapter/out/persistence/ActivityStreamPersistenceAdapter.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/activity/adapter/out/storage/MinioActivityStorageAdapter.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/activity/adapter/out/storage/MinioConfig.java
+/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/activity/application/port/in/DeleteActivityUseCase.java
+/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/activity/application/port/in/DownloadActivityUseCase.java
+/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/activity/application/port/in/GetActivityLapsUseCase.java
+/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/activity/application/port/in/GetActivityStreamsUseCase.java
+/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/activity/application/port/in/GetActivityUseCase.java
+/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/activity/application/port/in/ListActivitiesUseCase.java
+/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/activity/application/port/in/UpdateActivityUseCase.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/activity/application/port/in/UploadActivityUseCase.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/activity/application/port/in/package-info.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/activity/application/port/out/ActivityLapPersistencePort.java
@@ -22,6 +36,7 @@
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/activity/application/port/out/ActivityStoragePort.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/activity/application/port/out/ActivityStreamPersistencePort.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/activity/application/port/out/package-info.java
+/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/activity/application/service/ActivityQueryCommandService.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/activity/application/service/ActivityUploadService.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/activity/application/service/package-info.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/activity/application/service/parser/FileFormatDetector.java
