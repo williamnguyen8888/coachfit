@@ -1,23 +1,4 @@
 -------------------------------------------------------------------------------
 Test set: com.coachfit.ApplicationModulesTest
 -------------------------------------------------------------------------------
-Tests run: 1, Failures: 0, Errors: 1, Skipped: 0, Time elapsed: 1.349 s <<< FAILURE! -- in com.coachfit.ApplicationModulesTest
-com.coachfit.ApplicationModulesTest.verifiesModuleBoundaries -- Time elapsed: 1.348 s <<< ERROR!
-org.springframework.modulith.core.Violations: 
-- Module 'sync' depends on module 'auth' via com.coachfit.sync.application.service.StravaActivitySyncService -> com.coachfit.auth.application.port.out.OAuthConnectionPersistencePort. Allowed targets: shared.
-- Module 'sync' depends on module 'auth' via com.coachfit.sync.application.service.StravaActivitySyncService -> com.coachfit.auth.adapter.out.persistence.AesTokenEncryptionUtil. Allowed targets: shared.
-- Module 'sync' depends on module 'auth' via com.coachfit.sync.application.service.StravaActivitySyncService -> com.coachfit.auth.adapter.in.StravaOAuthProperties. Allowed targets: shared.
-- Module 'sync' depends on module 'activity' via com.coachfit.sync.application.service.StravaActivitySyncService -> com.coachfit.activity.application.port.out.ActivityPersistencePort. Allowed targets: shared.
-- Module 'sync' depends on module 'activity' via com.coachfit.sync.application.service.StravaActivitySyncService -> com.coachfit.activity.application.port.out.ActivityStreamPersistencePort. Allowed targets: shared.
-- Module 'sync' depends on module 'activity' via com.coachfit.sync.application.service.StravaActivitySyncService -> com.coachfit.activity.application.port.out.ActivityLapPersistencePort. Allowed targets: shared.
-- Module 'sync' depends on module 'activity' via com.coachfit.sync.application.service.StravaActivitySyncService -> com.coachfit.activity.application.port.out.ActivityStreamPersistencePort$StreamData. Allowed targets: shared.
-- Module 'sync' depends on module 'activity' via com.coachfit.sync.application.service.StravaActivitySyncService -> com.coachfit.activity.application.port.out.ActivityLapPersistencePort$LapData. Allowed targets: shared.
-- Module 'sync' depends on module 'auth' via com.coachfit.sync.application.service.StravaWebhookService -> com.coachfit.auth.adapter.in.StravaOAuthProperties. Allowed targets: shared.
-	at org.springframework.modulith.core.Violations.and(Violations.java:141)
-	at org.springframework.modulith.core.ApplicationModules.detectViolations(ApplicationModules.java:485)
-	at org.springframework.modulith.core.ApplicationModules.verify(ApplicationModules.java:452)
-	at com.coachfit.ApplicationModulesTest.verifiesModuleBoundaries(ApplicationModulesTest.java:10)
-	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
-	at java.base/java.util.ArrayList.forEach(ArrayList.java:1604)
-	at java.base/java.util.ArrayList.forEach(ArrayList.java:1604)
-
+Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.890 s -- in com.coachfit.ApplicationModulesTest

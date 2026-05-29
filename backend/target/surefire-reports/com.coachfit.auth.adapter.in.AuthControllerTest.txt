@@ -1,4 +1,4 @@
 -------------------------------------------------------------------------------
 Test set: com.coachfit.auth.adapter.in.AuthControllerTest
 -------------------------------------------------------------------------------
-Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.162 s -- in com.coachfit.auth.adapter.in.AuthControllerTest
+Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.197 s -- in com.coachfit.auth.adapter.in.AuthControllerTest
