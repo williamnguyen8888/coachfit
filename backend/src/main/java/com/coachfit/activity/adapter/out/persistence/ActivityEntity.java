@@ -1,0 +1,140 @@
+package com.coachfit.activity.adapter.out.persistence;
+
+import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.UUID;
+
+/**
+ * JPA entity mapping the {@code activities} table.
+ */
+@Entity
+@Table(name = "activities")
+class ActivityEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "id", updatable = false, nullable = false)
+    UUID id;
+
+    @Column(name = "user_id", nullable = false)
+    UUID userId;
+
+    @Column(name = "source", nullable = false, length = 20)
+    String source;
+
+    @Column(name = "source_id", length = 255)
+    String sourceId;
+
+    @Column(name = "sport", nullable = false, length = 50)
+    String sport;
+
+    @Column(name = "sub_sport", length = 50)
+    String subSport;
+
+    @Column(name = "name", nullable = false, length = 255)
+    String name;
+
+    @Column(name = "description")
+    String description;
+
+    @Column(name = "started_at", nullable = false)
+    Instant startedAt;
+
+    @Column(name = "duration_seconds", nullable = false)
+    Integer durationSeconds;
+
+    @Column(name = "moving_time_seconds")
+    Integer movingTimeSeconds;
+
+    @Column(name = "distance_meters", precision = 12, scale = 2)
+    BigDecimal distanceMeters;
+
+    @Column(name = "elevation_gain_meters", precision = 8, scale = 2)
+    BigDecimal elevationGainMeters;
+
+    @Column(name = "calories")
+    Integer calories;
+
+    @Column(name = "avg_heart_rate")
+    Integer avgHeartRate;
+
+    @Column(name = "max_heart_rate")
+    Integer maxHeartRate;
+
+    @Column(name = "avg_power")
+    Integer avgPower;
+
+    @Column(name = "max_power")
+    Integer maxPower;
+
+    @Column(name = "normalized_power")
+    Integer normalizedPower;
+
+    @Column(name = "intensity_factor", precision = 4, scale = 3)
+    BigDecimal intensityFactor;
+
+    @Column(name = "tss", precision = 8, scale = 2)
+    BigDecimal tss;
+
+    @Column(name = "avg_cadence")
+    Integer avgCadence;
+
+    @Column(name = "avg_pace", precision = 8, scale = 2)
+    BigDecimal avgPace;
+
+    @Column(name = "avg_speed", precision = 8, scale = 2)
+    BigDecimal avgSpeed;
+
+    @Column(name = "start_lat", precision = 10, scale = 7)
+    BigDecimal startLat;
+
+    @Column(name = "start_lng", precision = 10, scale = 7)
+    BigDecimal startLng;
+
+    @Column(name = "gear_id")
+    UUID gearId;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "weather", columnDefinition = "jsonb")
+    String weather;
+
+    @Column(name = "raw_file_path", length = 512)
+    String rawFilePath;
+
+    @Column(name = "raw_file_format", length = 10)
+    String rawFileFormat;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "extra", nullable = false, columnDefinition = "jsonb")
+    String extra;
+
+    @Column(name = "created_at", nullable = false, updatable = false)
+    Instant createdAt;
+
+    @Column(name = "updated_at", nullable = false)
+    Instant updatedAt;
+
+    @Column(name = "deleted_at")
+    Instant deletedAt;
+
+    protected ActivityEntity() {}
+
+    ActivityEntity(UUID userId, String source, String sourceId, String sport,
+                   String name, Instant startedAt, int durationSeconds) {
+        this.userId          = userId;
+        this.source          = source;
+        this.sourceId        = sourceId;
+        this.sport           = sport;
+        this.name            = name;
+        this.startedAt       = startedAt;
+        this.durationSeconds = durationSeconds;
+        this.extra           = "{}";
+        Instant now          = Instant.now();
+        this.createdAt       = now;
+        this.updatedAt       = now;
+    }
+}
