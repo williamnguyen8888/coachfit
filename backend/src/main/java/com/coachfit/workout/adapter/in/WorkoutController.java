@@ -1,6 +1,7 @@
 package com.coachfit.workout.adapter.in;
 
 import com.coachfit.shared.adapter.in.security.jwt.UserPrincipal;
+import com.coachfit.workout.adapter.in.dto.FitExportResponse;
 import com.coachfit.workout.adapter.in.dto.WorkoutDetailResponse;
 import com.coachfit.workout.adapter.in.dto.WorkoutListResponse;
 import com.coachfit.workout.adapter.in.dto.WorkoutRequest;
@@ -8,6 +9,7 @@ import com.coachfit.workout.adapter.in.dto.WorkoutTemplateListResponse;
 import com.coachfit.workout.application.port.in.CreateWorkoutUseCase;
 import com.coachfit.workout.application.port.in.CreateWorkoutUseCase.CreateCommand;
 import com.coachfit.workout.application.port.in.DeleteWorkoutUseCase;
+import com.coachfit.workout.application.port.in.ExportFitUseCase;
 import com.coachfit.workout.application.port.in.GetWorkoutUseCase;
 import com.coachfit.workout.application.port.in.ListWorkoutTemplatesUseCase;
 import com.coachfit.workout.application.port.in.ListWorkoutsUseCase;
@@ -41,6 +43,7 @@ import java.util.UUID;
  * POST   /api/v1/workouts               — create a new workout
  * PUT    /api/v1/workouts/{id}          — full replacement update
  * DELETE /api/v1/workouts/{id}          — soft delete
+ * GET    /api/v1/workouts/{id}/export/fit — export as .FIT file (💎 Pro)
  * </pre>
  *
  * <p>All endpoints except {@code GET /workouts/templates} require authentication.
@@ -62,19 +65,22 @@ public class WorkoutController {
     private final UpdateWorkoutUseCase        updateUseCase;
     private final DeleteWorkoutUseCase        deleteUseCase;
     private final ListWorkoutTemplatesUseCase templatesUseCase;
+    private final ExportFitUseCase            exportFitUseCase;
 
     public WorkoutController(ListWorkoutsUseCase listUseCase,
                              GetWorkoutUseCase getUseCase,
                              CreateWorkoutUseCase createUseCase,
                              UpdateWorkoutUseCase updateUseCase,
                              DeleteWorkoutUseCase deleteUseCase,
-                             ListWorkoutTemplatesUseCase templatesUseCase) {
+                             ListWorkoutTemplatesUseCase templatesUseCase,
+                             ExportFitUseCase exportFitUseCase) {
         this.listUseCase      = listUseCase;
         this.getUseCase       = getUseCase;
         this.createUseCase    = createUseCase;
         this.updateUseCase    = updateUseCase;
         this.deleteUseCase    = deleteUseCase;
         this.templatesUseCase = templatesUseCase;
+        this.exportFitUseCase = exportFitUseCase;
     }
 
     // ── GET /workouts/templates ───────────────────────────────────────────────
@@ -226,6 +232,33 @@ public class WorkoutController {
 
         deleteUseCase.delete(principal.getUserId(), id);
         return ResponseEntity.noContent().build();
+    }
+
+    // ── GET /workouts/{id}/export/fit ──────────────────────────────────
+
+    /**
+     * Exports the workout as a Garmin .FIT file and returns a pre-signed 24-hour download URL.
+     *
+     * <p>The FIT file is generated on each call and stored in MinIO {@code workout-exports}
+     * bucket.  Repeated exports overwrite the previous object (same key pattern).
+     *
+     * <p>Response 200:
+     * <pre>{@code
+     * {
+     *   "downloadUrl": "https://...",
+     *   "filename": "Tempo_Intervals.fit"
+     * }
+     * }</pre>
+     *
+     * <p>The caller should initiate a file download using {@code downloadUrl}.
+     */
+    @GetMapping("/{id}/export/fit")
+    public ResponseEntity<FitExportResponse> exportFit(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+
+        ExportFitUseCase.FitExportResult result = exportFitUseCase.exportFit(principal.getUserId(), id);
+        return ResponseEntity.ok(FitExportResponse.from(result));
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

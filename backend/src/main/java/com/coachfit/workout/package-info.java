@@ -1,7 +1,7 @@
 @ApplicationModule(
         id = "workout",
         displayName = "Workout",
-        allowedDependencies = { "shared" }
+        allowedDependencies = { "shared", "athlete::api", "athlete::model" }
 )
 package com.coachfit.workout;
 

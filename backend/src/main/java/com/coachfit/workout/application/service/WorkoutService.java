@@ -1,13 +1,19 @@
 package com.coachfit.workout.application.service;
 
+import com.coachfit.athlete.application.port.in.GetSportZonesUseCase;
+import com.coachfit.athlete.domain.model.SportZone;
 import com.coachfit.workout.application.port.in.CreateWorkoutUseCase;
 import com.coachfit.workout.application.port.in.DeleteWorkoutUseCase;
+import com.coachfit.workout.application.port.in.ExportFitUseCase;
 import com.coachfit.workout.application.port.in.GetWorkoutUseCase;
 import com.coachfit.workout.application.port.in.ListWorkoutTemplatesUseCase;
 import com.coachfit.workout.application.port.in.ListWorkoutsUseCase;
 import com.coachfit.workout.application.port.in.UpdateWorkoutUseCase;
+import com.coachfit.workout.application.port.out.WorkoutExportStoragePort;
 import com.coachfit.workout.application.port.out.WorkoutPersistencePort;
+import com.coachfit.workout.domain.FitEncoder;
 import com.coachfit.workout.domain.WorkoutStepsValidator;
+import com.coachfit.workout.domain.ZoneContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -17,6 +23,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 /**
  * Application service implementing all workout use cases.
@@ -37,16 +44,33 @@ public class WorkoutService
                    CreateWorkoutUseCase,
                    UpdateWorkoutUseCase,
                    DeleteWorkoutUseCase,
-                   ListWorkoutTemplatesUseCase {
+                   ListWorkoutTemplatesUseCase,
+                   ExportFitUseCase {
 
     private static final Logger log = LoggerFactory.getLogger(WorkoutService.class);
 
-    private final WorkoutPersistencePort port;
-    private final WorkoutStepsValidator  validator;
+    /** Strips characters that are unsafe in filenames. */
+    private static final Pattern UNSAFE_FILENAME_CHARS = Pattern.compile("[^a-zA-Z0-9._-]");
 
-    public WorkoutService(WorkoutPersistencePort port, WorkoutStepsValidator validator) {
-        this.port      = port;
-        this.validator = validator;
+    /** Pre-signed URL validity — 24 hours. */
+    private static final int EXPORT_URL_EXPIRY_SECONDS = 86_400;
+
+    private final WorkoutPersistencePort  port;
+    private final WorkoutStepsValidator   validator;
+    private final GetSportZonesUseCase    sportZonesUseCase;
+    private final FitEncoder              fitEncoder;
+    private final WorkoutExportStoragePort exportStorage;
+
+    public WorkoutService(WorkoutPersistencePort port,
+                          WorkoutStepsValidator validator,
+                          GetSportZonesUseCase sportZonesUseCase,
+                          FitEncoder fitEncoder,
+                          WorkoutExportStoragePort exportStorage) {
+        this.port              = port;
+        this.validator         = validator;
+        this.sportZonesUseCase = sportZonesUseCase;
+        this.fitEncoder        = fitEncoder;
+        this.exportStorage     = exportStorage;
     }
 
     // ── ListWorkoutsUseCase ───────────────────────────────────────────────────
@@ -136,6 +160,62 @@ public class WorkoutService
         }
         log.info("Workout soft-deleted: id={} user={}", workoutId, userId);
     }
+
+    // ── ExportFitUseCase ──────────────────────────────────────────────────────
+
+    @Override
+    public FitExportResult exportFit(UUID userId, UUID workoutId) {
+        // 1. Load workout (enforces ownership / 404)
+        WorkoutDetail workout = get(userId, workoutId);
+
+        // 2. Resolve zone context — extract FTP and LTHR from user's sport zones
+        ZoneContext zoneContext = buildZoneContext(userId, workout.sport());
+
+        // 3. Encode into FIT binary
+        byte[] fitBytes = fitEncoder.encode(workout, zoneContext);
+
+        // 4. Store in MinIO workout-exports bucket
+        String objectKey = exportStorage.store(userId, workoutId, fitBytes);
+
+        // 5. Generate pre-signed 24h download URL
+        String downloadUrl = exportStorage.generateDownloadUrl(objectKey, EXPORT_URL_EXPIRY_SECONDS);
+
+        // 6. Build a safe filename from the workout name
+        String safeName = UNSAFE_FILENAME_CHARS.matcher(workout.name()).replaceAll("_");
+        String filename  = safeName + ".fit";
+
+        log.info("FIT export: workout={} user={} bytes={}", workoutId, userId, fitBytes.length);
+        return new FitExportResult(downloadUrl, objectKey, filename);
+    }
+
+    /**
+     * Extracts FTP and LTHR from the athlete's zone list and wraps them in a {@link ZoneContext}.
+     * Falls back to {@link ZoneContext#defaults()} values if zones are absent or unconfigured.
+     */
+    private ZoneContext buildZoneContext(UUID userId, String sport) {
+        var zones = sportZonesUseCase.getZones(userId);
+
+        int ftp = zones.stream()
+                .filter(z -> sport != null
+                        && sport.equalsIgnoreCase(z.sport())
+                        && "power".equalsIgnoreCase(z.zoneType())
+                        && z.ftp() != null)
+                .mapToInt(z -> z.ftp())
+                .findFirst()
+                .orElse(200);
+
+        int lthr = zones.stream()
+                .filter(z -> sport != null
+                        && sport.equalsIgnoreCase(z.sport())
+                        && "heart_rate".equalsIgnoreCase(z.zoneType())
+                        && z.lthr() != null)
+                .mapToInt(z -> z.lthr())
+                .findFirst()
+                .orElse(160);
+
+        return new ZoneContext(ftp, lthr);
+    }
+
 
     // ── ListWorkoutTemplatesUseCase ───────────────────────────────────────────
 
