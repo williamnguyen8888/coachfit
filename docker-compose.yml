@@ -26,22 +26,22 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: prod,api
       DATABASE_URL: jdbc:postgresql://postgres:5432/coachfit
-      DATABASE_USERNAME: ${DB_USER}
-      DATABASE_PASSWORD: ${DB_PASSWORD}
+      DATABASE_USERNAME: ${DB_USER:-coachfit}
+      DATABASE_PASSWORD: ${DB_PASSWORD:-change-me}
       REDIS_HOST: redis
       REDIS_PORT: 6379
       MINIO_ENDPOINT: http://minio:9000
-      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
-      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
-      STRAVA_CLIENT_ID: ${STRAVA_CLIENT_ID}
-      STRAVA_CLIENT_SECRET: ${STRAVA_CLIENT_SECRET}
-      STRAVA_WEBHOOK_VERIFY_TOKEN: ${STRAVA_WEBHOOK_VERIFY_TOKEN}
-      GARMIN_CONSUMER_KEY: ${GARMIN_CONSUMER_KEY}
-      GARMIN_CONSUMER_SECRET: ${GARMIN_CONSUMER_SECRET}
-      JWT_SECRET: ${JWT_SECRET}
-      OAUTH_ENCRYPTION_KEY: ${OAUTH_ENCRYPTION_KEY}
-      APP_URL: ${APP_URL}
-      API_URL: ${API_URL}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
+      STRAVA_CLIENT_ID: ${STRAVA_CLIENT_ID:-}
+      STRAVA_CLIENT_SECRET: ${STRAVA_CLIENT_SECRET:-}
+      STRAVA_WEBHOOK_VERIFY_TOKEN: ${STRAVA_WEBHOOK_VERIFY_TOKEN:-}
+      GARMIN_CONSUMER_KEY: ${GARMIN_CONSUMER_KEY:-}
+      GARMIN_CONSUMER_SECRET: ${GARMIN_CONSUMER_SECRET:-}
+      JWT_SECRET: ${JWT_SECRET:-change-me}
+      OAUTH_ENCRYPTION_KEY: ${OAUTH_ENCRYPTION_KEY:-change-me}
+      APP_URL: ${APP_URL:-https://coachfit.app}
+      API_URL: ${API_URL:-https://api.coachfit.app}
     depends_on:
       postgres:
         condition: service_healthy
@@ -68,22 +68,22 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: prod,worker
       DATABASE_URL: jdbc:postgresql://postgres:5432/coachfit
-      DATABASE_USERNAME: ${DB_USER}
-      DATABASE_PASSWORD: ${DB_PASSWORD}
+      DATABASE_USERNAME: ${DB_USER:-coachfit}
+      DATABASE_PASSWORD: ${DB_PASSWORD:-change-me}
       REDIS_HOST: redis
       REDIS_PORT: 6379
       MINIO_ENDPOINT: http://minio:9000
-      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
-      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
-      STRAVA_CLIENT_ID: ${STRAVA_CLIENT_ID}
-      STRAVA_CLIENT_SECRET: ${STRAVA_CLIENT_SECRET}
-      STRAVA_WEBHOOK_VERIFY_TOKEN: ${STRAVA_WEBHOOK_VERIFY_TOKEN}
-      GARMIN_CONSUMER_KEY: ${GARMIN_CONSUMER_KEY}
-      GARMIN_CONSUMER_SECRET: ${GARMIN_CONSUMER_SECRET}
-      JWT_SECRET: ${JWT_SECRET}
-      OAUTH_ENCRYPTION_KEY: ${OAUTH_ENCRYPTION_KEY}
-      APP_URL: ${APP_URL}
-      API_URL: ${API_URL}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
+      STRAVA_CLIENT_ID: ${STRAVA_CLIENT_ID:-}
+      STRAVA_CLIENT_SECRET: ${STRAVA_CLIENT_SECRET:-}
+      STRAVA_WEBHOOK_VERIFY_TOKEN: ${STRAVA_WEBHOOK_VERIFY_TOKEN:-}
+      GARMIN_CONSUMER_KEY: ${GARMIN_CONSUMER_KEY:-}
+      GARMIN_CONSUMER_SECRET: ${GARMIN_CONSUMER_SECRET:-}
+      JWT_SECRET: ${JWT_SECRET:-change-me}
+      OAUTH_ENCRYPTION_KEY: ${OAUTH_ENCRYPTION_KEY:-change-me}
+      APP_URL: ${APP_URL:-https://coachfit.app}
+      API_URL: ${API_URL:-https://api.coachfit.app}
     depends_on:
       postgres:
         condition: service_healthy
@@ -103,12 +103,12 @@ services:
       - postgres_data:/var/lib/postgresql/data
     environment:
       POSTGRES_DB: coachfit
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_USER: ${DB_USER:-coachfit}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-change-me}
     ports:
       - "127.0.0.1:5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-coachfit}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -131,8 +131,8 @@ services:
       - "127.0.0.1:9000:9000"
       - "127.0.0.1:9001:9001"
     environment:
-      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
-      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin}
     command: server /data --console-address ":9001"
     restart: unless-stopped
 

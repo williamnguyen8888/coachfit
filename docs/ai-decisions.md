@@ -11,6 +11,7 @@ Date: 2026-05-29
 5. Added `application-api.yml` and `application-worker.yml` so the worker can run without starting the HTTP server while still sharing the same codebase.
 6. Left Flyway enabled but without business migrations so the scaffold is ready for schema work without prematurely defining tables.
 7. Corrected the production compose dependency to `backend-api` for the frontend service because the deployment doc lists `backend-api` as the actual service name.
+8. Added repo-local Maven settings plus a binary Maven wrapper because the machine-global Maven settings pointed to an unreachable mirror.
 
 ## Follow-up expected in later backend tickets
 
