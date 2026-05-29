@@ -28,4 +28,15 @@ public interface UserPersistencePort {
      * @param passwordHash BCrypt hash, or {@code null} for OAuth-only accounts
      */
     AuthUser createUser(String email, String fullName, String passwordHash);
+
+    /**
+     * Partially updates mutable user fields. {@code null} arguments are ignored (not overwritten).
+     *
+     * <p>Used by the athlete module to patch {@code users.full_name} and
+     * {@code users.settings} without importing the auth JPA entity.
+     *
+     * @param fullName nullable — updates {@code full_name} if non-null
+     * @param settings nullable — raw JSON string, updates {@code settings} if non-null
+     */
+    void updateUserFields(UUID userId, String fullName, String settings);
 }

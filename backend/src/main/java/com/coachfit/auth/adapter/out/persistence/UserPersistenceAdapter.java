@@ -69,6 +69,21 @@ class UserPersistenceAdapter implements UserPersistencePort {
         return toDomain(entity, "free");
     }
 
+    @Override
+    @Transactional
+    public void updateUserFields(UUID userId, String fullName, String settings) {
+        // Build a dynamic SET clause: only update non-null fields.
+        StringBuilder sql = new StringBuilder("UPDATE users SET updated_at = now()");
+        if (fullName != null) sql.append(", full_name = :fullName");
+        if (settings != null) sql.append(", settings  = :settings::jsonb");
+        sql.append(" WHERE id = :id AND deleted_at IS NULL");
+
+        var stmt = jdbcClient.sql(sql.toString()).param("id", userId);
+        if (fullName != null) stmt = stmt.param("fullName", fullName);
+        if (settings != null) stmt = stmt.param("settings", settings);
+        stmt.update();
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private String loadTier(UUID userId) {
