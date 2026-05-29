@@ -11,6 +11,7 @@ com/coachfit/athlete/package-info.class
 com/coachfit/auth/domain/exception/TokenExpiredException.class
 com/coachfit/sync/adapter/out/package-info.class
 com/coachfit/shared/adapter/in/security/featuregate/RequiresTier.class
+com/coachfit/activity/application/service/parser/FitParser$1.class
 com/coachfit/dashboard/package-info.class
 com/coachfit/activity/package-info.class
 com/coachfit/workout/domain/package-info.class
@@ -35,6 +36,7 @@ com/coachfit/sync/application/port/in/package-info.class
 com/coachfit/gear/domain/package-info.class
 com/coachfit/CoachFitApplication.class
 com/coachfit/workout/adapter/in/package-info.class
+com/coachfit/activity/application/service/ActivityUploadService$1.class
 com/coachfit/wellness/application/port/in/package-info.class
 com/coachfit/calendar/application/port/out/package-info.class
 com/coachfit/auth/application/service/GoogleOAuthService$GoogleTokenRequest.class

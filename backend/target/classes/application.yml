@@ -1,6 +1,10 @@
 spring:
   application:
     name: coachfit-backend
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 51MB
   datasource:
     url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/coachfit}
     username: ${DATABASE_USERNAME:${DB_USER:coachfit}}
