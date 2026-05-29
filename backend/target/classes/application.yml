@@ -16,6 +16,22 @@ spring:
   threads:
     virtual:
       enabled: true
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID:}
+            client-secret: ${GOOGLE_CLIENT_SECRET:}
+            redirect-uri: ${API_URL:http://localhost:8080}/api/v1/auth/oauth/google/callback
+            scope: openid,email,profile
+        provider:
+          google:
+            authorization-uri: https://accounts.google.com/o/oauth2/v2/auth
+            token-uri: https://oauth2.googleapis.com/token
+            user-info-uri: https://openidconnect.googleapis.com/v1/userinfo
+            jwk-set-uri: https://www.googleapis.com/oauth2/v3/certs
+            user-name-attribute: sub
 
 server:
   port: ${SERVER_PORT:8080}
@@ -43,10 +59,13 @@ app:
     workout-exports-bucket: ${MINIO_WORKOUT_EXPORTS_BUCKET:workout-exports}
     backups-bucket: ${MINIO_BACKUPS_BUCKET:backups}
   security:
-    jwt-secret: ${JWT_SECRET:change-me}
-    oauth-encryption-key: ${OAUTH_ENCRYPTION_KEY:change-me}
+    jwt-secret: ${JWT_SECRET:change-me-this-must-be-at-least-32-chars}
+    oauth-encryption-key: ${OAUTH_ENCRYPTION_KEY:change-me-32-bytes-aes-key-padded!}
     jwt-expiration-ms: ${JWT_EXPIRATION_MS:3600000}         # 1 hour
     refresh-expiration-ms: ${REFRESH_EXPIRATION_MS:2592000000} # 30 days
+    refresh-cookie-secure: ${REFRESH_COOKIE_SECURE:true}
+  google:
+    callback-url: ${API_URL:http://localhost:8080}/api/v1/auth/oauth/google/callback
   providers:
     strava:
       client-id: ${STRAVA_CLIENT_ID:}
@@ -55,3 +74,4 @@ app:
     garmin:
       consumer-key: ${GARMIN_CONSUMER_KEY:}
       consumer-secret: ${GARMIN_CONSUMER_SECRET:}
+

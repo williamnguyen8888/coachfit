@@ -12,3 +12,7 @@ logging:
   level:
     root: INFO
     com.coachfit: DEBUG
+
+app:
+  security:
+    refresh-cookie-secure: false  # HTTP is fine in local dev

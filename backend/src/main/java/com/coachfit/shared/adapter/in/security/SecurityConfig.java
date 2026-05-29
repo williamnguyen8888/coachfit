@@ -24,6 +24,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.client.RestClient;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -75,6 +76,12 @@ class SecurityConfig {
             // ── Stateless: no sessions, no CSRF ──────────────────────────────
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .csrf(AbstractHttpConfigurer::disable)
+
+            // ── Disable Spring Boot's auto-configured OAuth2 login filter ─────
+            // We implement a custom OIDC flow in auth.adapter.in.GoogleOAuthController.
+            // This prevents the /oauth2/authorization/* and /login/oauth2/code/* endpoints
+            // from being activated while still allowing ClientRegistrationRepository to work.
+            .oauth2Login(AbstractHttpConfigurer::disable)
 
             // ── CORS ─────────────────────────────────────────────────────────
             .cors(cors -> cors.configurationSource(corsConfigurationSource))
@@ -189,5 +196,16 @@ class SecurityConfig {
     @Bean
     PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder(12);
+    }
+
+    // ── RestClient ────────────────────────────────────────────────────────────
+
+    /**
+     * Shared {@link RestClient} instance used by {@code GoogleOAuthService}
+     * to call Google's token and userinfo endpoints.
+     */
+    @Bean
+    RestClient restClient() {
+        return RestClient.create();
     }
 }
