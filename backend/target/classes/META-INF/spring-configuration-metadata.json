@@ -6,6 +6,11 @@
       "sourceType": "com.coachfit.auth.adapter.in.GoogleOAuthProperties"
     },
     {
+      "name": "app.providers.garmin",
+      "type": "com.coachfit.auth.adapter.in.GarminOAuthProperties",
+      "sourceType": "com.coachfit.auth.adapter.in.GarminOAuthProperties"
+    },
+    {
       "name": "app.providers.strava",
       "type": "com.coachfit.auth.adapter.in.StravaOAuthProperties",
       "sourceType": "com.coachfit.auth.adapter.in.StravaOAuthProperties"
@@ -16,6 +21,21 @@
       "name": "app.google.callback-url",
       "type": "java.lang.String",
       "sourceType": "com.coachfit.auth.adapter.in.GoogleOAuthProperties"
+    },
+    {
+      "name": "app.providers.garmin.consumer-key",
+      "type": "java.lang.String",
+      "sourceType": "com.coachfit.auth.adapter.in.GarminOAuthProperties"
+    },
+    {
+      "name": "app.providers.garmin.consumer-secret",
+      "type": "java.lang.String",
+      "sourceType": "com.coachfit.auth.adapter.in.GarminOAuthProperties"
+    },
+    {
+      "name": "app.providers.garmin.redirect-uri",
+      "type": "java.lang.String",
+      "sourceType": "com.coachfit.auth.adapter.in.GarminOAuthProperties"
     },
     {
       "name": "app.providers.strava.client-id",

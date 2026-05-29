@@ -66,6 +66,47 @@ class OAuthConnectionPersistenceAdapter implements OAuthConnectionPersistencePor
     }
 
     @Override
+    @Transactional
+    public void upsertWithSecret(UUID userId,
+                                 String provider,
+                                 String providerUserId,
+                                 String encryptedAccessToken,
+                                 String encryptedRefreshToken,
+                                 String encryptedTokenSecret,
+                                 Instant tokenExpiresAt,
+                                 String[] scopes) {
+
+        String scopeArray = buildPgArray(scopes);
+
+        jdbcClient.sql("""
+                INSERT INTO oauth_connections
+                    (id, user_id, provider, provider_user_id,
+                     access_token, refresh_token, access_token_secret, token_expires_at, scopes,
+                     sync_status, push_enabled, created_at, updated_at)
+                VALUES
+                    (gen_random_uuid(), :userId, :provider, :providerUserId,
+                     :accessToken, :refreshToken, :tokenSecret, :expiresAt, """ + scopeArray + """
+                ::text[],
+                     'active', true, now(), now())
+                ON CONFLICT (user_id, provider) DO UPDATE SET
+                    access_token        = EXCLUDED.access_token,
+                    refresh_token       = EXCLUDED.refresh_token,
+                    access_token_secret = EXCLUDED.access_token_secret,
+                    token_expires_at    = EXCLUDED.token_expires_at,
+                    push_enabled        = true,
+                    updated_at          = now()
+                """)
+                .param("userId",         userId)
+                .param("provider",       provider)
+                .param("providerUserId", providerUserId)
+                .param("accessToken",    encryptedAccessToken)
+                .param("refreshToken",   encryptedRefreshToken)
+                .param("tokenSecret",    encryptedTokenSecret)
+                .param("expiresAt",      tokenExpiresAt)
+                .update();
+    }
+
+    @Override
     public Optional<UUID> findUserIdByProviderAndProviderId(String provider, String providerUserId) {
         return jdbcClient.sql("""
                 SELECT user_id FROM oauth_connections
@@ -94,6 +135,20 @@ class OAuthConnectionPersistenceAdapter implements OAuthConnectionPersistencePor
                         rs.getTimestamp("token_expires_at") != null
                                 ? rs.getTimestamp("token_expires_at").toInstant()
                                 : null))
+                .optional();
+    }
+
+    @Override
+    public Optional<String> findTokenSecretByUserAndProvider(UUID userId, String provider) {
+        return jdbcClient.sql("""
+                SELECT access_token_secret
+                  FROM oauth_connections
+                 WHERE user_id  = :userId
+                   AND provider = :provider
+                """)
+                .param("userId",   userId)
+                .param("provider", provider)
+                .query(String.class)
                 .optional();
     }
 

@@ -24,6 +24,30 @@ public interface OAuthConnectionPersistencePort {
                 String[] scopes);
 
     /**
+     * Upserts an OAuth connection that also carries a token secret (OAuth 1.0a, e.g. Garmin).
+     *
+     * <p>The {@code encryptedTokenSecret} is stored in the {@code access_token_secret} column.
+     * For OAuth 1.0a, {@code encryptedRefreshToken} and {@code tokenExpiresAt} are {@code null}
+     * because Garmin tokens never expire and there is no refresh flow.
+     */
+    void upsertWithSecret(UUID userId,
+                          String provider,
+                          String providerUserId,
+                          String encryptedAccessToken,
+                          String encryptedRefreshToken, // null for OAuth 1.0a
+                          String encryptedTokenSecret,  // OAuth 1.0a token secret
+                          Instant tokenExpiresAt,        // null for OAuth 1.0a
+                          String[] scopes);
+
+    /**
+     * Loads the raw (encrypted) access_token_secret for a user + provider pair.
+     * Required for signing OAuth 1.0a requests (e.g. Garmin Health API calls).
+     *
+     * @return the encrypted token secret, or empty if not present / not applicable
+     */
+    Optional<String> findTokenSecretByUserAndProvider(UUID userId, String provider);
+
+    /**
      * Looks up the CoachFit user ID for a given OAuth provider identity.
      * Used on callback to detect returning users without loading the full user.
      */
