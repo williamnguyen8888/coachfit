@@ -1,48 +1,31 @@
 {
   "groups": [
     {
-      "name": "app",
-      "type": "com.coachfit.shared.adapter.in.security.CorsProperties",
-      "sourceType": "com.coachfit.shared.adapter.in.security.CorsProperties"
-    },
-    {
-      "name": "app.google",
-      "type": "com.coachfit.auth.adapter.in.GoogleOAuthProperties",
-      "sourceType": "com.coachfit.auth.adapter.in.GoogleOAuthProperties"
-    },
-    {
-      "name": "app.security",
-      "type": "com.coachfit.shared.adapter.in.security.jwt.JwtProperties",
-      "sourceType": "com.coachfit.shared.adapter.in.security.jwt.JwtProperties"
+      "name": "app.providers.strava",
+      "type": "com.coachfit.auth.adapter.in.StravaOAuthProperties",
+      "sourceType": "com.coachfit.auth.adapter.in.StravaOAuthProperties"
     }
   ],
   "properties": [
     {
-      "name": "app.google.callback-url",
+      "name": "app.providers.strava.client-id",
       "type": "java.lang.String",
-      "sourceType": "com.coachfit.auth.adapter.in.GoogleOAuthProperties"
+      "sourceType": "com.coachfit.auth.adapter.in.StravaOAuthProperties"
     },
     {
-      "name": "app.security.jwt-expiration-ms",
-      "type": "java.lang.Long",
-      "sourceType": "com.coachfit.shared.adapter.in.security.jwt.JwtProperties",
-      "defaultValue": 0
-    },
-    {
-      "name": "app.security.jwt-secret",
+      "name": "app.providers.strava.client-secret",
       "type": "java.lang.String",
-      "sourceType": "com.coachfit.shared.adapter.in.security.jwt.JwtProperties"
+      "sourceType": "com.coachfit.auth.adapter.in.StravaOAuthProperties"
     },
     {
-      "name": "app.security.refresh-expiration-ms",
-      "type": "java.lang.Long",
-      "sourceType": "com.coachfit.shared.adapter.in.security.jwt.JwtProperties",
-      "defaultValue": 0
-    },
-    {
-      "name": "app.url",
+      "name": "app.providers.strava.redirect-uri",
       "type": "java.lang.String",
-      "sourceType": "com.coachfit.shared.adapter.in.security.CorsProperties"
+      "sourceType": "com.coachfit.auth.adapter.in.StravaOAuthProperties"
+    },
+    {
+      "name": "app.providers.strava.webhook-verify-token",
+      "type": "java.lang.String",
+      "sourceType": "com.coachfit.auth.adapter.in.StravaOAuthProperties"
     }
   ],
   "hints": []
