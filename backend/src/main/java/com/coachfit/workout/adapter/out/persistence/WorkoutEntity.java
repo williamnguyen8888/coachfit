@@ -10,6 +10,10 @@ import java.util.UUID;
 
 /**
  * JPA entity mapping the {@code workouts} table.
+ *
+ * <p>The {@code steps} column is stored as JSONB and surfaced as a raw JSON
+ * string — the domain validator handles structural checking before writes,
+ * and the raw string is returned as-is to API clients.
  */
 @Entity
 @Table(name = "workouts")
@@ -20,7 +24,8 @@ class WorkoutEntity {
     @Column(name = "id", updatable = false, nullable = false)
     UUID id;
 
-    @Column(name = "user_id")   // nullable = system template
+    /** Null means system template. */
+    @Column(name = "user_id")
     UUID userId;
 
     @Column(name = "name", nullable = false, length = 255)
@@ -38,6 +43,7 @@ class WorkoutEntity {
     @Column(name = "estimated_tss", precision = 6, scale = 2)
     BigDecimal estimatedTss;
 
+    /** Full workout structure as JSONB. */
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "steps", nullable = false, columnDefinition = "jsonb")
     String steps;
@@ -52,7 +58,7 @@ class WorkoutEntity {
     boolean isPublic;
 
     @Column(name = "source", nullable = false, length = 20)
-    String source;   // user / system / coach / import
+    String source;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     Instant createdAt;
@@ -65,16 +71,22 @@ class WorkoutEntity {
 
     protected WorkoutEntity() {}
 
-    WorkoutEntity(UUID userId, String name, String sport, String steps) {
-        this.userId    = userId;
-        this.name      = name;
-        this.sport     = sport;
-        this.steps     = steps;
-        this.isTemplate = false;
-        this.isPublic   = false;
-        this.source     = "user";
-        Instant now     = Instant.now();
-        this.createdAt  = now;
-        this.updatedAt  = now;
+    WorkoutEntity(UUID userId, String name, String sport, String description,
+                  String steps, String[] tags, boolean isTemplate, boolean isPublic,
+                  String source, Integer estimatedDurationSeconds, BigDecimal estimatedTss) {
+        this.userId                   = userId;
+        this.name                     = name;
+        this.sport                    = sport;
+        this.description              = description;
+        this.steps                    = steps;
+        this.tags                     = tags;
+        this.isTemplate               = isTemplate;
+        this.isPublic                 = isPublic;
+        this.source                   = source;
+        this.estimatedDurationSeconds = estimatedDurationSeconds;
+        this.estimatedTss             = estimatedTss;
+        Instant now    = Instant.now();
+        this.createdAt = now;
+        this.updatedAt = now;
     }
 }
