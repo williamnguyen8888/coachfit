@@ -1,0 +1,14 @@
+spring:
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/coachfit_dev}
+    username: ${DATABASE_USERNAME:${DB_USER:coachfit}}
+    password: ${DATABASE_PASSWORD:${DB_PASSWORD:dev_password}}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+
+logging:
+  level:
+    root: INFO
+    com.coachfit: DEBUG
