@@ -386,7 +386,7 @@ export function InteractiveMultiLaneChart({
 
   if (!mounted) {
     return (
-      <div className="h-[250px] bg-bg-surface border border-border-subtle rounded-lg flex items-center justify-center">
+      <div className="h-[250px] flex items-center justify-center">
         <span className="text-xs text-text-muted animate-pulse">Loading telemetry charts...</span>
       </div>
     );
@@ -394,7 +394,7 @@ export function InteractiveMultiLaneChart({
 
   if (!points || points.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center p-12 bg-bg-surface border border-border-subtle rounded-lg text-text-muted">
+      <div className="flex flex-col items-center justify-center p-12 text-text-muted">
         <Info size={32} className="mb-2 text-text-muted opacity-60" />
         <p className="text-sm font-medium">No activity telemetry streams available.</p>
       </div>
@@ -402,7 +402,7 @@ export function InteractiveMultiLaneChart({
   }
 
   return (
-    <div className="flex flex-col gap-3 sm:gap-4 bg-bg-surface border border-border-subtle rounded-lg sm:rounded-xl p-2.5 sm:p-5 shadow-sm sm:shadow-lg select-none">
+    <div className="flex flex-col gap-3 sm:gap-4 select-none">
       
       {/* Toggles and Zoom Controls */}
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border-subtle pb-4">

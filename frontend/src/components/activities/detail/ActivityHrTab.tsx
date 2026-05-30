@@ -425,11 +425,11 @@ export function ActivityHrTab({
             </div>
             <div className="flex flex-col gap-0.5">
               <span className="text-[10px] text-text-muted font-bold uppercase">Est. Load (HRSS)</span>
-              <span className="text-sm font-extrabold text-color-accent font-mono">{estimatedLoad}</span>
+              <span className="text-sm font-extrabold text-accent font-mono">{estimatedLoad}</span>
             </div>
             <div className="flex flex-col gap-0.5">
               <span className="text-[10px] text-text-muted font-bold uppercase">Actual Load</span>
-              <span className="text-sm font-extrabold text-color-success font-mono">{actualLoad}</span>
+              <span className="text-sm font-extrabold text-success font-mono">{actualLoad}</span>
             </div>
           </div>
         </div>

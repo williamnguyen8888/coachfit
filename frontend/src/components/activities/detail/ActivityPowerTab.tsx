@@ -482,7 +482,7 @@ export function ActivityPowerTab({
           <div className="bg-bg-surface border border-border-subtle rounded-lg p-3 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-xs">
             <div className="flex flex-col gap-1">
               <div className="flex items-center gap-1.5 text-text-primary font-bold">
-                <Info size={14} className="text-color-accent" />
+                <Info size={14} className="text-accent" />
                 Aerobic Decoupling: Comparing first and second halves of the ride
               </div>
               <p className="text-text-muted leading-relaxed max-w-3xl mt-0.5">

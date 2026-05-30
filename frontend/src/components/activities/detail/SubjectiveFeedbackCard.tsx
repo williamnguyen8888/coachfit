@@ -38,13 +38,8 @@ export function SubjectiveFeedbackCard({ sport }: SubjectiveFeedbackCardProps) {
   };
 
   return (
-    <div 
-      className="bg-bg-surface border border-border-subtle rounded-lg sm:rounded-xl p-3.5 sm:p-5 shadow-sm sm:shadow-lg flex flex-col gap-4"
-      style={{
-        background: "linear-gradient(135deg, var(--bg-surface) 0%, rgba(124, 58, 237, 0.03) 100%)"
-      }}
-    >
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-border-subtle pb-3">
+    <div className="flex flex-col gap-4 pb-5 border-b border-border-subtle">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-border-subtle/50 pb-3">
         <div className="flex items-center gap-2">
           <span className="text-base">💬</span>
           <h2 style={{ fontSize: "14px", fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
@@ -52,7 +47,7 @@ export function SubjectiveFeedbackCard({ sport }: SubjectiveFeedbackCardProps) {
           </h2>
         </div>
         <div className="text-[10px] uppercase font-bold tracking-wider text-text-muted">
-          Sport: <span className="text-color-accent">{sport}</span>
+          Sport: <span className="text-accent">{sport}</span>
         </div>
       </div>
 
@@ -90,7 +85,7 @@ export function SubjectiveFeedbackCard({ sport }: SubjectiveFeedbackCardProps) {
           <div className="flex flex-col gap-2">
             <div className="flex justify-between items-center text-[11px] font-bold text-text-muted uppercase">
               <span>Rate of Perceived Exertion (RPE):</span>
-              <span className="font-mono text-xs text-color-accent">{rpe} / 10</span>
+              <span className="font-mono text-xs text-accent">{rpe} / 10</span>
             </div>
             
             <div className="flex items-center gap-4">
@@ -114,7 +109,7 @@ export function SubjectiveFeedbackCard({ sport }: SubjectiveFeedbackCardProps) {
         <div className="lg:col-span-6 flex flex-col justify-between gap-4">
           <div className="flex flex-col gap-2.5">
             <span className="text-[11px] font-bold text-text-muted uppercase flex items-center gap-1">
-              <MessageSquare size={13} className="text-color-accent" />
+              <MessageSquare size={13} className="text-accent" />
               Coach Analysis & Insights:
             </span>
             <div 

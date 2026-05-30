@@ -675,7 +675,7 @@ export function ActivityPaceTab({
               {bestEfforts.map((e, idx) => (
                 <tr key={idx} className="border-b border-dashed border-border-subtle last:border-0 hover:bg-bg-input/20">
                   <td className="py-2.5 font-semibold">{e.time}</td>
-                  <td className="py-2.5 text-right font-mono font-bold text-[11.5px] text-color-accent">{e.pace}</td>
+                  <td className="py-2.5 text-right font-mono font-bold text-[11.5px] text-accent">{e.pace}</td>
                   <td className="py-2.5 text-right text-text-secondary font-mono">{e.speedKmh}<span className="text-[9px] text-text-muted ml-0.5">{e.speedUnit}</span></td>
                 </tr>
               ))}
@@ -693,7 +693,7 @@ export function ActivityPaceTab({
             <div className="bg-bg-surface border border-border-subtle rounded-lg p-3 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-xs">
               <div className="flex flex-col gap-1">
                 <div className="flex items-center gap-1.5 text-text-primary font-bold">
-                  <Info size={14} className="text-color-accent" />
+                  <Info size={14} className="text-accent" />
                   Aerobic Decoupling (EF Decoupling)
                 </div>
                 <p className="text-text-muted leading-relaxed max-w-3xl mt-0.5">
@@ -708,7 +708,7 @@ export function ActivityPaceTab({
                 <div className="w-px h-4 bg-border-subtle" />
                 <div>
                   <span className="text-text-muted mr-1.5">Decoupling:</span>
-                  <span className={`font-bold ${runningDecoupling.decouplingPct > 5.0 ? "text-red-500" : "text-color-success"}`}>
+                  <span className={`font-bold ${runningDecoupling.decouplingPct > 5.0 ? "text-red-500" : "text-success"}`}>
                     {runningDecoupling.decouplingPct}%
                   </span>
                 </div>
