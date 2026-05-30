@@ -15,6 +15,9 @@ import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
+import org.springframework.web.method.HandlerMethod;
+import org.springframework.web.servlet.HandlerExecutionChain;
+import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 
 import java.io.IOException;
 
@@ -33,10 +36,9 @@ import java.io.IOException;
  *
  * <p>Skips entirely for unauthenticated requests (no principal in context).
  *
- * <h3>TODO — @RequiresTier enforcement</h3>
- * Full annotation-driven gate requires resolving the matched handler method at filter time.
- * This will be wired once controllers exist, using {@code RequestMappingHandlerMapping}
- * and {@code HandlerMethod} introspection. The blacklist check is fully functional now.
+ * <p>On {@code HandlerMethod} resolution errors (e.g., no mapping found for the path,
+ * dispatcher not yet fully initialised) the filter fails open so infrastructure issues
+ * never lock out legitimate users — the downstream 404 / 401 then applies normally.
  */
 public class FeatureGateFilter extends OncePerRequestFilter {
 
@@ -45,12 +47,16 @@ public class FeatureGateFilter extends OncePerRequestFilter {
     /** Redis key prefix for tier-change blacklist (docs/08-auth-model.md). */
     private static final String TIER_CHANGED_KEY_PREFIX = "tier_changed:";
 
-    private final StringRedisTemplate redisTemplate;
-    private final ObjectMapper        objectMapper;
+    private final StringRedisTemplate            redisTemplate;
+    private final ObjectMapper                   objectMapper;
+    private final RequestMappingHandlerMapping   handlerMapping;
 
-    public FeatureGateFilter(StringRedisTemplate redisTemplate, ObjectMapper objectMapper) {
-        this.redisTemplate = redisTemplate;
-        this.objectMapper  = objectMapper;
+    public FeatureGateFilter(StringRedisTemplate redisTemplate,
+                             ObjectMapper objectMapper,
+                             RequestMappingHandlerMapping handlerMapping) {
+        this.redisTemplate  = redisTemplate;
+        this.objectMapper   = objectMapper;
+        this.handlerMapping = handlerMapping;
     }
 
     @Override
@@ -78,25 +84,28 @@ public class FeatureGateFilter extends OncePerRequestFilter {
         }
 
         // ── 2. @RequiresTier annotation check ─────────────────────────────────
-        // TODO: resolve HandlerMethod from request, read @RequiresTier value,
-        //       call TierHierarchy.satisfies(principal.getTier(), requiredTier),
-        //       and write 403 UPGRADE_REQUIRED if insufficient.
-        //
-        // Example (to be enabled once controllers are present):
-        //
-        // HandlerExecutionChain chain = handlerMapping.getHandler(request);
-        // if (chain != null && chain.getHandler() instanceof HandlerMethod hm) {
-        //     RequiresTier annotation = hm.getMethodAnnotation(RequiresTier.class);
-        //     if (annotation != null) {
-        //         String required = annotation.value();
-        //         if (!TierHierarchy.satisfies(principal.getTier(), required)) {
-        //             writeError(response, HttpServletResponse.SC_FORBIDDEN,
-        //                     "UPGRADE_REQUIRED",
-        //                     "This feature requires tier: " + required);
-        //             return;
-        //         }
-        //     }
-        // }
+        try {
+            HandlerExecutionChain chain = handlerMapping.getHandler(request);
+            if (chain != null && chain.getHandler() instanceof HandlerMethod hm) {
+                RequiresTier annotation = hm.getMethodAnnotation(RequiresTier.class);
+                if (annotation != null) {
+                    String required = annotation.value();
+                    if (!TierHierarchy.satisfies(principal.getTier(), required)) {
+                        log.debug("User {} (tier={}) blocked by @RequiresTier(\"{}\")",
+                                principal.getUserId(), principal.getTier(), required);
+                        writeError(response, HttpServletResponse.SC_FORBIDDEN,
+                                "UPGRADE_REQUIRED",
+                                "This feature requires tier: " + required);
+                        return;
+                    }
+                }
+            }
+        } catch (Exception ex) {
+            // Fail open — handler resolution errors must not lock users out.
+            // The downstream controller / 404 handler will respond appropriately.
+            log.warn("FeatureGateFilter: handler resolution failed for {} {} — skipping tier check: {}",
+                    request.getMethod(), request.getRequestURI(), ex.getMessage());
+        }
 
         filterChain.doFilter(request, response);
     }

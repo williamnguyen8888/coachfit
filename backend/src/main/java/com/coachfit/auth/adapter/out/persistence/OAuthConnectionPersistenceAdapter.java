@@ -152,6 +152,15 @@ class OAuthConnectionPersistenceAdapter implements OAuthConnectionPersistencePor
                 .optional();
     }
 
+    @Override
+    @Transactional
+    public void softRevokeAllForUser(UUID userId) {
+        jdbcClient.sql(
+                "UPDATE oauth_connections SET sync_status = 'revoked', updated_at = now() WHERE user_id = :userId")
+                .param("userId", userId)
+                .update();
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private String buildPgArray(String[] values) {

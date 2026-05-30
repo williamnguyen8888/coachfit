@@ -1,4 +1,17 @@
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/CoachFitApplication.java
+/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/account/adapter/in/AccountController.java
+/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/account/adapter/in/dto/AccountDeletionResponse.java
+/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/account/adapter/in/dto/AccountPrivacyResponse.java
+/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/account/adapter/in/dto/AccountRestrictionRequest.java
+/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/account/adapter/in/dto/CancelDeletionResponse.java
+/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/account/adapter/in/dto/ExportJobResponse.java
+/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/account/adapter/out/persistence/ExportJobEntity.java
+/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/account/adapter/out/persistence/ExportJobJpaRepository.java
+/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/account/adapter/out/persistence/ExportJobPersistenceAdapter.java
+/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/account/application/port/in/AccountUseCase.java
+/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/account/application/port/out/ExportJobPersistencePort.java
+/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/account/application/service/AccountService.java
+/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/account/package-info.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/activity/adapter/in/ActivityController.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/activity/adapter/in/ActivityExceptionHandler.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/activity/adapter/in/ActivityUploadController.java
@@ -60,6 +73,7 @@
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/apikey/adapter/out/persistence/ApiKeyPersistenceAdapter.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/apikey/application/port/in/ApiKeyUseCase.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/apikey/application/port/out/ApiKeyPersistencePort.java
+/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/apikey/application/port/out/package-info.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/apikey/application/service/ApiKeyService.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/apikey/package-info.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/athlete/adapter/in/AthleteController.java
@@ -152,6 +166,7 @@
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/auth/domain/exception/TokenExpiredException.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/auth/domain/model/AuthUser.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/auth/domain/model/RefreshToken.java
+/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/auth/domain/model/package-info.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/auth/domain/package-info.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/auth/package-info.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/calendar/adapter/in/CalendarController.java
@@ -179,6 +194,14 @@
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/calendar/application/service/package-info.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/calendar/domain/package-info.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/calendar/package-info.java
+/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/consent/adapter/out/persistence/ConsentEntity.java
+/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/consent/adapter/out/persistence/ConsentJpaRepository.java
+/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/consent/adapter/out/persistence/ConsentPersistenceAdapter.java
+/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/consent/application/port/in/ConsentUseCase.java
+/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/consent/application/port/in/package-info.java
+/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/consent/application/port/out/ConsentPersistencePort.java
+/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/consent/application/service/ConsentService.java
+/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/consent/package-info.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/dashboard/adapter/in/DashboardController.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/dashboard/adapter/in/dto/DashboardTodayResponse.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/dashboard/adapter/in/dto/FitnessTrendResponse.java
@@ -236,6 +259,7 @@
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/shared/adapter/in/security/CorsProperties.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/shared/adapter/in/security/SecurityConfig.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/shared/adapter/in/security/apikey/ApiKeyAuthenticationFilter.java
+/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/shared/adapter/in/security/apikey/Sha256Util.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/shared/adapter/in/security/featuregate/FeatureGateFilter.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/shared/adapter/in/security/featuregate/RequiresTier.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/shared/adapter/in/security/featuregate/TierHierarchy.java
@@ -247,6 +271,7 @@
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/shared/adapter/in/web/ApiError.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/shared/adapter/in/web/ApiErrorResponse.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/shared/adapter/in/web/GlobalExceptionHandler.java
+/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/shared/adapter/in/web/OpenApiConfig.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/shared/adapter/out/package-info.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/shared/application/port/in/package-info.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/shared/application/port/out/package-info.java

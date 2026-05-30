@@ -2,7 +2,6 @@ package com.coachfit.shared.adapter.in.security.apikey;
 
 import com.coachfit.apikey.application.port.out.ApiKeyPersistencePort;
 import com.coachfit.apikey.application.port.out.ApiKeyPersistencePort.ApiKeyRow;
-import com.coachfit.apikey.application.service.ApiKeyService;
 import com.coachfit.auth.application.port.out.UserPersistencePort;
 import com.coachfit.auth.domain.model.AuthUser;
 import com.coachfit.shared.adapter.in.security.jwt.UserPrincipal;
@@ -86,7 +85,7 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
                 request.getMethod(), request.getRequestURI());
 
         // 1. Hash the raw key
-        String hashedKey = ApiKeyService.sha256Hex(rawKey);
+        String hashedKey = Sha256Util.hex(rawKey);
 
         // 2. Look up active, non-expired key
         Optional<ApiKeyRow> keyOpt = apiKeyPersistence.findActiveByKeyHash(hashedKey);

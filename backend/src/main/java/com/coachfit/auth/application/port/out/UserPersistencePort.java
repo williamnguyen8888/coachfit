@@ -2,6 +2,7 @@ package com.coachfit.auth.application.port.out;
 
 import com.coachfit.auth.domain.model.AuthUser;
 
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -39,4 +40,35 @@ public interface UserPersistencePort {
      * @param settings nullable — raw JSON string, updates {@code settings} if non-null
      */
     void updateUserFields(UUID userId, String fullName, String settings);
+
+    // ── Account lifecycle (GDPR — docs/11-privacy-compliance.md §8) ─────────
+
+    /**
+     * Soft-deletes the user by setting {@code deleted_at = now()}.
+     * Hard delete happens after the 30-day grace period via scheduled job.
+     */
+    void softDelete(UUID userId);
+
+    /**
+     * Cancels a pending deletion by clearing {@code deleted_at}.
+     * Note: OAuth tokens revoked on deletion are NOT automatically restored.
+     *
+     * @return {@code true} if a pending deletion was found and cancelled; {@code false} otherwise
+     */
+    boolean cancelDeletion(UUID userId);
+
+    /** Returns the {@code deleted_at} timestamp if the user is pending deletion. */
+    Optional<Instant> getDeletedAt(UUID userId);
+
+    // ── Processing restriction (GDPR Art. 18 — Right to Restrict Processing) ─
+
+    /**
+     * Sets or clears the {@code processing_restricted} flag.
+     * When {@code true}, all sync jobs and webhook processing must be paused for this user.
+     */
+    void setProcessingRestricted(UUID userId, boolean restricted);
+
+    /** Returns {@code true} if data processing is currently restricted for this user. */
+    boolean isProcessingRestricted(UUID userId);
 }
+

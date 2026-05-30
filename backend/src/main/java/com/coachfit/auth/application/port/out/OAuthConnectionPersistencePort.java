@@ -61,6 +61,17 @@ public interface OAuthConnectionPersistencePort {
      */
     Optional<OAuthTokens> findTokensByUserAndProvider(UUID userId, String provider);
 
+    // ── Account deletion support ──────────────────────────────────────────────
+
+    /**
+     * Soft-revokes ALL OAuth connections for a user — sets {@code sync_status = 'revoked'}.
+     *
+     * <p>Used by {@code DELETE /account}: the actual provider-side token revocation
+     * (Strava API call, Garmin deregistration) is handled asynchronously by the worker.
+     * This is the minimum required step to stop further syncs immediately.
+     */
+    void softRevokeAllForUser(UUID userId);
+
     // ── Data carrier ─────────────────────────────────────────────────────────
 
     /**

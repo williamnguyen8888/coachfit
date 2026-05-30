@@ -27,6 +27,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -99,6 +100,8 @@ class SecurityConfig {
                     .requestMatchers(HttpMethod.GET, "/join/**").permitAll()
                     // Actuator health probes — public
                     .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+                    // OpenAPI / Swagger UI — public (docs/05-api-design.md conventions)
+                    .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                     // Everything else requires authentication
                     .anyRequest().authenticated()
             )
@@ -148,8 +151,9 @@ class SecurityConfig {
 
     @Bean
     FeatureGateFilter featureGateFilter(StringRedisTemplate redisTemplate,
-                                        ObjectMapper objectMapper) {
-        return new FeatureGateFilter(redisTemplate, objectMapper);
+                                        ObjectMapper objectMapper,
+                                        RequestMappingHandlerMapping requestMappingHandlerMapping) {
+        return new FeatureGateFilter(redisTemplate, objectMapper, requestMappingHandlerMapping);
     }
 
     @Bean

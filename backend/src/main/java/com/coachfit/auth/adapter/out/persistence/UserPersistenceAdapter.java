@@ -84,6 +84,55 @@ class UserPersistenceAdapter implements UserPersistencePort {
         stmt.update();
     }
 
+    // ── Account lifecycle ─────────────────────────────────────────────────────
+
+    @Override
+    @Transactional
+    public void softDelete(UUID userId) {
+        jdbcClient.sql("UPDATE users SET deleted_at = now(), updated_at = now() WHERE id = :id AND deleted_at IS NULL")
+                .param("id", userId)
+                .update();
+    }
+
+    @Override
+    @Transactional
+    public boolean cancelDeletion(UUID userId) {
+        int rows = jdbcClient.sql(
+                "UPDATE users SET deleted_at = NULL, updated_at = now() WHERE id = :id AND deleted_at IS NOT NULL")
+                .param("id", userId)
+                .update();
+        return rows > 0;
+    }
+
+    @Override
+    public java.util.Optional<java.time.Instant> getDeletedAt(UUID userId) {
+        return jdbcClient.sql("SELECT deleted_at FROM users WHERE id = :id")
+                .param("id", userId)
+                .query((rs, rowNum) -> rs.getTimestamp("deleted_at"))
+                .optional()
+                .map(ts -> ts != null ? ts.toInstant() : null);
+    }
+
+    @Override
+    @Transactional
+    public void setProcessingRestricted(UUID userId, boolean restricted) {
+        jdbcClient.sql(
+                "UPDATE users SET processing_restricted = :restricted, updated_at = now() WHERE id = :id AND deleted_at IS NULL")
+                .param("restricted", restricted)
+                .param("id", userId)
+                .update();
+    }
+
+    @Override
+    public boolean isProcessingRestricted(UUID userId) {
+        return Boolean.TRUE.equals(
+                jdbcClient.sql("SELECT processing_restricted FROM users WHERE id = :id AND deleted_at IS NULL")
+                        .param("id", userId)
+                        .query(Boolean.class)
+                        .optional()
+                        .orElse(false));
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private String loadTier(UUID userId) {
