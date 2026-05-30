@@ -6,6 +6,7 @@ import type {
   ActivityDetail,
   ActivityLap,
   ActivityStreams,
+  StreamPoint,
   ActivitiesFilter,
   PaginatedActivities,
 } from "@/lib/types/activity";
@@ -64,7 +65,25 @@ export const activitiesService = {
 
   /** GET /activities/{id}/streams — time-series data */
   getStreams: (id: string): Promise<ActivityStreams> =>
-    api.get<ActivityStreams>(`/activities/${id}/streams`),
+    api.get<any>(`/activities/${id}/streams`).then((res) => {
+      if (!res || !res.timestamps) return { points: [] };
+      const points: StreamPoint[] = [];
+      const len = res.timestamps.length;
+      for (let i = 0; i < len; i++) {
+        points.push({
+          t: res.timestamps[i],
+          hr: res.heartRate && res.heartRate[i] !== 0 ? res.heartRate[i] : undefined,
+          power: res.power && res.power[i] !== 0 ? res.power[i] : undefined,
+          cadence: res.cadence && res.cadence[i] !== 0 ? res.cadence[i] : undefined,
+          speed: res.speed ? res.speed[i] : undefined,
+          altitude: res.altitude ? res.altitude[i] : undefined,
+          lat: res.latitude ? res.latitude[i] : undefined,
+          lng: res.longitude ? res.longitude[i] : undefined,
+          distance: res.distance ? res.distance[i] : undefined,
+        });
+      }
+      return { points };
+    }),
 
   /** GET /activities/{id}/laps — laps breakdown */
   getLaps: (id: string): Promise<{ laps: ActivityLap[] }> =>

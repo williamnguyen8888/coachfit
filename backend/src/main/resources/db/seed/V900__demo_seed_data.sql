@@ -256,23 +256,23 @@ ON CONFLICT DO NOTHING;
 INSERT INTO activities (id, user_id, source, source_id, sport, name, started_at, duration_seconds, moving_time_seconds, distance_meters, elevation_gain_meters, calories, avg_heart_rate, max_heart_rate, avg_power, max_power, normalized_power, intensity_factor, tss, avg_cadence, avg_speed, gear_id)
 VALUES
   ('ac000001-0000-0000-0000-000000000001', 'a0000001-0000-0000-0000-000000000001', 'garmin', 'gact001', 'cycling', 'Morning Endurance Ride',       (current_date-27)::timestamp+interval'6h', 10920,10640,85200,650,1820,142,168,188,312,196,0.69,115,88,7.8,  'e0000001-0000-0000-0000-000000000001'),
-  ('ac000002-0000-0000-0000-000000000002', 'a0000001-0000-0000-0000-000000000001', 'garmin', 'gact002', 'running', 'Easy Morning Run',              (current_date-26)::timestamp+interval'7h', 2700, 2600, 7800, 45, 340,138,155,NULL,NULL,NULL,NULL,42,  5,  3.0, NULL),
+  ('ac000002-0000-0000-0000-000000000002', 'a0000001-0000-0000-0000-000000000001', 'garmin', 'gact002', 'running', 'Easy Morning Run',              (current_date-26)::timestamp+interval'7h', 2700, 2600, 7800, 45, 340,138,155,NULL,NULL,NULL,NULL,42,  172,3.0, NULL),
   ('ac000003-0000-0000-0000-000000000003', 'a0000001-0000-0000-0000-000000000001', 'garmin', 'gact003', 'swimming','Pool Session 2000m',            (current_date-25)::timestamp+interval'6h30m',3480,3300,2000,0,520,145,162,NULL,NULL,NULL,NULL,55,  52, NULL,NULL),
   ('ac000004-0000-0000-0000-000000000004', 'a0000001-0000-0000-0000-000000000001', 'garmin', 'gact004', 'cycling', 'Sweet Spot 2x20',               (current_date-23)::timestamp+interval'17h',4860,4750,36500,320,890,158,182,258,385,272,0.95,88, 90, 7.7, 'e0000001-0000-0000-0000-000000000001'),
   ('ac000005-0000-0000-0000-000000000005', 'a0000001-0000-0000-0000-000000000001', 'manual', 'manual_ac000005', 'strength','Gym Strength Session', (current_date-23)::timestamp+interval'19h30m',2700,2700,0,0,380,128,158,NULL,NULL,NULL,NULL,35,  0,  NULL,NULL),
-  ('ac000006-0000-0000-0000-000000000006', 'a0000001-0000-0000-0000-000000000001', 'garmin', 'gact006', 'running', 'Sunday Long Run',               (current_date-22)::timestamp+interval'6h', 5340,5200,14200,85,920,148,172,NULL,NULL,NULL,NULL,92,  5,  2.66,NULL),
+  ('ac000006-0000-0000-0000-000000000006', 'a0000001-0000-0000-0000-000000000001', 'garmin', 'gact006', 'running', 'Sunday Long Run',               (current_date-22)::timestamp+interval'6h', 5340,5200,14200,85,920,148,172,NULL,NULL,NULL,NULL,92,  175,2.66,NULL),
   ('ac000007-0000-0000-0000-000000000007', 'a0000001-0000-0000-0000-000000000001', 'garmin', 'gact007', 'cycling', 'Tempo Ride',                    (current_date-20)::timestamp+interval'17h',3600,3540,27800,210,680,155,176,228,346,238,0.84,64, 88, 7.7, 'e0000001-0000-0000-0000-000000000001'),
   ('ac000008-0000-0000-0000-000000000008', 'a0000001-0000-0000-0000-000000000001', 'garmin', 'gact008', 'swimming','Swim Threshold 10x100m',        (current_date-18)::timestamp+interval'6h', 3120,2900,1800,0,480,158,174,NULL,NULL,NULL,NULL,65,  58, NULL,NULL),
   ('ac000009-0000-0000-0000-000000000009', 'a0000001-0000-0000-0000-000000000001', 'garmin', 'gact009', 'cycling', 'VO2Max 5x5',                    (current_date-16)::timestamp+interval'17h',4520,4400,34000,280,840,164,188,272,412,289,1.01,98, 92, 7.7, 'e0000001-0000-0000-0000-000000000001'),
-  ('ac000010-0000-0000-0000-000000000010', 'a0000001-0000-0000-0000-000000000001', 'garmin', 'gact010', 'running', 'Brick Run 13min',               (current_date-16)::timestamp+interval'20h',780, 780, 3200,10,180,155,168,NULL,NULL,NULL,NULL,28,  5,  4.1, NULL),
-  ('ac000011-0000-0000-0000-000000000011', 'a0000001-0000-0000-0000-000000000001', 'garmin', 'gact011', 'running', 'Long Run 90min',                (current_date-15)::timestamp+interval'6h', 5520,5380,14800,92,960,150,170,NULL,NULL,NULL,NULL,94,  5,  2.68,NULL),
+  ('ac000010-0000-0000-0000-000000000010', 'a0000001-0000-0000-0000-000000000001', 'garmin', 'gact010', 'running', 'Brick Run 13min',               (current_date-16)::timestamp+interval'20h',780, 780, 3200,10,180,155,168,NULL,NULL,NULL,NULL,28,  182,4.1, NULL),
+  ('ac000011-0000-0000-0000-000000000011', 'a0000001-0000-0000-0000-000000000001', 'garmin', 'gact011', 'running', 'Long Run 90min',                (current_date-15)::timestamp+interval'6h', 5520,5380,14800,92,960,150,170,NULL,NULL,NULL,NULL,94,  170,2.68,NULL),
   ('ac000012-0000-0000-0000-000000000012', 'a0000001-0000-0000-0000-000000000001', 'garmin', 'gact012', 'cycling', 'Endurance Ride 3h',             (current_date-13)::timestamp+interval'6h', 10740,10500,83000,620,1790,144,170,182,298,191,0.67,111,87,7.8,  'e0000001-0000-0000-0000-000000000001'),
-  ('ac000013-0000-0000-0000-000000000013', 'a0000001-0000-0000-0000-000000000001', 'garmin', 'gact013', 'running', 'Easy Run',                      (current_date-12)::timestamp+interval'7h', 2680,2600,7500,38,330,136,151,NULL,NULL,NULL,NULL,42,  5,  2.81,NULL),
+  ('ac000013-0000-0000-0000-000000000013', 'a0000001-0000-0000-0000-000000000001', 'garmin', 'gact013', 'running', 'Easy Run',                      (current_date-12)::timestamp+interval'7h', 2680,2600,7500,38,330,136,151,NULL,NULL,NULL,NULL,42,  174,2.81,NULL),
   ('ac000014-0000-0000-0000-000000000014', 'a0000001-0000-0000-0000-000000000001', 'garmin', 'gact014', 'swimming','Pool OW Technique',             (current_date-11)::timestamp+interval'6h', 3600,3420,2100,0,540,143,160,NULL,NULL,NULL,NULL,55,  55, NULL,NULL),
   ('ac000015-0000-0000-0000-000000000015', 'a0000001-0000-0000-0000-000000000001', 'manual', 'manual_ac000015', 'strength','Strength & Core',       (current_date-11)::timestamp+interval'18h',2820,2820,0,0,390,132,162,NULL,NULL,NULL,NULL,35,  0,  NULL,NULL),
   ('ac000016-0000-0000-0000-000000000016', 'a0000001-0000-0000-0000-000000000001', 'garmin', 'gact016', 'cycling', 'Sweet Spot 2x20 — Felt Strong', (current_date-9)::timestamp+interval'17h', 4820,4720,37200,330,895,160,184,262,388,275,0.97,91, 90, 7.7, 'e0000001-0000-0000-0000-000000000001'),
   ('ac000017-0000-0000-0000-000000000017', 'a0000001-0000-0000-0000-000000000001', 'garmin', 'gact017', 'cycling', 'Tempo Session',                 (current_date-6)::timestamp+interval'17h', 3620,3560,28200,215,695,157,178,232,351,241,0.85,65, 89, 7.8, 'e0000001-0000-0000-0000-000000000001'),
-  ('ac000018-0000-0000-0000-000000000018', 'a0000001-0000-0000-0000-000000000001', 'garmin', 'gact018', 'running', '6x800m Track Session',          (current_date-5)::timestamp+interval'17h', 3680,3440,11200,28,680,162,186,NULL,NULL,NULL,NULL,72,  5,  3.04,NULL),
+  ('ac000018-0000-0000-0000-000000000018', 'a0000001-0000-0000-0000-000000000001', 'garmin', 'gact018', 'running', '6x800m Track Session',          (current_date-5)::timestamp+interval'17h', 3680,3440,11200,28,680,162,186,NULL,NULL,NULL,NULL,72,  178,3.04,NULL),
   ('ac000019-0000-0000-0000-000000000019', 'a0000001-0000-0000-0000-000000000001', 'garmin', 'gact019', 'swimming','Swim Threshold',                (current_date-4)::timestamp+interval'6h', 3080,2920,1750,0,462,156,172,NULL,NULL,NULL,NULL,58,  58, NULL,NULL),
   ('ac000020-0000-0000-0000-000000000020', 'a0000001-0000-0000-0000-000000000001', 'garmin', 'gact020', 'cycling', 'VO2Max 5x5 — Tough Day',        (current_date-2)::timestamp+interval'17h', 4480,4360,33500,275,820,166,190,268,408,283,0.99,93, 91, 7.7, 'e0000001-0000-0000-0000-000000000001'),
   ('ac000021-0000-0000-0000-000000000021', 'a0000001-0000-0000-0000-000000000001', 'garmin', 'gact021', 'cycling', 'Base Endurance Ride',           (current_date-1)::timestamp+interval'6h', 10800,10600,84500,640,1840,143,169,185,305,194,0.68,113,88,7.83,'e0000001-0000-0000-0000-000000000001')
@@ -492,6 +492,155 @@ VALUES
   ('ai_workout_suggestions', 'AI-generated workout recommendations (beta)',       ARRAY['elite'],               false),
   ('social_feed',            'Community activity feed',                           ARRAY[]::text[],              false)
 ON CONFLICT (name) DO NOTHING;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- 17. GENERATE HIGH-FIDELITY LAPS & TIME-SERIES STREAMS
+-- ─────────────────────────────────────────────────────────────────────────────
+DO $$
+DECLARE
+    act RECORD;
+    i INT;
+    lap_cnt INT;
+    lap_dur INT;
+    lap_dist DECIMAL(10,2);
+    lap_avg_hr INT;
+    lap_avg_pwr INT;
+    lap_avg_cad INT;
+    lap_avg_speed DECIMAL(8,2);
+    
+    step INT := 30; -- 30 seconds interval
+    pts_cnt INT;
+    t_arr INT[];
+    hr_arr SMALLINT[];
+    pwr_arr SMALLINT[];
+    cad_arr SMALLINT[];
+    spd_arr REAL[];
+    alt_arr REAL[];
+    lat_arr DOUBLE PRECISION[];
+    lng_arr DOUBLE PRECISION[];
+    dist_arr REAL[];
+    temp_arr SMALLINT[];
+    grd_arr REAL[];
+    
+    t INT;
+    curr_dist REAL;
+BEGIN
+    FOR act IN SELECT * FROM activities WHERE user_id = 'a0000001-0000-0000-0000-000000000001' LOOP
+        -- 1. Generate Activity Laps
+        IF act.sport = 'strength' THEN
+            -- Strength gets 1 synthetic lap
+            INSERT INTO activity_laps (activity_id, lap_index, start_time, duration_seconds, distance_meters, avg_heart_rate, max_heart_rate, avg_power, max_power, avg_cadence, avg_pace, elevation_gain)
+            VALUES (act.id, 0, act.started_at, act.duration_seconds, 0, act.avg_heart_rate, act.max_heart_rate, NULL, NULL, NULL, NULL, 0)
+            ON CONFLICT DO NOTHING;
+        ELSE
+            -- Other sports get multiple laps (e.g. 2 to 4 laps depending on duration)
+            lap_cnt := CASE WHEN act.duration_seconds > 7200 THEN 4 WHEN act.duration_seconds > 3600 THEN 3 ELSE 2 END;
+            lap_dur := act.duration_seconds / lap_cnt;
+            lap_dist := COALESCE(act.distance_meters, 0) / lap_cnt;
+            
+            FOR i IN 0..(lap_cnt - 1) LOOP
+                lap_avg_hr := COALESCE(act.avg_heart_rate, 130) + CASE WHEN i = 0 THEN -10 WHEN i = lap_cnt-1 THEN 5 ELSE 5 END;
+                lap_avg_pwr := CASE WHEN act.avg_power IS NULL THEN NULL ELSE act.avg_power + CASE WHEN i = 0 THEN -20 WHEN i = lap_cnt-1 THEN -10 ELSE 15 END END;
+                lap_avg_cad := CASE WHEN act.avg_cadence IS NULL THEN NULL ELSE act.avg_cadence + CASE WHEN i = 0 THEN -5 ELSE 2 END END;
+                lap_avg_speed := COALESCE(act.avg_speed, 0.0) + CASE WHEN i = 0 THEN -0.5 WHEN i = lap_cnt-1 THEN -0.2 ELSE 0.3 END;
+                
+                INSERT INTO activity_laps (activity_id, lap_index, start_time, duration_seconds, distance_meters, avg_heart_rate, max_heart_rate, avg_power, max_power, avg_cadence, avg_pace, elevation_gain)
+                VALUES (
+                    act.id,
+                    i,
+                    act.started_at + (i * lap_dur || ' seconds')::interval,
+                    lap_dur,
+                    lap_dist,
+                    lap_avg_hr,
+                    COALESCE(act.max_heart_rate, lap_avg_hr + 15),
+                    lap_avg_pwr,
+                    CASE WHEN lap_avg_pwr IS NULL THEN NULL ELSE lap_avg_pwr + 40 END,
+                    lap_avg_cad,
+                    lap_avg_speed, -- Store average speed in avg_pace column for LapDto map
+                    COALESCE(act.elevation_gain_meters, 0) / lap_cnt
+                )
+                ON CONFLICT DO NOTHING;
+            END LOOP;
+        END IF;
+
+        -- 2. Generate Activity Streams
+        pts_cnt := act.duration_seconds / step;
+        IF pts_cnt > 0 THEN
+            t_arr := '{}';
+            hr_arr := '{}';
+            pwr_arr := '{}';
+            cad_arr := '{}';
+            spd_arr := '{}';
+            alt_arr := '{}';
+            lat_arr := '{}';
+            lng_arr := '{}';
+            dist_arr := '{}';
+            temp_arr := '{}';
+            grd_arr := '{}';
+            
+            curr_dist := 0;
+            
+            FOR i IN 0..pts_cnt LOOP
+                t := i * step;
+                t_arr := array_append(t_arr, t);
+                
+                -- Heart rate
+                hr_arr := array_append(hr_arr, CAST(COALESCE(act.avg_heart_rate, 135) + ROUND(10 * sin(i::double precision / 10.0) + (random() - 0.5) * 4) AS smallint));
+                
+                -- Power (if cycling)
+                IF act.sport = 'cycling' THEN
+                    pwr_arr := array_append(pwr_arr, CAST(COALESCE(act.avg_power, 200) + ROUND(30 * sin(i::double precision / 8.0) + (random() - 0.5) * 15) AS smallint));
+                ELSE
+                    pwr_arr := array_append(pwr_arr, NULL::smallint);
+                END IF;
+                
+                -- Cadence
+                IF act.sport = 'cycling' THEN
+                    cad_arr := array_append(cad_arr, CAST(COALESCE(act.avg_cadence, 90) + ROUND(5 * sin(i::double precision / 15.0) + (random() - 0.5) * 3) AS smallint));
+                ELSIF act.sport = 'running' THEN
+                    cad_arr := array_append(cad_arr, CAST(COALESCE(act.avg_cadence, 174) + ROUND(4 * sin(i::double precision / 20.0) + (random() - 0.5) * 2) AS smallint));
+                ELSE
+                    cad_arr := array_append(cad_arr, NULL::smallint);
+                END IF;
+                
+                -- Speed
+                spd_arr := array_append(spd_arr, CAST(COALESCE(act.avg_speed, CASE WHEN act.sport = 'running' THEN 3.0 WHEN act.sport = 'swimming' THEN 0.6 ELSE 0.0 END) + CAST(0.4 * sin(i::double precision / 12.0) AS real) AS real));
+                
+                -- Altitude
+                alt_arr := array_append(alt_arr, CAST(45.0 + 15.0 * sin(i::double precision / 40.0) + CAST((random() - 0.5) * 0.2 AS real) AS real));
+                
+                -- GPS coordinates (Hanoi area)
+                lat_arr := array_append(lat_arr, CAST(21.0285 + 0.00015 * i * sin(i::double precision / 25.0) AS double precision));
+                lng_arr := array_append(lng_arr, CAST(105.8542 + 0.00015 * i * cos(i::double precision / 25.0) AS double precision));
+                
+                -- Distance
+                curr_dist := CASE WHEN act.distance_meters IS NULL THEN 0 ELSE (i::real / pts_cnt::real) * act.distance_meters END;
+                dist_arr := array_append(dist_arr, CAST(curr_dist AS real));
+                
+                -- Temperature
+                temp_arr := array_append(temp_arr, CAST(25 + ROUND(2 * sin(i::double precision / 80.0)) AS smallint));
+                
+                -- Grade
+                grd_arr := array_append(grd_arr, CAST(3.0 * sin(i::double precision / 10.0) AS real));
+            END LOOP;
+            
+            INSERT INTO activity_streams (activity_id, timestamps, heart_rate, power, cadence, speed, altitude, latitude, longitude, distance, temperature, grade)
+            VALUES (act.id, t_arr, hr_arr, pwr_arr, cad_arr, spd_arr, alt_arr, lat_arr, lng_arr, dist_arr, temp_arr, grd_arr)
+            ON CONFLICT (activity_id) DO UPDATE
+            SET timestamps = EXCLUDED.timestamps,
+                heart_rate = EXCLUDED.heart_rate,
+                power = EXCLUDED.power,
+                cadence = EXCLUDED.cadence,
+                speed = EXCLUDED.speed,
+                altitude = EXCLUDED.altitude,
+                latitude = EXCLUDED.latitude,
+                longitude = EXCLUDED.longitude,
+                distance = EXCLUDED.distance,
+                temperature = EXCLUDED.temperature,
+                grade = EXCLUDED.grade;
+        END IF;
+    END LOOP;
+END $$;
 
 -- =============================================================================
 -- SEED COMPLETE

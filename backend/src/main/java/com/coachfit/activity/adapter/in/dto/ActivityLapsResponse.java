@@ -22,6 +22,7 @@ public record ActivityLapsResponse(List<LapDto> laps) {
             Integer    maxPower,
             Integer    avgCadence,
             BigDecimal avgPace,
+            BigDecimal avgSpeed,
             BigDecimal elevationGain
     ) {}
 
@@ -32,7 +33,7 @@ public record ActivityLapsResponse(List<LapDto> laps) {
                                 l.lapIndex(), l.startTime(), l.durationSeconds(),
                                 l.distanceMeters(), l.avgHeartRate(), l.maxHeartRate(),
                                 l.avgPower(), l.maxPower(), l.avgCadence(),
-                                l.avgPace(), l.elevationGain()))
+                                l.avgPace(), l.avgPace(), l.elevationGain()))
                         .toList()
         );
     }
