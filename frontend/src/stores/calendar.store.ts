@@ -96,6 +96,18 @@ interface CalendarState {
   markComplete: (id: string) => Promise<void>;
   markSkipped: (id: string) => Promise<void>;
 
+  /**
+   * Reorder events within the same day.
+   * Optimistically updates local state, then syncs to POST /calendar/reorder.
+   */
+  reorderEvents: (date: string, orderedIds: string[]) => Promise<void>;
+
+  /**
+   * Move an event to a different date.
+   * Optimistically updates local state, then syncs to PUT /calendar/{id}.
+   */
+  moveEvent: (eventId: string, toDate: string) => Promise<void>;
+
   // Internal helpers
   _upsertEvent: (event: CalendarEvent) => void;
   _removeEvent: (id: string) => void;
@@ -215,6 +227,65 @@ export const useCalendarStore = create<CalendarState>()(
       markSkipped: async (id) => {
         const event = await calendarService.markSkipped(id);
         get()._upsertEvent(event);
+      },
+
+      reorderEvents: async (date, orderedIds) => {
+        // Snapshot for rollback
+        const previousEvents = get().events;
+        const previousById = get().eventsByDate;
+
+        // Optimistic update: reorder local events for this date
+        set((state) => {
+          const updatedEvents = state.events.map((e) => {
+            if (e.date !== date) return e;
+            const newIndex = orderedIds.indexOf(e.id);
+            if (newIndex === -1) return e;
+            return { ...e, orderIndex: newIndex };
+          });
+          return {
+            events: updatedEvents,
+            eventsByDate: groupByDate(updatedEvents),
+          };
+        });
+
+        try {
+          await calendarService.reorder(orderedIds);
+        } catch {
+          // Rollback
+          set({ events: previousEvents, eventsByDate: previousById });
+        }
+      },
+
+      moveEvent: async (eventId, toDate) => {
+        // Snapshot for rollback
+        const previousEvents = get().events;
+        const previousById = get().eventsByDate;
+
+        // Find the event
+        const event = get().events.find((e) => e.id === eventId);
+        if (!event) return;
+
+        // Optimistic update: move event to new date with orderIndex at end of target day
+        const targetDayEvents = get().eventsByDate[toDate] ?? [];
+        const newOrderIndex = targetDayEvents.length;
+
+        set((state) => {
+          const updated = state.events.map((e) =>
+            e.id === eventId ? { ...e, date: toDate, orderIndex: newOrderIndex } : e,
+          );
+          return {
+            events: updated,
+            eventsByDate: groupByDate(updated),
+          };
+        });
+
+        try {
+          const updated = await calendarService.update(eventId, { date: toDate });
+          get()._upsertEvent(updated);
+        } catch {
+          // Rollback
+          set({ events: previousEvents, eventsByDate: previousById });
+        }
       },
 
       // ── Internal helpers ──────────────────────────────────────────────────

@@ -1,12 +1,20 @@
 "use client";
 
 // src/components/calendar/WeekView.tsx
-// 7-column week grid with swipe navigation on mobile.
-// Design spec: docs/09-design-system.md § Calendar
+// 7-column week grid with:
+//   - HTML5 drag-and-drop between day columns (desktop)
+//   - Same-day reorder with drop-line indicator
+//   - Touch long-press drag (mobile)
+//   - Swipe left/right navigation (mobile) — preserved from v1
+//   - Inline ✓/× quick actions on chips
+//   - Horizontal scroll + snap for narrow screens (<480px)
+//
+// Design spec: docs/09-design-system.md § Calendar, Animation & Transitions
 
 import { useState, useRef, useCallback } from "react";
 import type { CalendarEvent } from "@/lib/types/calendar";
 import { useCalendarStore } from "@/stores/calendar.store";
+import { useDragDrop } from "@/hooks/useDragDrop";
 import { CalendarEventChip } from "./CalendarEventChip";
 import { CalendarEventModal } from "./CalendarEventModal";
 
@@ -20,16 +28,29 @@ function addDays(dateStr: string, days: number): string {
   return d.toISOString().split("T")[0];
 }
 
-function isSameDay(a: string, b: string) {
-  return a === b;
-}
-
 function formatDayNum(dateStr: string): string {
   return String(new Date(dateStr + "T00:00:00").getDate());
 }
 
 function isToday(dateStr: string): boolean {
   return dateStr === new Date().toISOString().split("T")[0];
+}
+
+// ─── Drop line indicator ───────────────────────────────────────────────────────
+
+function DropLine() {
+  return (
+    <div
+      style={{
+        height: 2,
+        borderRadius: 1,
+        background: "var(--color-accent)",
+        margin: "1px 0",
+        boxShadow: "0 0 6px rgba(139,92,246,0.6)",
+        animation: "dropLinePulse 0.8s ease-in-out infinite alternate",
+      }}
+    />
+  );
 }
 
 // ─── Day column ───────────────────────────────────────────────────────────────
@@ -39,21 +60,59 @@ interface DayColumnProps {
   events: CalendarEvent[];
   onEventClick: (event: CalendarEvent) => void;
   onAddClick: (date: string) => void;
+  // DnD
+  isDragOver: boolean;
+  isSameDay: boolean;
+  draggingId: string | null;
+  reorderDropIndex: number | null;
+  dropZoneProps: ReturnType<ReturnType<typeof useDragDrop>["getDropZoneProps"]>;
+  getChipDragProps: ReturnType<typeof useDragDrop>["getChipDragProps"];
+  onChipDragOver: ReturnType<typeof useDragDrop>["onChipDragOver"];
+  getTouchDragProps: ReturnType<typeof useDragDrop>["getTouchDragProps"];
+  onComplete: (id: string) => void;
+  onSkip: (id: string) => void;
 }
 
-function DayColumn({ date, events, onEventClick, onAddClick }: DayColumnProps) {
+function DayColumn({
+  date,
+  events,
+  onEventClick,
+  onAddClick,
+  isDragOver,
+  isSameDay,
+  draggingId,
+  reorderDropIndex,
+  dropZoneProps,
+  getChipDragProps,
+  onChipDragOver,
+  getTouchDragProps,
+  onComplete,
+  onSkip,
+}: DayColumnProps) {
   const today = isToday(date);
   const dayIndex = new Date(date + "T00:00:00").getDay();
-  const dayName = DAY_NAMES[dayIndex === 0 ? 6 : dayIndex - 1]; // shift Sun→index 6
+  const dayName = DAY_NAMES[dayIndex === 0 ? 6 : dayIndex - 1];
 
   return (
     <div
+      {...dropZoneProps}
+      data-drop-date={date}
       style={{
         flex: 1,
-        minWidth: 0,
+        minWidth: 80, // allows horizontal scroll on narrow screens
         display: "flex",
         flexDirection: "column",
         borderRight: "1px solid var(--border-subtle)",
+        transition: "background var(--duration-micro) ease-out, box-shadow var(--duration-micro) ease-out",
+        background: isDragOver
+          ? "rgba(139,92,246,0.06)"
+          : today
+            ? "rgba(139,92,246,0.02)"
+            : "transparent",
+        outline: isDragOver
+          ? "1px dashed rgba(139,92,246,0.5)"
+          : "none",
+        outlineOffset: -1,
       }}
     >
       {/* Day header */}
@@ -103,20 +162,42 @@ function DayColumn({ date, events, onEventClick, onAddClick }: DayColumnProps) {
           padding: "var(--space-1)",
           display: "flex",
           flexDirection: "column",
-          gap: "var(--space-1)",
+          gap: 0, // gap managed by drop lines
           overflowY: "auto",
           minHeight: 120,
-          background: today ? "rgba(139,92,246,0.02)" : "transparent",
-          cursor: "default",
         }}
       >
-        {events.map((event) => (
-          <CalendarEventChip
-            key={event.id}
-            event={event}
-            onClick={onEventClick}
-          />
-        ))}
+        {events.map((event, idx) => {
+          const chipDragProps = getChipDragProps(event.id, date);
+          const touchProps = getTouchDragProps(event.id, date);
+
+          return (
+            <div key={event.id} style={{ display: "flex", flexDirection: "column" }}>
+              {/* Drop line above this chip (same-day reorder) */}
+              {isSameDay && reorderDropIndex === idx && <DropLine />}
+
+              <div style={{ padding: "1px 0" }}>
+                <CalendarEventChip
+                  event={event}
+                  onClick={onEventClick}
+                  draggable
+                  onDragStart={chipDragProps.onDragStart}
+                  onDragEnd={chipDragProps.onDragEnd}
+                  onChipDragOver={(e) => onChipDragOver(e, date, idx)}
+                  onTouchStart={touchProps.onTouchStart}
+                  onTouchMove={touchProps.onTouchMove}
+                  onTouchEnd={touchProps.onTouchEnd}
+                  isDragging={draggingId === event.id}
+                  onComplete={() => onComplete(event.id)}
+                  onSkip={() => onSkip(event.id)}
+                />
+              </div>
+            </div>
+          );
+        })}
+
+        {/* Drop line at the end of the list */}
+        {isSameDay && reorderDropIndex === events.length && <DropLine />}
 
         {/* Add button */}
         <button
@@ -138,10 +219,20 @@ function DayColumn({ date, events, onEventClick, onAddClick }: DayColumnProps) {
             gap: "2px",
             opacity: 0,
             transition: "opacity var(--duration-micro) ease-out",
+            // Mobile: expanded touch target
+            minHeight: 36,
           }}
           className="add-event-btn"
-          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.opacity = "1"; (e.currentTarget as HTMLButtonElement).style.color = "var(--color-accent)"; (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--color-accent)"; }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.opacity = "0"; (e.currentTarget as HTMLButtonElement).style.color = "var(--text-muted)"; (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border-subtle)"; }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.opacity = "1";
+            (e.currentTarget as HTMLButtonElement).style.color = "var(--color-accent)";
+            (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--color-accent)";
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.opacity = "0";
+            (e.currentTarget as HTMLButtonElement).style.color = "var(--text-muted)";
+            (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border-subtle)";
+          }}
         >
           + Add
         </button>
@@ -160,6 +251,7 @@ function WeekSkeleton() {
           key={i}
           style={{
             flex: 1,
+            minWidth: 80,
             borderRight: "1px solid var(--border-subtle)",
             padding: "var(--space-2) var(--space-1)",
             display: "flex",
@@ -167,17 +259,15 @@ function WeekSkeleton() {
             gap: "var(--space-2)",
           }}
         >
-          {/* Day header skeleton */}
           <div style={{ textAlign: "center", paddingBottom: "var(--space-2)", borderBottom: "1px solid var(--border-subtle)" }}>
             <div style={{ height: 12, width: 32, borderRadius: 4, background: "var(--bg-elevated)", margin: "0 auto 4px" }} />
             <div style={{ height: 28, width: 28, borderRadius: "50%", background: "var(--bg-elevated)", margin: "0 auto" }} />
           </div>
-          {/* Event skeleton bars */}
           {i % 3 !== 2 && (
-            <div style={{ height: 28, borderRadius: 4, background: "var(--bg-elevated)" }} />
+            <div style={{ height: 32, borderRadius: 4, background: "var(--bg-elevated)" }} />
           )}
           {i % 4 === 0 && (
-            <div style={{ height: 28, borderRadius: 4, background: "var(--bg-elevated)" }} />
+            <div style={{ height: 32, borderRadius: 4, background: "var(--bg-elevated)" }} />
           )}
         </div>
       ))}
@@ -188,9 +278,24 @@ function WeekSkeleton() {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function WeekView() {
-  const { getWeekRange, eventsByDate, isLoading, prevPeriod, nextPeriod } =
-    useCalendarStore();
+  const {
+    getWeekRange,
+    eventsByDate,
+    isLoading,
+    prevPeriod,
+    nextPeriod,
+    markComplete,
+    markSkipped,
+    moveEvent,
+    reorderEvents,
+  } = useCalendarStore();
   const { from } = getWeekRange();
+
+  // Build event IDs by date for reorder calculation
+  const eventIdsByDate: Record<string, string[]> = {};
+  for (const [date, evts] of Object.entries(eventsByDate)) {
+    eventIdsByDate[date] = evts.map((e) => e.id);
+  }
 
   // Modal state
   const [modalState, setModalState] = useState<
@@ -198,67 +303,133 @@ export function WeekView() {
     | { mode: "edit"; event: CalendarEvent }
     | null
   >(null);
-
   const closeModal = useCallback(() => setModalState(null), []);
 
-  // ── Swipe gesture handling ────────────────────────────────────────────────
+  // ── Swipe gesture handling (mobile) ───────────────────────────────────────
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
+  const touchStartTime = useRef<number | null>(null);
   const SWIPE_THRESHOLD = 50;
+  const LONG_PRESS_MS = 490; // slightly less than hook's 500ms so swipe wins
 
   const onTouchStart = useCallback((e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
     touchStartY.current = e.touches[0].clientY;
+    touchStartTime.current = Date.now();
   }, []);
 
   const onTouchEnd = useCallback(
     (e: React.TouchEvent) => {
-      if (touchStartX.current === null || touchStartY.current === null) return;
+      if (
+        touchStartX.current === null ||
+        touchStartY.current === null ||
+        touchStartTime.current === null
+      )
+        return;
+      const elapsed = Date.now() - touchStartTime.current;
+      // Don't treat a long-press (drag initiation) as a swipe
+      if (elapsed >= LONG_PRESS_MS) {
+        touchStartX.current = null;
+        touchStartY.current = null;
+        touchStartTime.current = null;
+        return;
+      }
       const dx = e.changedTouches[0].clientX - touchStartX.current;
       const dy = e.changedTouches[0].clientY - touchStartY.current;
-      // Only trigger if horizontal movement dominates (not a vertical scroll)
       if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > SWIPE_THRESHOLD) {
-        if (dx < 0) nextPeriod(); // swipe left → next week
-        else prevPeriod(); // swipe right → prev week
+        if (dx < 0) nextPeriod();
+        else prevPeriod();
       }
       touchStartX.current = null;
       touchStartY.current = null;
+      touchStartTime.current = null;
     },
     [nextPeriod, prevPeriod],
   );
 
-  // Build the 7 dates in this week
+  // ── DnD hook ──────────────────────────────────────────────────────────────
+  const { dragState, getChipDragProps, getDropZoneProps, reorderDropIndex, onChipDragOver, getTouchDragProps } =
+    useDragDrop({
+      onMove: (eventId, toDate) => moveEvent(eventId, toDate),
+      onReorder: (date, orderedIds) => reorderEvents(date, orderedIds),
+      eventIdsByDate,
+    });
+
+  // Quick action callbacks
+  const handleComplete = useCallback(
+    async (id: string) => {
+      try { await markComplete(id); } catch { /* error surfaced via store */ }
+    },
+    [markComplete],
+  );
+  const handleSkip = useCallback(
+    async (id: string) => {
+      try { await markSkipped(id); } catch { /* error surfaced via store */ }
+    },
+    [markSkipped],
+  );
+
   const weekDates = Array.from({ length: 7 }, (_, i) => addDays(from, i));
 
   if (isLoading) return <WeekSkeleton />;
 
   return (
     <>
+      {/* Outer wrapper with swipe handlers */}
       <div
         style={{
           display: "flex",
           flex: 1,
           minHeight: 400,
           userSelect: "none",
+          // Horizontal scroll on narrow screens with snap
+          overflowX: "auto",
+          scrollSnapType: "x mandatory",
+          WebkitOverflowScrolling: "touch",
         }}
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
       >
-        {weekDates.map((date) => (
-          <DayColumn
-            key={date}
-            date={date}
-            events={eventsByDate[date] ?? []}
-            onEventClick={(event) => setModalState({ mode: "edit", event })}
-            onAddClick={(d) => setModalState({ mode: "create", date: d })}
-          />
-        ))}
+        {weekDates.map((date) => {
+          const isDragOver = dragState.dragOverDate === date;
+          const isSameDayReorder =
+            isDragOver && dragState.dragFromDate === date;
+
+          return (
+            <DayColumn
+              key={date}
+              date={date}
+              events={eventsByDate[date] ?? []}
+              onEventClick={(event) => setModalState({ mode: "edit", event })}
+              onAddClick={(d) => setModalState({ mode: "create", date: d })}
+              isDragOver={isDragOver}
+              isSameDay={isSameDayReorder}
+              draggingId={dragState.draggingId}
+              reorderDropIndex={isSameDayReorder ? reorderDropIndex : null}
+              dropZoneProps={getDropZoneProps(date)}
+              getChipDragProps={getChipDragProps}
+              onChipDragOver={onChipDragOver}
+              getTouchDragProps={getTouchDragProps}
+              onComplete={handleComplete}
+              onSkip={handleSkip}
+            />
+          );
+        })}
       </div>
 
-      {/* Mobile: tap-visible add button (for touch users who can't hover) */}
+      {/* Global styles */}
       <style>{`
+        /* Mobile: show add button, 44px touch targets */
         @media (hover: none) {
-          .add-event-btn { opacity: 0.4 !important; }
+          .add-event-btn { opacity: 0.4 !important; min-height: 44px !important; }
+        }
+        /* Narrow: each day column snaps */
+        @media (max-width: 480px) {
+          [data-drop-date] { scroll-snap-align: start; }
+        }
+        @keyframes dropLinePulse {
+          from { opacity: 0.6; }
+          to   { opacity: 1;   }
         }
       `}</style>
 

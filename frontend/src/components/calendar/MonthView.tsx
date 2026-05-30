@@ -2,11 +2,18 @@
 
 // src/components/calendar/MonthView.tsx
 // Full calendar month grid (7×5 or 7×6 rows).
-// Shows max 3 events per cell + overflow badge.
+// Now supports:
+//   - HTML5 drag-and-drop between day cells (move only; no reorder in compact cells)
+//   - Touch long-press drag (mobile)
+//   - Inline quick actions on chips
+//   - Out-of-month cells reject drops
+//
+// Design spec: docs/09-design-system.md § Calendar
 
 import { useState, useCallback } from "react";
 import type { CalendarEvent } from "@/lib/types/calendar";
 import { useCalendarStore } from "@/stores/calendar.store";
+import { useDragDrop } from "@/hooks/useDragDrop";
 import { CalendarEventChip } from "./CalendarEventChip";
 import { CalendarEventModal } from "./CalendarEventModal";
 
@@ -27,22 +34,20 @@ function isCurrentMonth(dateStr: string, anchorDate: string): boolean {
 }
 
 /**
- * Build the grid of dates to display in the month view.
- * Always starts on Monday and ends on Sunday for a clean 7-column grid.
+ * Build the grid of dates for the month view.
+ * Always starts on Monday and ends on Sunday.
  */
 function buildMonthGrid(anchorDate: string): string[] {
   const anchor = new Date(anchorDate + "T00:00:00");
   const firstOfMonth = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
   const lastOfMonth = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0);
 
-  // Find the Monday on or before the first of month
-  const startDay = firstOfMonth.getDay(); // 0=Sun
+  const startDay = firstOfMonth.getDay();
   const gridStart = new Date(firstOfMonth);
   const daysBack = startDay === 0 ? 6 : startDay - 1;
   gridStart.setDate(gridStart.getDate() - daysBack);
 
-  // Find the Sunday on or after the last of month
-  const endDay = lastOfMonth.getDay(); // 0=Sun
+  const endDay = lastOfMonth.getDay();
   const gridEnd = new Date(lastOfMonth);
   const daysForward = endDay === 0 ? 0 : 7 - endDay;
   gridEnd.setDate(gridEnd.getDate() + daysForward);
@@ -125,9 +130,30 @@ interface DayCellProps {
   inMonth: boolean;
   onEventClick: (event: CalendarEvent) => void;
   onAddClick: (date: string) => void;
+  // DnD
+  isDragOver: boolean;
+  draggingId: string | null;
+  dropZoneProps: ReturnType<ReturnType<typeof useDragDrop>["getDropZoneProps"]>;
+  getChipDragProps: ReturnType<typeof useDragDrop>["getChipDragProps"];
+  getTouchDragProps: ReturnType<typeof useDragDrop>["getTouchDragProps"];
+  onComplete: (id: string) => void;
+  onSkip: (id: string) => void;
 }
 
-function DayCell({ date, events, inMonth, onEventClick, onAddClick }: DayCellProps) {
+function DayCell({
+  date,
+  events,
+  inMonth,
+  onEventClick,
+  onAddClick,
+  isDragOver,
+  draggingId,
+  dropZoneProps,
+  getChipDragProps,
+  getTouchDragProps,
+  onComplete,
+  onSkip,
+}: DayCellProps) {
   const today = isToday(date);
   const [showOverflow, setShowOverflow] = useState(false);
   const dayNum = new Date(date + "T00:00:00").getDate();
@@ -136,8 +162,16 @@ function DayCell({ date, events, inMonth, onEventClick, onAddClick }: DayCellPro
   const overflowCount = events.length - MAX_VISIBLE;
   const hasOverflow = overflowCount > 0;
 
+  // Base background
+  let baseBg = "transparent";
+  if (!inMonth) baseBg = "rgba(0,0,0,0.15)";
+  if (today) baseBg = "rgba(139,92,246,0.04)";
+  if (isDragOver && inMonth) baseBg = "rgba(139,92,246,0.08)";
+
   return (
     <div
+      {...(inMonth ? dropZoneProps : {})}
+      data-drop-date={inMonth ? date : undefined}
       style={{
         position: "relative",
         borderRight: "1px solid var(--border-subtle)",
@@ -145,30 +179,31 @@ function DayCell({ date, events, inMonth, onEventClick, onAddClick }: DayCellPro
         minHeight: 100,
         display: "flex",
         flexDirection: "column",
-        background: today
-          ? "rgba(139,92,246,0.04)"
-          : !inMonth
-            ? "rgba(0,0,0,0.15)"
-            : "transparent",
+        background: baseBg,
+        outline: isDragOver && inMonth ? "1px dashed rgba(139,92,246,0.5)" : "none",
+        outlineOffset: -1,
         transition: "background var(--duration-micro) ease-out",
       }}
       onMouseEnter={(e) => {
-        if (inMonth) {
+        if (inMonth && !isDragOver) {
           (e.currentTarget as HTMLDivElement).style.background = today
             ? "rgba(139,92,246,0.07)"
             : "rgba(255,255,255,0.02)";
         }
       }}
       onMouseLeave={(e) => {
-        (e.currentTarget as HTMLDivElement).style.background = today
-          ? "rgba(139,92,246,0.04)"
-          : !inMonth
-            ? "rgba(0,0,0,0.15)"
-            : "transparent";
+        (e.currentTarget as HTMLDivElement).style.background = baseBg;
       }}
     >
-      {/* Day number */}
-      <div style={{ padding: "var(--space-1) var(--space-2)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      {/* Day number row */}
+      <div
+        style={{
+          padding: "var(--space-1) var(--space-2)",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
         <span
           style={{
             width: 24,
@@ -186,13 +221,13 @@ function DayCell({ date, events, inMonth, onEventClick, onAddClick }: DayCellPro
           {dayNum}
         </span>
 
-        {/* Add button (appears on hover) */}
+        {/* Add button (in-month only) */}
         {inMonth && (
           <button
             type="button"
             onClick={() => onAddClick(date)}
             aria-label={`Add event on ${date}`}
-            title={`Add event`}
+            title="Add event"
             style={{
               width: 20,
               height: 20,
@@ -211,8 +246,14 @@ function DayCell({ date, events, inMonth, onEventClick, onAddClick }: DayCellPro
               transition: "opacity var(--duration-micro) ease-out",
             }}
             className="month-add-btn"
-            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.opacity = "1"; (e.currentTarget as HTMLButtonElement).style.color = "var(--color-accent)"; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.opacity = "0"; (e.currentTarget as HTMLButtonElement).style.color = "var(--text-muted)"; }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.opacity = "1";
+              (e.currentTarget as HTMLButtonElement).style.color = "var(--color-accent)";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.opacity = "0";
+              (e.currentTarget as HTMLButtonElement).style.color = "var(--text-muted)";
+            }}
           >
             +
           </button>
@@ -220,15 +261,36 @@ function DayCell({ date, events, inMonth, onEventClick, onAddClick }: DayCellPro
       </div>
 
       {/* Events */}
-      <div style={{ flex: 1, padding: "0 var(--space-1) var(--space-1)", display: "flex", flexDirection: "column", gap: "2px" }}>
-        {visibleEvents.map((event) => (
-          <CalendarEventChip
-            key={event.id}
-            event={event}
-            compact
-            onClick={onEventClick}
-          />
-        ))}
+      <div
+        style={{
+          flex: 1,
+          padding: "0 var(--space-1) var(--space-1)",
+          display: "flex",
+          flexDirection: "column",
+          gap: "2px",
+        }}
+      >
+        {visibleEvents.map((event) => {
+          const chipDragProps = getChipDragProps(event.id, date);
+          const touchProps = getTouchDragProps(event.id, date);
+          return (
+            <CalendarEventChip
+              key={event.id}
+              event={event}
+              compact
+              onClick={onEventClick}
+              draggable={inMonth}
+              onDragStart={chipDragProps.onDragStart}
+              onDragEnd={chipDragProps.onDragEnd}
+              onTouchStart={touchProps.onTouchStart}
+              onTouchMove={touchProps.onTouchMove}
+              onTouchEnd={touchProps.onTouchEnd}
+              isDragging={draggingId === event.id}
+              onComplete={() => onComplete(event.id)}
+              onSkip={() => onSkip(event.id)}
+            />
+          );
+        })}
 
         {/* Overflow badge */}
         {hasOverflow && (
@@ -300,15 +362,47 @@ function MonthSkeleton() {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function MonthView() {
-  const { anchorDate, eventsByDate, isLoading } = useCalendarStore();
+  const {
+    anchorDate,
+    eventsByDate,
+    isLoading,
+    markComplete,
+    markSkipped,
+    moveEvent,
+    reorderEvents,
+  } = useCalendarStore();
 
   const [modalState, setModalState] = useState<
     | { mode: "create"; date: string }
     | { mode: "edit"; event: CalendarEvent }
     | null
   >(null);
-
   const closeModal = useCallback(() => setModalState(null), []);
+
+  // Build event IDs by date for reorder (only for week view, but hook needs it)
+  const eventIdsByDate: Record<string, string[]> = {};
+  for (const [date, evts] of Object.entries(eventsByDate)) {
+    eventIdsByDate[date] = evts.map((e) => e.id);
+  }
+
+  const { dragState, getChipDragProps, getDropZoneProps, getTouchDragProps } = useDragDrop({
+    onMove: (eventId, toDate) => moveEvent(eventId, toDate),
+    onReorder: (date, orderedIds) => reorderEvents(date, orderedIds),
+    eventIdsByDate,
+  });
+
+  const handleComplete = useCallback(
+    async (id: string) => {
+      try { await markComplete(id); } catch { /* surfaced via store */ }
+    },
+    [markComplete],
+  );
+  const handleSkip = useCallback(
+    async (id: string) => {
+      try { await markSkipped(id); } catch { /* surfaced via store */ }
+    },
+    [markSkipped],
+  );
 
   const gridDates = buildMonthGrid(anchorDate);
 
@@ -352,23 +446,35 @@ export function MonthView() {
             flex: 1,
           }}
         >
-          {gridDates.map((date) => (
-            <DayCell
-              key={date}
-              date={date}
-              events={eventsByDate[date] ?? []}
-              inMonth={isCurrentMonth(date, anchorDate)}
-              onEventClick={(event) => setModalState({ mode: "edit", event })}
-              onAddClick={(d) => setModalState({ mode: "create", date: d })}
-            />
-          ))}
+          {gridDates.map((date) => {
+            const inMonth = isCurrentMonth(date, anchorDate);
+            const isDragOver = dragState.dragOverDate === date;
+
+            return (
+              <DayCell
+                key={date}
+                date={date}
+                events={eventsByDate[date] ?? []}
+                inMonth={inMonth}
+                onEventClick={(event) => setModalState({ mode: "edit", event })}
+                onAddClick={(d) => setModalState({ mode: "create", date: d })}
+                isDragOver={isDragOver}
+                draggingId={dragState.draggingId}
+                dropZoneProps={getDropZoneProps(date, inMonth)}
+                getChipDragProps={getChipDragProps}
+                getTouchDragProps={getTouchDragProps}
+                onComplete={handleComplete}
+                onSkip={handleSkip}
+              />
+            );
+          })}
         </div>
       </div>
 
-      {/* Hover visibility for add buttons on mobile */}
+      {/* Scoped CSS */}
       <style>{`
         @media (hover: none) {
-          .month-add-btn { opacity: 0.5 !important; }
+          .month-add-btn { opacity: 0.5 !important; min-height: 44px !important; min-width: 44px !important; }
         }
         @media (hover: hover) {
           .day-cell:hover .month-add-btn { opacity: 1 !important; }
