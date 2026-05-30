@@ -15,14 +15,65 @@ import { AlertCircle, RefreshCw, Plus } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { WorkoutCard } from "./WorkoutCard";
-import type { WorkoutsFilter, PaginatedWorkouts } from "@/lib/types/workout";
+import type { WorkoutsFilter, PaginatedWorkouts, WorkoutSummary } from "@/lib/types/workout";
 import { useQuery } from "@/hooks/useQuery";
 
 /* ------------------------------------------------------------------ */
 /*  Skeleton row                                                         */
 /* ------------------------------------------------------------------ */
 
-function WorkoutCardSkeleton() {
+interface WorkoutCardSkeletonProps {
+  viewMode?: "grid" | "list";
+}
+
+function WorkoutCardSkeleton({ viewMode = "list" }: WorkoutCardSkeletonProps) {
+  if (viewMode === "grid") {
+    return (
+      <div
+        style={{
+          background: "var(--bg-surface)",
+          border: "1px solid var(--border-subtle)",
+          borderLeft: "3px solid var(--border-default)",
+          borderRadius: "var(--radius-lg)",
+          padding: "var(--space-4)",
+          display: "flex",
+          flexDirection: "column",
+          gap: 16,
+          height: "100%",
+          justifyContent: "space-between",
+        }}
+        aria-hidden="true"
+      >
+        <div>
+          {/* Header row */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 12 }}>
+            <Skeleton width={44} height={44} />
+            <Skeleton width={56} height={20} />
+          </div>
+          {/* Title row */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <Skeleton width="85%" height={16} />
+            <Skeleton width="50%" height={12} />
+          </div>
+        </div>
+        {/* Metrics row */}
+        <div
+          style={{
+            borderTop: "1px solid var(--border-subtle)",
+            paddingTop: 12,
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: 8,
+          }}
+        >
+          <Skeleton width="100%" height={26} />
+          <Skeleton width="100%" height={26} />
+        </div>
+      </div>
+    );
+  }
+
+  // List view skeleton
   return (
     <div
       style={{
@@ -37,28 +88,40 @@ function WorkoutCardSkeleton() {
       }}
       aria-hidden="true"
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <Skeleton width={44} height={44} />
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
-          <Skeleton width="50%" height={15} />
-          <Skeleton width="30%" height={11} />
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        {/* Left skeleton */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1 }}>
+          <Skeleton width={38} height={38} />
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
+            <Skeleton width="45%" height={15} />
+            <Skeleton width="25%" height={11} />
+          </div>
         </div>
-        <Skeleton width={16} height={16} />
-      </div>
-      <div style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: 12, display: "flex", gap: 16 }}>
-        <Skeleton width={72} height={13} />
-        <Skeleton width={56} height={13} />
-        <Skeleton width={64} height={13} />
+        {/* Right skeleton */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <Skeleton width={70} height={24} />
+          <Skeleton width={60} height={24} />
+          <Skeleton width={56} height={20} />
+        </div>
       </div>
     </div>
   );
 }
 
-function LoadingState({ count = 6 }: { count?: number }) {
+interface LoadingStateProps {
+  count?: number;
+  viewMode?: "grid" | "list";
+}
+
+function LoadingState({ count = 6, viewMode = "list" }: LoadingStateProps) {
+  const containerClass = viewMode === "grid"
+    ? "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4"
+    : "flex flex-col gap-3";
+
   return (
-    <div role="status" aria-label="Loading workouts" className="flex flex-col gap-3">
+    <div role="status" aria-label="Loading workouts" className={containerClass}>
       {Array.from({ length: count }).map((_, i) => (
-        <WorkoutCardSkeleton key={i} />
+        <WorkoutCardSkeleton key={i} viewMode={viewMode} />
       ))}
     </div>
   );
@@ -251,17 +314,21 @@ function Pagination({
 
 export interface WorkoutListProps {
   filter: WorkoutsFilter;
+  viewMode?: "grid" | "list";
   onPageChange: (page: number) => void;
   onReset: () => void;
   onTotalChange?: (total: number) => void;
+  onWorkoutsLoaded?: (workouts: WorkoutSummary[]) => void;
   onCreateNew: () => void;
 }
 
 export function WorkoutList({
   filter,
+  viewMode = "list",
   onPageChange,
   onReset,
   onTotalChange,
+  onWorkoutsLoaded,
   onCreateNew,
 }: WorkoutListProps) {
   const router = useRouter();
@@ -280,10 +347,6 @@ export function WorkoutList({
     params.set("size", String(filter.size ?? 20));
     params.set("sort", filter.sort ?? "createdAt,desc");
     if (filter.sport) params.set("sport", filter.sport);
-
-    // "template" and "mine" sources don't map to a query param directly —
-    // the backend route differs. For now we filter in the list endpoint.
-    // TODO: separate endpoint wiring when backend supports source filter.
     return `/workouts?${params.toString()}`;
   }, [filter]);
 
@@ -299,11 +362,27 @@ export function WorkoutList({
     }
   }, [data?.totalElements, onTotalChange]);
 
+  // Compute final workouts list (including client side source filtering)
+  const workouts = useMemo(() => {
+    let list = data?.content ?? [];
+    if (filter.source === "template") {
+      list = list.filter((w) => w.isTemplate);
+    } else if (filter.source === "mine") {
+      list = list.filter((w) => !w.isTemplate);
+    }
+    return list;
+  }, [data?.content, filter.source]);
+
+  // Pass active workouts back to parent for summary stats calculations
+  React.useEffect(() => {
+    onWorkoutsLoaded?.(workouts);
+  }, [workouts, onWorkoutsLoaded]);
+
   const hasFilters = !!(filter.sport || (filter.source && filter.source !== "all"));
 
   /* ── Loading ── */
   if (loading && !data) {
-    return <LoadingState count={6} />;
+    return <LoadingState count={8} viewMode={viewMode} />;
   }
 
   /* ── Error ── */
@@ -314,16 +393,6 @@ export function WorkoutList({
         onRetry={refetch}
       />
     );
-  }
-
-  /* ── Data ── */
-  let workouts = data?.content ?? [];
-
-  // Client-side filter by source since the backend list endpoint may return all
-  if (filter.source === "template") {
-    workouts = workouts.filter((w) => w.isTemplate);
-  } else if (filter.source === "mine") {
-    workouts = workouts.filter((w) => !w.isTemplate);
   }
 
   const totalPages = data?.totalPages ?? 0;
@@ -373,10 +442,21 @@ export function WorkoutList({
         <EmptyState hasFilters={hasFilters} onReset={onReset} onCreateNew={onCreateNew} />
       ) : (
         <>
-          <ol className="flex flex-col gap-3" aria-label="Workouts" aria-live="polite">
+          <ol 
+            className={viewMode === "grid"
+              ? "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4"
+              : "flex flex-col gap-3"
+            } 
+            aria-label="Workouts" 
+            aria-live="polite"
+          >
             {workouts.map((workout) => (
-              <li key={workout.id}>
-                <WorkoutCard workout={workout} onClick={handleCardClick} />
+              <li key={workout.id} className={viewMode === "grid" ? "h-full" : ""}>
+                <WorkoutCard 
+                  workout={workout} 
+                  viewMode={viewMode} 
+                  onClick={handleCardClick} 
+                />
               </li>
             ))}
           </ol>

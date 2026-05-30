@@ -19,8 +19,7 @@ import { Button } from "@/components/ui/Button";
 import { ActivityFilters } from "@/components/activities/ActivityFilters";
 import { ActivityList } from "@/components/activities/ActivityList";
 import { UploadModal } from "@/components/activities/UploadModal";
-import { ActivitiesSummaryDashboard } from "@/components/activities/ActivitiesSummaryDashboard";
-import type { ActivitiesFilter, ActivitySummary } from "@/lib/types/activity";
+import type { ActivitiesFilter } from "@/lib/types/activity";
 
 /* ------------------------------------------------------------------ */
 /*  Default filter state                                                 */
@@ -42,7 +41,6 @@ export default function ActivitiesPage() {
     undefined
   );
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
-  const [loadedActivities, setLoadedActivities] = useState<ActivitySummary[]>([]);
 
   /* ── Filter management ── */
   const handleFilterChange = useCallback(
@@ -100,12 +98,6 @@ export default function ActivitiesPage() {
         }
       />
 
-      {/* ── Summary statistics dashboard ── */}
-      <ActivitiesSummaryDashboard 
-        activities={loadedActivities} 
-        loading={totalElements === undefined} 
-      />
-
       {/* ── Sticky filter bar ── */}
       <ActivityFilters
         filter={filter}
@@ -129,7 +121,6 @@ export default function ActivitiesPage() {
           onPageChange={handlePageChange}
           onReset={handleReset}
           onTotalChange={setTotalElements}
-          onActivitiesLoaded={setLoadedActivities}
         />
       </main>
 

@@ -4,11 +4,11 @@
  * Workout Library Page — /workouts
  *
  * Features:
- *  - Sticky filter bar (source: all/mine/templates, sport, sort)
- *  - Paginated workout cards
+ *  - Premium Hero summary dashboard (workouts aggregations)
+ *  - Sticky frosted-glass filter bar (source, sport, sort, view toggle)
+ *  - Grid and List layouts with responsive behavior
  *  - Loading skeleton, empty, and error states
- *  - "Create Workout" CTA (wires to /workouts/new — builder in future ticket)
- *  - Template vs user-created badge on each card
+ *  - "Create Workout" CTA
  */
 
 import * as React from "react";
@@ -40,6 +40,7 @@ export default function WorkoutsPage() {
   const router = useRouter();
   const [filter, setFilter] = useState<WorkoutsFilter>(DEFAULT_FILTER);
   const [totalElements, setTotalElements] = useState<number | undefined>(undefined);
+  const [viewMode, setViewMode] = useState<"grid" | "list">("list");
 
   /* ── Filter management ── */
   const handleFilterChange = useCallback((patch: Partial<WorkoutsFilter>) => {
@@ -57,7 +58,6 @@ export default function WorkoutsPage() {
 
   /* ── Create handler ── */
   const handleCreate = useCallback(() => {
-    // TODO: navigate to workout builder when F09 is built
     router.push("/workouts/new");
   }, [router]);
 
@@ -88,6 +88,8 @@ export default function WorkoutsPage() {
         onReset={handleReset}
         totalElements={totalElements}
         loading={totalElements === undefined}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
       />
 
       {/* ── Workout list ── */}
@@ -98,6 +100,7 @@ export default function WorkoutsPage() {
       >
         <WorkoutList
           filter={filter}
+          viewMode={viewMode}
           onPageChange={handlePageChange}
           onReset={handleReset}
           onTotalChange={setTotalElements}
