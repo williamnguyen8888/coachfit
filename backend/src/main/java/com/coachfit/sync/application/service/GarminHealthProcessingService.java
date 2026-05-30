@@ -165,6 +165,11 @@ public class GarminHealthProcessingService {
                     avgSpo2,
                     avgResp,
                     null,   // vo2max comes from user-metrics push
+                    null,   // weightKg
+                    null,   // bodyFatPct
+                    null,   // muscleMassKg
+                    null,   // boneMassKg
+                    null,   // bmi
                     extraJson,
                     rawJson
             ));
@@ -401,6 +406,7 @@ public class GarminHealthProcessingService {
                     stressLevel, null,
                     bbCharged, bbDrained,
                     null, null, null,
+                    null, null, null, null, null, // body composition
                     extraJson, payload
             ));
 
@@ -511,6 +517,7 @@ public class GarminHealthProcessingService {
                     null, null, null, null, null, null, null,
                     null, null, null, null, null, null, null,
                     spo2, null, null,
+                    null, null, null, null, null, // body composition
                     extraJson, payload
             ));
 
@@ -561,6 +568,7 @@ public class GarminHealthProcessingService {
                     null, null, null, null, null, null, null,
                     null, null, null, null, null, null, null,
                     null, avgResp, null,
+                    null, null, null, null, null, // body composition
                     extraJson, payload
             ));
 
@@ -606,6 +614,7 @@ public class GarminHealthProcessingService {
                     null, null, null, null, null, null, null,
                     null, null, null, null, null, null, null,
                     null, null, vo2max,
+                    null, null, null, null, null, // body composition
                     extraJson, payload
             ));
 
@@ -877,12 +886,12 @@ public class GarminHealthProcessingService {
             if (strenuousActivityMinutes != null) extra.put("strenuous_activity_min", strenuousActivityMinutes);
 
             var epochData = new com.coachfit.health.application.port.out.HealthEpochSummaryPersistencePort.EpochData(
-                    getInteger(data, "durationInSeconds"),
-                    getInteger(data, "steps"),
-                    getInteger(data, "activeKilocalories"),
+                    getInt(data, "durationInSeconds"),
+                    getInt(data, "steps"),
+                    getInt(data, "activeKilocalories"),
                     getBigDecimal(data, "met"),
                     intensity,
-                    getInteger(data, "movingDurationInSeconds"),
+                    getInt(data, "movingDurationInSeconds"),
                     getBigDecimal(data, "distance"),
                     extra.isEmpty() ? null : toJson(extra),
                     payloadJson
@@ -925,9 +934,9 @@ public class GarminHealthProcessingService {
             // Build a structured reading for storage in extra JSONB
             Map<String, Object> reading = new java.util.LinkedHashMap<>();
             reading.put("timestamp_epoch", startSecs);
-            reading.put("systolic",  getInteger(data, "systolic"));
-            reading.put("diastolic", getInteger(data, "diastolic"));
-            reading.put("pulse",     getInteger(data, "pulse"));
+            reading.put("systolic",  getInt(data, "systolic"));
+            reading.put("diastolic", getInt(data, "diastolic"));
+            reading.put("pulse",     getInt(data, "pulse"));
             reading.put("measurement_time_local", getString(data, "measurementTimeLocal"));
 
             // Merge into health_daily_summaries.extra using a JSON array
@@ -987,7 +996,7 @@ public class GarminHealthProcessingService {
                     : LocalDate.now(ZoneOffset.UTC);
 
             Map<String, Object> cycleData = new java.util.LinkedHashMap<>();
-            cycleData.put("cycle_day",       getInteger(data, "cycleDay"));
+            cycleData.put("cycle_day",       getInt(data, "cycleDay"));
             cycleData.put("phase",           normalizeToLower(getString(data, "phase")));
             cycleData.put("predicted_phase", normalizeToLower(getString(data, "predictedPhase")));
 
@@ -1038,7 +1047,7 @@ public class GarminHealthProcessingService {
             LocalDate date = LocalDate.now(ZoneOffset.UTC);
 
             Map<String, Object> pregnancyData = new java.util.LinkedHashMap<>();
-            pregnancyData.put("weeks_pregnant", getInteger(data, "weeksPregnant"));
+            pregnancyData.put("weeks_pregnant", getInt(data, "weeksPregnant"));
             pregnancyData.put("due_date",       getString(data, "dueDate"));
 
             String extraJson = toJson(Map.of("pregnancy", pregnancyData));

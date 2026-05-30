@@ -1,2 +1,7 @@
+com/coachfit/auth/application/service/AuthServiceTest.class
 com/coachfit/auth/adapter/in/AuthControllerTest.class
+com/coachfit/athlete/adapter/in/AthleteControllerTest.class
+com/coachfit/athlete/adapter/in/WithMockAthlete$Factory.class
 com/coachfit/ApplicationModulesTest.class
+com/coachfit/athlete/adapter/in/WithMockAthlete.class
+com/coachfit/athlete/adapter/in/AthleteControllerTest$TestMvcConfig.class

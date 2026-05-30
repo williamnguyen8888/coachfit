@@ -237,6 +237,7 @@
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/health/adapter/out/persistence/HealthDailySummaryEntity.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/health/adapter/out/persistence/HealthDailySummaryJpaRepository.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/health/adapter/out/persistence/HealthDailySummaryPersistenceAdapter.java
+/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/health/adapter/out/persistence/HealthEpochSummaryPersistenceAdapter.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/health/adapter/out/persistence/HealthSleepDataEntity.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/health/adapter/out/persistence/HealthSleepDataJpaRepository.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/health/adapter/out/persistence/HealthSleepDataPersistenceAdapter.java
@@ -244,6 +245,7 @@
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/health/application/port/in/HealthReadUseCase.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/health/application/port/in/package-info.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/health/application/port/out/HealthDailySummaryPersistencePort.java
+/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/health/application/port/out/HealthEpochSummaryPersistencePort.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/health/application/port/out/HealthSleepDataPersistencePort.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/health/application/port/out/HealthTrendQueryPort.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/health/application/port/out/package-info.java
@@ -287,11 +289,15 @@
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/subscription/domain/package-info.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/subscription/package-info.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/sync/adapter/in/GarminJobConsumer.java
+/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/sync/adapter/in/GarminSignatureVerifier.java
+/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/sync/adapter/in/GarminStagedDetailsReconciler.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/sync/adapter/in/GarminWebhookController.java
+/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/sync/adapter/in/GarminWebhookSignatureFilter.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/sync/adapter/in/StravaJobConsumer.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/sync/adapter/in/StravaWebhookController.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/sync/adapter/in/SyncController.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/sync/adapter/in/package-info.java
+/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/sync/adapter/out/garmin/GarminTrainingApiAdapter.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/sync/adapter/out/package-info.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/sync/adapter/out/persistence/GarminOAuthConnectionAdapter.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/sync/adapter/out/persistence/StravaOAuthConnectionAdapter.java
@@ -303,9 +309,11 @@
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/sync/application/port/in/SyncGarminWebhookUseCase.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/sync/application/port/in/SyncStravaWebhookUseCase.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/sync/application/port/in/SyncSupportUseCase.java
+/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/sync/application/port/in/SyncWorkoutToGarminUseCase.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/sync/application/port/in/package-info.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/sync/application/port/out/GarminJobQueuePort.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/sync/application/port/out/GarminOAuthConnectionPort.java
+/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/sync/application/port/out/GarminTrainingPort.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/sync/application/port/out/StravaJobQueuePort.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/sync/application/port/out/StravaTokenPort.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/sync/application/port/out/SyncLogPersistencePort.java
@@ -313,6 +321,7 @@
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/sync/application/port/out/package-info.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/sync/application/service/GarminActivitySyncService.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/sync/application/service/GarminHealthProcessingService.java
+/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/sync/application/service/GarminTrainingSyncService.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/sync/application/service/GarminWebhookService.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/sync/application/service/StravaActivitySyncService.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/sync/application/service/StravaMetricsCalculator.java
