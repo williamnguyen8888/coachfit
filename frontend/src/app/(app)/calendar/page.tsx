@@ -9,6 +9,7 @@ import { useCalendarStore } from "@/stores/calendar.store";
 import { WeekNavBar } from "@/components/calendar/WeekNavBar";
 import { WeekView } from "@/components/calendar/WeekView";
 import { MonthView } from "@/components/calendar/MonthView";
+import { useIsMobile } from "@/hooks/useMediaQuery";
 
 // ─── Error state ──────────────────────────────────────────────────────────────
 
@@ -53,6 +54,7 @@ function CalendarError({ message, onRetry }: { message: string; onRetry: () => v
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function CalendarPage() {
+  const isMobile = useIsMobile();
   const {
     viewMode,
     anchorDate,
@@ -84,7 +86,7 @@ export default function CalendarPage() {
           flex: 1,
           display: "flex",
           flexDirection: "column",
-          overflow: viewMode === "month" ? "auto" : "hidden",
+          overflow: viewMode === "month" || isMobile ? "auto" : "hidden",
         }}
       >
         {error ? (

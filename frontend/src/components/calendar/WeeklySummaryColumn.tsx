@@ -2,17 +2,12 @@
 
 import React, { useState } from "react";
 import type { CalendarEvent } from "@/lib/types/calendar";
-import { formatDuration, getSportHex, getSportSvgIcon, getEstimatedLoad } from "./calendarUtils";
+import { getSportHex, getSportSvgIcon, getEstimatedLoad } from "./calendarUtils";
 
 interface WeeklySummaryColumnProps {
   events: CalendarEvent[];
   weekNumber: number;
   style?: React.CSSProperties;
-}
-
-function formatKm(meters: number | null): string {
-  if (meters === null || meters === 0) return "0 km";
-  return `${(meters / 1000).toFixed(1).replace(".0", "")} km`;
 }
 
 function formatBreakdownDuration(seconds: number): string {
@@ -186,8 +181,8 @@ export function WeeklySummaryColumn({
       }
 
       // Estimate Intensity Factor (IF)
-      let tss = e.activity.tss ?? 0;
-      let avgHR = e.activity.avgHeartRate ?? 0;
+      const tss = e.activity.tss ?? 0;
+      const avgHR = e.activity.avgHeartRate ?? 0;
       let ifFactor = 0.70; // default fallback
 
       if (tss > 0 && dur > 0) {

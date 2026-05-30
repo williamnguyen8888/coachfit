@@ -12,6 +12,8 @@
 //   - Overflow "+N more" badge in accent style
 
 import { useState, useCallback } from "react";
+import { useIsMobile } from "@/hooks/useMediaQuery";
+import { getSportMeta } from "./calendarUtils";
 import type { CalendarEvent } from "@/lib/types/calendar";
 import { useCalendarStore } from "@/stores/calendar.store";
 import { useDragDrop } from "@/hooks/useDragDrop";
@@ -394,6 +396,7 @@ function MonthSkeleton() {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function MonthView() {
+  const isMobile = useIsMobile();
   const {
     anchorDate,
     eventsByDate,
@@ -406,6 +409,17 @@ export function MonthView() {
     healthSummaryByDate,
     sleepByDate,
   } = useCalendarStore();
+
+  const today = toISODate(new Date());
+  const [selectedDate, setSelectedDate] = useState<string>(today);
+  const [prevAnchorDate, setPrevAnchorDate] = useState(anchorDate);
+
+  if (anchorDate !== prevAnchorDate) {
+    setPrevAnchorDate(anchorDate);
+    const anchorYm = anchorDate.slice(0, 7);
+    const todayYm = today.slice(0, 7);
+    setSelectedDate(anchorYm === todayYm ? today : `${anchorYm}-01`);
+  }
 
   const [modalState, setModalState] = useState<
     | { mode: "create"; date: string }
@@ -441,6 +455,188 @@ export function MonthView() {
   }
 
   if (isLoading) return <MonthSkeleton />;
+
+  if (isMobile) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", flex: 1, gap: 16, padding: "12px" }}>
+        {/* Miniature Month Date Picker Grid */}
+        <div style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)", padding: "12px 8px" }}>
+          {/* Header Row (M T W T F S S) */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4, marginBottom: 8, textAlign: "center" }}>
+            {DAY_NAMES_SHORT.map((name) => (
+              <span key={name} style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>
+                {name.charAt(0)}
+              </span>
+            ))}
+          </div>
+
+          {/* Date Circles Grid */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "8px 4px" }}>
+            {gridDates.map((date) => {
+              const inMonth = isCurrentMonth(date, anchorDate);
+              const dayNum = new Date(date + "T00:00:00").getDate();
+              const isSel = date === selectedDate;
+              const today = isToday(date);
+              const dayEvents = eventsByDate[date] ?? [];
+
+              return (
+                <button
+                  key={date}
+                  type="button"
+                  onClick={() => setSelectedDate(date)}
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    padding: "4px 0",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    cursor: "pointer",
+                    outline: "none",
+                    opacity: inMonth ? 1 : 0.4,
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: "50%",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 13,
+                      fontWeight: isSel || today ? 700 : 500,
+                      background: isSel
+                        ? "var(--color-accent)"
+                        : today
+                        ? "var(--color-accent-15)"
+                        : "transparent",
+                      color: isSel
+                        ? "white"
+                        : today
+                        ? "var(--color-accent)"
+                        : "var(--text-primary)",
+                      boxShadow: today && !isSel ? "inset 0 0 0 1px var(--color-accent-30)" : "none",
+                      transition: "all 120ms ease",
+                    }}
+                  >
+                    {dayNum}
+                  </div>
+                  
+                  {/* Event sport dots */}
+                  <div style={{ display: "flex", gap: 2, height: 4, marginTop: 4, justifyContent: "center" }}>
+                    {dayEvents.slice(0, 3).map((e) => {
+                      const m = getSportMeta(e.workout?.sport ?? "other", e.eventType);
+                      return (
+                        <div
+                          key={e.id}
+                          style={{
+                            width: 4,
+                            height: 4,
+                            borderRadius: "50%",
+                            background: m.color,
+                          }}
+                        />
+                      );
+                    })}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Selected Date Details Area */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, flex: 1 }}>
+          {/* Header */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: 16, fontWeight: 700, color: "var(--text-primary)" }}>
+              {new Date(selectedDate + "T00:00:00").toLocaleDateString("en-US", {
+                weekday: "long",
+                month: "short",
+                day: "numeric",
+              })}
+            </span>
+          </div>
+
+          {/* Daily Wellness Summary for Selected Date */}
+          <DailyWellnessSummary
+            wellness={wellnessByDate?.[selectedDate]}
+            health={healthSummaryByDate?.[selectedDate]}
+            sleep={sleepByDate?.[selectedDate]}
+            compact={false}
+          />
+
+          {/* List of events */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {(eventsByDate[selectedDate] ?? []).length === 0 ? (
+              <div
+                style={{
+                  padding: "24px 16px",
+                  textAlign: "center",
+                  background: "var(--bg-surface)",
+                  border: "1px solid var(--border-subtle)",
+                  borderRadius: "var(--radius-md)",
+                  color: "var(--text-muted)",
+                  fontSize: 13,
+                }}
+              >
+                No planned workouts or synced activities.
+              </div>
+            ) : (
+              (eventsByDate[selectedDate] ?? []).map((event) => (
+                <CalendarEventChip
+                  key={event.id}
+                  event={event}
+                  onClick={(e) => setModalState({ mode: "edit", event: e })}
+                  onComplete={() => handleComplete(event.id)}
+                  onSkip={() => handleSkip(event.id)}
+                />
+              ))
+            )}
+          </div>
+
+          {/* Inline Add Action */}
+          <button
+            type="button"
+            onClick={() => setModalState({ mode: "create", date: selectedDate })}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 8,
+              width: "100%",
+              padding: "12px",
+              background: "var(--color-accent-10)",
+              border: "1.5px dashed var(--color-accent-30)",
+              borderRadius: "var(--radius-md)",
+              color: "var(--color-accent)",
+              fontSize: 14,
+              fontWeight: 700,
+              cursor: "pointer",
+              transition: "background 150ms ease",
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.background = "var(--color-accent-15)";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.background = "var(--color-accent-10)";
+            }}
+          >
+            <span style={{ fontSize: 16, fontWeight: 700 }}>+</span> Add Workout or Activity
+          </button>
+        </div>
+
+        {/* Modal */}
+        {modalState &&
+          (modalState.mode === "create" ? (
+            <CalendarEventModal mode="create" initialDate={modalState.date} onClose={closeModal} />
+          ) : (
+            <CalendarEventModal mode="edit" event={modalState.event} onClose={closeModal} />
+          ))}
+      </div>
+    );
+  }
 
   return (
     <>
