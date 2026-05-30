@@ -36,9 +36,10 @@ function StravaIcon() {
 
 function GarminIcon() {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-      <circle cx="12" cy="12" r="10" fill="#009CDE" />
-      <path d="M8 12l3 3 5-5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 2L2 22H22L12 2Z" fill="#009CDE" />
+      <path d="M12 8L6 20H18L12 8Z" fill="var(--bg-surface)" />
+      <circle cx="12" cy="15" r="2.5" fill="#009CDE" />
     </svg>
   );
 }
@@ -108,24 +109,24 @@ function ConnectionCard({
 
   return (
     <div
-      className="flex items-start gap-4 rounded-[var(--radius-md)] p-4 transition-all duration-150"
+      className="flex items-start gap-4 rounded-[var(--radius-lg)] p-5 transition-all duration-150"
       style={{
         background: isConnected
-          ? `color-mix(in srgb, ${config.color} 6%, var(--bg-surface))`
-          : "var(--bg-surface)",
-        border: `1px solid ${isConnected
-          ? `color-mix(in srgb, ${config.color} 30%, var(--border-subtle))`
-          : "var(--border-subtle)"}`,
+          ? "var(--bg-elevated)"
+          : "rgba(255, 255, 255, 0.01)",
+        border: isConnected
+          ? "1px solid rgba(255, 255, 255, 0.08)"
+          : "1px solid var(--border-subtle)",
       }}
     >
       {/* Icon */}
       <div
-        className="flex items-center justify-center rounded-[var(--radius-sm)] shrink-0"
+        className="flex items-center justify-center rounded-[var(--radius-md)] shrink-0 shadow-sm"
         style={{
           width: 44,
           height: 44,
-          background: `color-mix(in srgb, ${config.color} 12%, var(--bg-elevated))`,
-          border: `1px solid color-mix(in srgb, ${config.color} 20%, var(--border-subtle))`,
+          background: "rgba(255, 255, 255, 0.02)",
+          border: "1px solid rgba(255, 255, 255, 0.06)",
         }}
       >
         {config.icon}
@@ -145,13 +146,11 @@ function ConnectionCard({
           </span>
           {isConnected && (
             <span
-              className="flex items-center gap-1 rounded-[var(--radius-full)] px-2 py-0.5"
+              className="flex items-center gap-1 rounded-[var(--radius-full)] px-2 py-0.5 text-xs font-semibold"
               style={{
-                fontSize: "var(--text-xs)",
-                fontWeight: 600,
-                background: "color-mix(in srgb, var(--color-success) 12%, transparent)",
+                background: "rgba(16, 185, 129, 0.1)",
                 color: "var(--color-success)",
-                border: "1px solid color-mix(in srgb, var(--color-success) 25%, transparent)",
+                border: "1px solid rgba(16, 185, 129, 0.2)",
               }}
             >
               <CheckCircle size={10} />
@@ -160,10 +159,8 @@ function ConnectionCard({
           )}
           {!config.available && (
             <span
-              className="rounded-[var(--radius-full)] px-2 py-0.5"
+              className="rounded-[var(--radius-full)] px-2.5 py-0.5 text-xs font-medium"
               style={{
-                fontSize: "var(--text-xs)",
-                fontWeight: 500,
                 background: "var(--bg-elevated)",
                 color: "var(--text-muted)",
                 border: "1px solid var(--border-subtle)",
@@ -179,7 +176,7 @@ function ConnectionCard({
         </p>
 
         {connection?.athleteName && (
-          <p style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
+          <p style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", marginTop: 1 }}>
             Connected as <strong style={{ color: "var(--text-secondary)" }}>{connection.athleteName}</strong>
             {connection.connectedAt && (
               <> · since {new Date(connection.connectedAt).toLocaleDateString(undefined, { year: "numeric", month: "short" })}</>
@@ -189,7 +186,7 @@ function ConnectionCard({
       </div>
 
       {/* Action */}
-      <div className="shrink-0 self-center">
+      <div className="shrink-0 self-center ml-2">
         {config.available ? (
           isConnected ? (
             <Button
@@ -199,6 +196,7 @@ function ConnectionCard({
               loading={disconnecting}
               leftIcon={<Link2Off size={13} />}
               onClick={handleDisconnect}
+              className="hover:bg-[rgba(239,68,68,0.06)] hover:text-[var(--color-danger)] border border-[rgba(239,68,68,0.15)]"
             >
               Disconnect
             </Button>
@@ -210,6 +208,7 @@ function ConnectionCard({
               leftIcon={<Link2 size={13} />}
               rightIcon={<ExternalLink size={11} />}
               onClick={() => onConnect(config.provider)}
+              className="bg-[rgba(255,255,255,0.03)] hover:bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.06)] text-[var(--text-primary)]"
             >
               Connect
             </Button>

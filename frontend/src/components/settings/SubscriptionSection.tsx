@@ -135,26 +135,23 @@ function PlanCard({
 
   return (
     <div
-      className="flex flex-col gap-4 rounded-[var(--radius-lg)] p-5 flex-1 min-w-[200px] transition-all duration-200"
+      className="flex flex-col gap-5 rounded-[var(--radius-lg)] p-6 flex-1 min-w-[240px] transition-all duration-300 relative overflow-hidden"
       style={{
         background: isCurrentTier
-          ? `color-mix(in srgb, ${plan.color} 8%, var(--bg-surface))`
-          : "var(--bg-surface)",
+          ? "var(--bg-elevated)"
+          : "rgba(255, 255, 255, 0.01)",
         border: isCurrentTier
-          ? `2px solid color-mix(in srgb, ${plan.color} 45%, transparent)`
+          ? "1px solid rgba(255, 255, 255, 0.15)"
           : "1px solid var(--border-subtle)",
-        position: "relative",
-        overflow: "hidden",
+        boxShadow: isCurrentTier ? "0 4px 20px rgba(0, 0, 0, 0.2)" : "none",
       }}
     >
-      {/* Glow for current */}
+      {/* Active Top border highlight strip */}
       {isCurrentTier && (
-        <div
+        <div 
+          className="absolute top-0 left-0 right-0 h-[2px]"
           style={{
-            position: "absolute",
-            inset: 0,
-            background: `radial-gradient(ellipse at top left, color-mix(in srgb, ${plan.color} 10%, transparent), transparent 60%)`,
-            pointerEvents: "none",
+            background: "var(--color-accent)",
           }}
         />
       )}
@@ -162,7 +159,9 @@ function PlanCard({
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span style={{ color: plan.color }}>{plan.icon}</span>
+          <span style={{ color: "var(--text-secondary)" }}>
+            {plan.icon}
+          </span>
           <span
             style={{
               fontSize: "var(--text-lg)",
@@ -174,15 +173,14 @@ function PlanCard({
           </span>
           {isCurrentTier && (
             <span
-              className="rounded-[var(--radius-full)] px-2 py-0.5"
+              className="rounded-[var(--radius-full)] px-2.5 py-0.5 text-xs font-semibold"
               style={{
-                fontSize: "var(--text-xs)",
-                fontWeight: 600,
-                background: `color-mix(in srgb, ${plan.color} 15%, transparent)`,
-                color: plan.color,
+                background: "rgba(139, 92, 246, 0.1)",
+                color: "var(--color-accent)",
+                border: "1px solid rgba(139, 92, 246, 0.2)",
               }}
             >
-              Current plan
+              Current
             </span>
           )}
         </div>
@@ -194,34 +192,35 @@ function PlanCard({
         <span
           className="font-metric tabular-nums"
           style={{
-            fontSize: "var(--text-2xl)",
-            fontWeight: 700,
-            color: isCurrentTier ? plan.color : "var(--text-primary)",
+            fontSize: "var(--text-3xl)",
+            fontWeight: 800,
+            color: "var(--text-primary)",
           }}
         >
           {plan.price.split(" / ")[0]}
         </span>
-        <span style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>
-          {" "}/ mo
+        <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", fontWeight: 500 }}>
+          {" "}/ month
         </span>
       </div>
 
-      {/* Features */}
-      <ul className="flex flex-col gap-2">
+      {/* Features list */}
+      <ul className="flex flex-col gap-2.5">
         {plan.features.map((f) => (
-          <li key={f} className="flex items-start gap-2">
+          <li key={f} className="flex items-start gap-2.5">
             <CheckCircle
-              size={13}
+              size={14}
               style={{
-                color: isCurrentTier ? plan.color : "var(--text-muted)",
+                color: isCurrentTier ? "var(--color-accent)" : "var(--text-muted)",
                 flexShrink: 0,
-                marginTop: 2,
+                marginTop: 2.5,
               }}
             />
             <span
               style={{
                 fontSize: "var(--text-sm)",
                 color: isCurrentTier ? "var(--text-secondary)" : "var(--text-muted)",
+                lineHeight: 1.4,
               }}
             >
               {f}
@@ -230,12 +229,12 @@ function PlanCard({
         ))}
       </ul>
 
-      {/* CTA */}
-      <div className="mt-auto pt-2">
+      {/* CTA Button */}
+      <div className="mt-auto pt-4">
         {plan.tier === "free" ? (
           isCurrentTier ? (
-            <Button variant="ghost" size="sm" fullWidth disabled>
-              Free plan
+            <Button variant="ghost" size="sm" fullWidth disabled className="border border-[rgba(255,255,255,0.06)] bg-[rgba(255,255,255,0.01)] text-[var(--text-muted)]">
+              Free plan active
             </Button>
           ) : null
         ) : isCurrentTier ? (
@@ -247,27 +246,27 @@ function PlanCard({
             loading={loading}
             leftIcon={<ExternalLink size={13} />}
             onClick={handleAction}
+            className="bg-[rgba(255,255,255,0.03)] hover:bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.06)] text-[var(--text-primary)] font-semibold"
           >
             Manage billing
           </Button>
         ) : (
-          <Button
+          <button
             id={`upgrade-to-${plan.tier}`}
-            variant="primary"
-            size="sm"
-            fullWidth
-            loading={loading}
-            leftIcon={<Lock size={13} />}
+            disabled={loading}
             onClick={handleAction}
+            className="w-full h-9 px-4 rounded-[var(--radius-md)] flex items-center justify-center gap-1.5 text-sm font-semibold active:scale-[0.985] transition-all cursor-pointer bg-white text-black hover:bg-neutral-200 border-none"
           >
+            <Lock size={13} />
             Upgrade to {plan.label}
-          </Button>
+          </button>
         )}
       </div>
 
       {/* Renewal info */}
       {isCurrentTier && sub?.currentPeriodEnd && sub.tier !== "free" && (
         <p
+          className="mt-1"
           style={{
             fontSize: "var(--text-xs)",
             color: "var(--text-muted)",
@@ -276,7 +275,7 @@ function PlanCard({
         >
           {sub.cancelAtPeriodEnd ? "Cancels" : "Renews"} on{" "}
           {new Date(sub.currentPeriodEnd).toLocaleDateString(undefined, {
-            month: "long",
+            month: "short",
             day: "numeric",
             year: "numeric",
           })}

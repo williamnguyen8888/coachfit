@@ -12,10 +12,14 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import {
   User,
   Save,
-  RefreshCw,
   CheckCircle,
   Mail,
   Shield,
+  ChevronDown,
+  Bike,
+  Waves,
+  Dumbbell,
+  Activity,
 } from "lucide-react";
 import type {
   AthleteProfile,
@@ -28,12 +32,12 @@ import type {
 
 /* ─── Constants ─────────────────────────────────────────────────────────────── */
 
-const ALL_SPORTS: { value: Sport; label: string; emoji: string }[] = [
-  { value: "cycling", label: "Cycling", emoji: "🚴" },
-  { value: "running", label: "Running", emoji: "🏃" },
-  { value: "swimming", label: "Swimming", emoji: "🏊" },
-  { value: "strength", label: "Strength", emoji: "🏋️" },
-  { value: "other", label: "Other", emoji: "⚡" },
+const ALL_SPORTS: { value: Sport; label: string; icon: React.ReactNode }[] = [
+  { value: "cycling", label: "Cycling", icon: <Bike size={18} /> },
+  { value: "running", label: "Running", icon: <Activity size={18} /> },
+  { value: "swimming", label: "Swimming", icon: <Waves size={18} /> },
+  { value: "strength", label: "Strength", icon: <Dumbbell size={18} /> },
+  { value: "other", label: "Other", icon: <User size={18} /> },
 ];
 
 const EXPERIENCE_LEVELS: { value: ExperienceLevel; label: string }[] = [
@@ -84,20 +88,24 @@ function SportToggle({
       id={`sport-toggle-${sport.value}`}
       aria-pressed={selected}
       onClick={() => onChange(sport.value, !selected)}
-      className="flex flex-col items-center gap-1 px-3 py-2 rounded-[var(--radius-md)] transition-all duration-150 cursor-pointer border"
+      className="flex items-center gap-2 px-4 py-2 rounded-[var(--radius-md)] transition-all duration-150 cursor-pointer border text-sm font-medium active:scale-[0.98]"
       style={{
         background: selected
-          ? "color-mix(in srgb, var(--color-accent) 15%, var(--bg-surface))"
-          : "var(--bg-input)",
+          ? "rgba(255, 255, 255, 0.03)"
+          : "transparent",
         borderColor: selected ? "var(--color-accent)" : "var(--border-default)",
-        color: selected ? "var(--color-accent)" : "var(--text-secondary)",
-        minWidth: 72,
+        color: selected ? "var(--text-primary)" : "var(--text-secondary)",
       }}
     >
-      <span style={{ fontSize: 20 }}>{sport.emoji}</span>
-      <span style={{ fontSize: "var(--text-xs)", fontWeight: 500 }}>
-        {sport.label}
+      <span 
+        style={{
+          color: selected ? "var(--color-accent)" : "var(--text-muted)",
+          transition: "color 0.2s"
+        }}
+      >
+        {sport.icon}
       </span>
+      <span>{sport.label}</span>
     </button>
   );
 }
@@ -117,42 +125,54 @@ function SelectField({
   options: { value: string; label: string }[];
   placeholder?: string;
 }) {
+  const [focused, setFocused] = useState(false);
+
   return (
-    <div className="flex flex-col gap-[var(--space-1)]">
+    <div className="flex flex-col gap-[var(--space-1)] w-full">
       <label
         htmlFor={id}
         style={{
           fontSize: "var(--text-sm)",
           fontWeight: 500,
           color: "var(--text-secondary)",
+          userSelect: "none",
         }}
       >
         {label}
       </label>
-      <select
-        id={id}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full h-10 rounded-[var(--radius-sm)] border px-3 appearance-none"
-        style={{
-          background: "var(--bg-input)",
-          borderColor: "var(--border-default)",
-          color: value ? "var(--text-primary)" : "var(--text-muted)",
-          fontSize: "var(--text-base)",
-          outline: "none",
-        }}
-      >
-        {placeholder && (
-          <option value="" disabled>
-            {placeholder}
-          </option>
-        )}
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
+      <div className="relative w-full">
+        <select
+          id={id}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          className="w-full h-10 rounded-[var(--radius-sm)] border pl-3 pr-10 appearance-none bg-[var(--bg-input)] text-[var(--text-primary)] transition-all duration-[var(--duration-micro)] ease-out outline-none"
+          style={{
+            borderColor: focused ? "var(--color-accent)" : "var(--border-default)",
+            boxShadow: focused ? "0 0 0 3px rgba(139, 92, 246, 0.2)" : "none",
+            color: value ? "var(--text-primary)" : "var(--text-muted)",
+            fontSize: "var(--text-base)",
+          }}
+        >
+          {placeholder && (
+            <option value="" disabled className="bg-[var(--bg-surface)] text-[var(--text-muted)]">
+              {placeholder}
+            </option>
+          )}
+          {options.map((o) => (
+            <option key={o.value} value={o.value} className="bg-[var(--bg-surface)] text-[var(--text-primary)]">
+              {o.label}
+            </option>
+          ))}
+        </select>
+        <span 
+          className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--text-muted)] transition-colors"
+          style={{ color: focused ? "var(--color-accent)" : "var(--text-muted)" }}
+        >
+          <ChevronDown size={16} />
+        </span>
+      </div>
     </div>
   );
 }
@@ -212,7 +232,12 @@ export function ProfileSection() {
 
   // Hydrate form when profile loads
   useEffect(() => {
-    if (profile && !form) setForm(profileToForm(profile));
+    if (profile && !form) {
+      const timer = setTimeout(() => {
+        setForm(profileToForm(profile));
+      }, 0);
+      return () => clearTimeout(timer);
+    }
   }, [profile, form]);
 
   const set = useCallback(
@@ -275,7 +300,7 @@ export function ProfileSection() {
       {/* Identity (read-only hints) */}
       {profile && (
         <div
-          className="flex items-center gap-3 rounded-[var(--radius-md)] px-4 py-3"
+          className="flex items-center gap-4 rounded-[var(--radius-lg)] p-4"
           style={{
             background: "var(--bg-elevated)",
             border: "1px solid var(--border-subtle)",
@@ -287,10 +312,10 @@ export function ProfileSection() {
             style={{
               width: 48,
               height: 48,
-              background:
-                "linear-gradient(135deg, var(--color-accent) 0%, color-mix(in srgb, var(--color-accent) 60%, var(--color-fitness)) 100%)",
-              fontSize: 20,
-              color: "white",
+              background: "rgba(255, 255, 255, 0.05)",
+              border: "1px solid var(--border-default)",
+              fontSize: 18,
+              color: "var(--text-primary)",
               fontWeight: 700,
             }}
           >
@@ -308,24 +333,23 @@ export function ProfileSection() {
             </span>
             <div className="flex items-center gap-3 flex-wrap">
               <span
-                className="flex items-center gap-1"
+                className="flex items-center gap-1.5"
                 style={{
                   fontSize: "var(--text-xs)",
                   color: "var(--text-muted)",
                 }}
               >
-                <Mail size={11} />
+                <Mail size={12} className="text-[var(--text-muted)]" />
                 {profile.email}
               </span>
               <span
-                className="flex items-center gap-1 rounded-[var(--radius-full)] px-2 py-0.5"
+                className="flex items-center gap-1 rounded-[var(--radius-full)] px-2.5 py-0.5"
                 style={{
                   fontSize: "var(--text-xs)",
                   fontWeight: 600,
-                  background:
-                    "color-mix(in srgb, var(--color-accent) 15%, transparent)",
+                  background: "rgba(139, 92, 246, 0.1)",
                   color: "var(--color-accent)",
-                  border: "1px solid color-mix(in srgb, var(--color-accent) 30%, transparent)",
+                  border: "1px solid rgba(139, 92, 246, 0.2)",
                 }}
               >
                 <Shield size={10} />

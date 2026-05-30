@@ -19,6 +19,7 @@ import {
   ClipboardCopy,
   ShieldCheck,
   Calendar,
+  ChevronDown,
 } from "lucide-react";
 import type { ApiKey, ApiKeyCreateResponse } from "@/lib/types/settings";
 
@@ -58,8 +59,8 @@ function NewKeyReveal({
     <div
       className="rounded-[var(--radius-lg)] p-4 flex flex-col gap-3"
       style={{
-        background: "color-mix(in srgb, var(--color-success) 8%, var(--bg-elevated))",
-        border: "1px solid color-mix(in srgb, var(--color-success) 25%, var(--border-subtle))",
+        background: "rgba(16, 185, 129, 0.04)",
+        border: "1px solid rgba(16, 185, 129, 0.2)",
       }}
     >
       <div className="flex items-center gap-2">
@@ -101,7 +102,7 @@ function NewKeyReveal({
         </button>
       </div>
       <Button variant="ghost" size="sm" onClick={onDismiss}>
-        I've saved it — dismiss
+        I&apos;ve saved it — dismiss
       </Button>
     </div>
   );
@@ -236,6 +237,7 @@ function CreateKeyForm({
   const [expiry, setExpiry] = useState("90");
   const [creating, setCreating] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [focused, setFocused] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleCreate = async () => {
@@ -304,25 +306,33 @@ function CreateKeyForm({
 
         <div>
           <InputGroup label="Expires in" htmlFor="apikey-expiry">
-            <select
-              id="apikey-expiry"
-              value={expiry}
-              onChange={(e) => setExpiry(e.target.value)}
-              className="w-full h-10 rounded-[var(--radius-sm)] border px-3 appearance-none"
-              style={{
-                background: "var(--bg-input)",
-                borderColor: "var(--border-default)",
-                color: "var(--text-primary)",
-                fontSize: "var(--text-base)",
-                outline: "none",
-              }}
-            >
-              <option value="30">30 days</option>
-              <option value="60">60 days</option>
-              <option value="90">90 days</option>
-              <option value="365">1 year</option>
-              <option value="0">Never</option>
-            </select>
+            <div className="relative w-full">
+              <select
+                id="apikey-expiry"
+                value={expiry}
+                onChange={(e) => setExpiry(e.target.value)}
+                onFocus={() => setFocused(true)}
+                onBlur={() => setFocused(false)}
+                className="w-full h-10 rounded-[var(--radius-sm)] border pl-3 pr-10 appearance-none bg-[var(--bg-input)] text-[var(--text-primary)] transition-all ease-out outline-none"
+                style={{
+                  borderColor: focused ? "var(--color-accent)" : "var(--border-default)",
+                  boxShadow: focused ? "0 0 0 3px rgba(139, 92, 246, 0.2)" : "none",
+                  fontSize: "var(--text-base)",
+                }}
+              >
+                <option value="30" className="bg-[var(--bg-surface)] text-[var(--text-primary)]">30 days</option>
+                <option value="60" className="bg-[var(--bg-surface)] text-[var(--text-primary)]">60 days</option>
+                <option value="90" className="bg-[var(--bg-surface)] text-[var(--text-primary)]">90 days</option>
+                <option value="365" className="bg-[var(--bg-surface)] text-[var(--text-primary)]">1 year</option>
+                <option value="0" className="bg-[var(--bg-surface)] text-[var(--text-primary)]">Never</option>
+              </select>
+              <span 
+                className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--text-muted)] transition-colors"
+                style={{ color: focused ? "var(--color-accent)" : "var(--text-muted)" }}
+              >
+                <ChevronDown size={15} />
+              </span>
+            </div>
           </InputGroup>
         </div>
       </div>
