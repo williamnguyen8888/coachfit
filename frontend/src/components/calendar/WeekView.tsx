@@ -97,6 +97,7 @@ function DayColumn({
     <div
       {...dropZoneProps}
       data-drop-date={date}
+      className="day-col"
       style={{
         flex: 1,
         minWidth: 80, // allows horizontal scroll on narrow screens
@@ -224,12 +225,10 @@ function DayColumn({
           }}
           className="add-event-btn"
           onMouseEnter={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.opacity = "1";
             (e.currentTarget as HTMLButtonElement).style.color = "var(--color-accent)";
             (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--color-accent)";
           }}
           onMouseLeave={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.opacity = "0";
             (e.currentTarget as HTMLButtonElement).style.color = "var(--text-muted)";
             (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border-subtle)";
           }}
@@ -419,9 +418,14 @@ export function WeekView() {
 
       {/* Global styles */}
       <style>{`
-        /* Mobile: show add button, 44px touch targets */
+        /* Desktop: show add button when hovering anywhere in the column */
+        @media (hover: hover) {
+          .add-event-btn { opacity: 0; transition: opacity 150ms ease-out; }
+          .day-col:hover .add-event-btn { opacity: 1; }
+        }
+        /* Mobile: always visible, larger touch target */
         @media (hover: none) {
-          .add-event-btn { opacity: 0.4 !important; min-height: 44px !important; }
+          .add-event-btn { opacity: 0.5 !important; min-height: 44px !important; }
         }
         /* Narrow: each day column snaps */
         @media (max-width: 480px) {

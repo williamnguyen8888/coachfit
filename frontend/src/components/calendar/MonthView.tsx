@@ -172,6 +172,7 @@ function DayCell({
     <div
       {...(inMonth ? dropZoneProps : {})}
       data-drop-date={inMonth ? date : undefined}
+      className="day-cell"
       style={{
         position: "relative",
         borderRight: "1px solid var(--border-subtle)",
@@ -247,11 +248,9 @@ function DayCell({
             }}
             className="month-add-btn"
             onMouseEnter={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.opacity = "1";
               (e.currentTarget as HTMLButtonElement).style.color = "var(--color-accent)";
             }}
             onMouseLeave={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.opacity = "0";
               (e.currentTarget as HTMLButtonElement).style.color = "var(--text-muted)";
             }}
           >
@@ -473,11 +472,12 @@ export function MonthView() {
 
       {/* Scoped CSS */}
       <style>{`
+        @media (hover: hover) {
+          .month-add-btn { opacity: 0; transition: opacity 150ms ease-out; }
+          .day-cell:hover .month-add-btn { opacity: 1; }
+        }
         @media (hover: none) {
           .month-add-btn { opacity: 0.5 !important; min-height: 44px !important; min-width: 44px !important; }
-        }
-        @media (hover: hover) {
-          .day-cell:hover .month-add-btn { opacity: 1 !important; }
         }
       `}</style>
 
