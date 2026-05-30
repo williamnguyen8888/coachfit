@@ -22,27 +22,17 @@ export function AppShell({ children }: AppShellProps) {
       className="flex h-full min-h-screen"
       style={{ background: "var(--bg-primary)" }}
     >
-      {/* Desktop Sidebar */}
+      {/* Desktop Sidebar — hidden on mobile/tablet via lg:flex in Sidebar */}
       <Sidebar />
 
-      {/* Main content */}
+      {/* Main content
+          • Mobile/tablet: padding-bottom reserves space for the fixed bottom tab bar
+          • Desktop (lg+): bottom padding is removed via the app-shell-main class
+      */}
       <main
         id="main-content"
-        className="flex-1 min-w-0 flex flex-col"
-        style={{
-          /* On mobile, add bottom padding for the tab bar */
-          paddingBottom: "calc(var(--tab-bar-height) + env(safe-area-inset-bottom, 0px))",
-        }}
+        className="app-shell-main flex-1 min-w-0 flex flex-col"
       >
-        {/* Remove bottom padding on desktop (sidebar replaces tab bar) */}
-        <style jsx>{`
-          @media (min-width: 1024px) {
-            #main-content {
-              padding-bottom: 0;
-            }
-          }
-        `}</style>
-
         {children}
       </main>
 

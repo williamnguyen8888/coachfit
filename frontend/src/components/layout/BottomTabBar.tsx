@@ -21,12 +21,13 @@ export function BottomTabBar() {
       aria-label="Mobile navigation"
       className="lg:hidden fixed bottom-0 inset-x-0 z-40 flex items-center justify-around"
       style={{
-        height: "var(--tab-bar-height)",
-        background: "var(--bg-surface)",
-        borderTop: "1px solid var(--border-subtle)",
-        backdropFilter: "blur(12px)",
-        WebkitBackdropFilter: "blur(12px)",
+        /* Height = tab content area + device safe-area (home indicator) */
+        height: "calc(var(--tab-bar-height) + env(safe-area-inset-bottom, 0px))",
         paddingBottom: "env(safe-area-inset-bottom, 0px)",
+        background: "rgba(10, 10, 15, 0.92)",
+        borderTop: "1px solid var(--border-subtle)",
+        backdropFilter: "blur(16px) saturate(180%)",
+        WebkitBackdropFilter: "blur(16px) saturate(180%)",
       }}
     >
       {TAB_ITEMS.map(({ label, href, icon: Icon }) => {

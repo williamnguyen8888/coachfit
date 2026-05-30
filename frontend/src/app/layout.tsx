@@ -31,6 +31,9 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
+  // Allow user-scaling for accessibility — avoids accessibility issues on iOS
+  userScalable: true,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -52,6 +55,25 @@ export default function RootLayout({
           href="https://fonts.gstatic.com"
           crossOrigin="anonymous"
         />
+        {/* Apple PWA */}
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="CoachFit" />
+        {/* Service Worker registration */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                window.addEventListener('load', function() {
+                  navigator.serviceWorker.register('/sw.js', { scope: '/' })
+                    .catch(function(err) { console.warn('SW registration failed:', err); });
+                });
+              }
+            `,
+          }}
+        />
       </head>
       <body className="h-full antialiased">
         <AuthProvider>{children}</AuthProvider>
@@ -59,4 +81,3 @@ export default function RootLayout({
     </html>
   );
 }
-
