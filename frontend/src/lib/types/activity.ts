@@ -24,6 +24,60 @@ export interface ActivitySummary {
   source: ActivitySource;
 }
 
+/** Full activity detail from GET /activities/{id} */
+export interface ActivityDetail extends ActivitySummary {
+  subSport: string | null;
+  description: string | null;
+  movingTimeSeconds: number | null;
+  elevationGainMeters: number | null;
+  calories: number | null;
+  maxHeartRate: number | null;
+  maxPower: number | null;
+  normalizedPower: number | null;
+  intensityFactor: number | null;
+  avgCadence: number | null;
+  avgSpeed: number | null;
+  startLat: number | null;
+  startLng: number | null;
+  gear: { id: string; name: string } | null;
+  rawFileFormat: string | null;
+}
+
+/** Single lap from GET /activities/{id}/laps */
+export interface ActivityLap {
+  lapIndex: number;
+  startTime: string;
+  durationSeconds: number;
+  distanceMeters: number | null;
+  avgHeartRate: number | null;
+  maxHeartRate: number | null;
+  avgPower: number | null;
+  maxPower: number | null;
+  normalizedPower: number | null;
+  avgCadence: number | null;
+  avgSpeed: number | null;
+  elevationGainMeters: number | null;
+  calories: number | null;
+}
+
+/** A single data-point in a stream */
+export interface StreamPoint {
+  t: number;          // seconds from start
+  hr?: number;        // bpm
+  power?: number;     // watts
+  cadence?: number;   // rpm
+  speed?: number;     // m/s
+  altitude?: number;  // meters
+  lat?: number;
+  lng?: number;
+  distance?: number;  // meters from start
+}
+
+/** Response from GET /activities/{id}/streams */
+export interface ActivityStreams {
+  points: StreamPoint[];
+}
+
 /** Paginated response from GET /activities */
 export interface PaginatedActivities {
   content: ActivitySummary[];

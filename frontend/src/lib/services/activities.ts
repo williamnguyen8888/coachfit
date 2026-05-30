@@ -4,6 +4,9 @@
 import { api } from "@/lib/api";
 import type {
   ActivitySummary,
+  ActivityDetail,
+  ActivityLap,
+  ActivityStreams,
   ActivitiesFilter,
   PaginatedActivities,
 } from "@/lib/types/activity";
@@ -28,9 +31,21 @@ export const activitiesService = {
     return api.get<PaginatedActivities>(`/activities${buildQuery(merged)}`);
   },
 
-  /** GET /activities/{id} — full detail */
+  /** GET /activities/{id} — summary (used on list cards) */
   get: (id: string): Promise<ActivitySummary> =>
     api.get<ActivitySummary>(`/activities/${id}`),
+
+  /** GET /activities/{id} — full detail with all metrics */
+  getDetail: (id: string): Promise<ActivityDetail> =>
+    api.get<ActivityDetail>(`/activities/${id}`),
+
+  /** GET /activities/{id}/streams — time-series data */
+  getStreams: (id: string): Promise<ActivityStreams> =>
+    api.get<ActivityStreams>(`/activities/${id}/streams`),
+
+  /** GET /activities/{id}/laps — laps breakdown */
+  getLaps: (id: string): Promise<ActivityLap[]> =>
+    api.get<ActivityLap[]>(`/activities/${id}/laps`),
 
   /** DELETE /activities/{id} */
   delete: (id: string): Promise<void> =>

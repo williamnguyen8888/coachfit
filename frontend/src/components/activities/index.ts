@@ -15,3 +15,12 @@ export type { PaginationProps } from "./Pagination";
 
 export { SourceBadge } from "./SourceBadge";
 export { SportIcon, SportDot } from "./SportIcon";
+
+// Detail page components
+export { ActivityDetailSkeleton } from "./detail/ActivityDetailSkeleton";
+export { ActivityHero } from "./detail/ActivityHero";
+export { ActivityMap } from "./detail/ActivityMap";
+export { ActivityCharts } from "./detail/ActivityCharts";
+export { ActivityLaps } from "./detail/ActivityLaps";
+export { ActivityMetrics } from "./detail/ActivityMetrics";
+export { ActivitySourceInfo } from "./detail/ActivitySourceInfo";

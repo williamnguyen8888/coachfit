@@ -12,6 +12,7 @@
 
 import * as React from "react";
 import { useMemo, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { AlertCircle, Dumbbell, RefreshCw, Upload } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -235,6 +236,12 @@ export function ActivityList({
   onReset,
   onTotalChange,
 }: ActivityListProps) {
+  const router = useRouter();
+
+  const handleCardClick = useCallback((id: string) => {
+    router.push(`/activities/${id}`);
+  }, [router]);
+
   // Build query string from filter — changes trigger refetch
   const queryPath = useMemo(() => {
     const params = new URLSearchParams();
@@ -347,7 +354,7 @@ export function ActivityList({
           >
             {activities.map((activity) => (
               <li key={activity.id}>
-                <ActivityCard activity={activity} />
+                <ActivityCard activity={activity} onClick={handleCardClick} />
               </li>
             ))}
           </ol>
