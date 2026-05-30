@@ -7,6 +7,7 @@
 //   - MorningBriefing (full-width hero)
 //   - FitnessStatusBadge (quick inline CTL/ATL/TSB)
 //   - HealthSnapshot (3-col chip grid)
+//   - WellnessLastKnown (last check-in + CTA)
 //   - WeeklySummary (bar chart)
 //   - FitnessTrend (area chart)
 //   - RecentActivities (list feed)
@@ -21,7 +22,9 @@ import { WeeklySummary, WeeklySummarySkeleton } from "./WeeklySummary";
 import { FitnessTrend, FitnessTrendSkeleton } from "./FitnessTrend";
 import { RecentActivities, RecentActivitiesSkeleton } from "./RecentActivities";
 import { FitnessStatusBadge } from "./FitnessStatusBadge";
+import { WellnessLastKnown, WellnessLastKnownSkeleton } from "@/components/wellness/WellnessLastKnown";
 import type { DashboardToday, WeeklySummary as WeeklySummaryType, FitnessTrendResponse } from "@/lib/types/dashboard";
+import type { WellnessEntry } from "@/lib/types/wellness";
 
 /* ─── Error state ─────────────────────────────────────────────────────── */
 
@@ -48,6 +51,16 @@ export function DashboardClient() {
   const today = useQuery<DashboardToday>("/dashboard/today");
   const weekly = useQuery<WeeklySummaryType>("/dashboard/weekly-summary");
   const fitness = useQuery<FitnessTrendResponse>("/dashboard/fitness-trend?days=90");
+
+  // Fetch today's wellness entry to power the WellnessLastKnown widget.
+  // We also pick up lastWellness from today.data as a fallback.
+  const todayDate = new Date().toISOString().split("T")[0];
+  const wellnessQuery = useQuery<{ content: WellnessEntry[] }>(
+    `/wellness?from=${todayDate}&to=${todayDate}`,
+  );
+  const wellnessEntry: WellnessEntry | null =
+    wellnessQuery.data?.content[0] ?? null;
+  const hasCheckedInToday = !!wellnessEntry;
 
   return (
     <div className="px-3 lg:px-6 py-4 pb-safe">
@@ -86,6 +99,16 @@ export function DashboardClient() {
             <SectionError message="Could not load health data" />
           ) : (
             <HealthSnapshot data={today.data?.healthSnapshot ?? null} />
+          )}
+
+          {/* Wellness last known + check-in CTA */}
+          {wellnessQuery.loading ? (
+            <WellnessLastKnownSkeleton />
+          ) : (
+            <WellnessLastKnown
+              entry={wellnessEntry}
+              hasCheckedInToday={hasCheckedInToday}
+            />
           )}
         </div>
 
