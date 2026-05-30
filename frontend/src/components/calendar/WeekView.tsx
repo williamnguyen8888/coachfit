@@ -20,6 +20,7 @@ import { useDragDrop } from "@/hooks/useDragDrop";
 import { CalendarEventChip } from "./CalendarEventChip";
 import { CalendarEventModal } from "./CalendarEventModal";
 import { DailyWellnessSummary } from "./DailyWellnessSummary";
+import { WeeklySummaryColumn } from "./WeeklySummaryColumn";
 import type { WellnessEntry } from "@/lib/types/wellness";
 import type { DailyHealthSummary, SleepRecord } from "@/lib/services/health";
 import {
@@ -33,6 +34,13 @@ import {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+function getWeekNumber(dateStr: string): number {
+  const d = new Date(dateStr + "T00:00:00");
+  const oneJan = new Date(d.getFullYear(), 0, 1);
+  const numberOfDays = Math.floor((d.getTime() - oneJan.getTime()) / (24 * 60 * 60 * 1000));
+  return Math.ceil((numberOfDays + oneJan.getDay() + 1) / 7);
+}
 
 function addDays(dateStr: string, days: number): string {
   const d = new Date(dateStr + "T00:00:00");
@@ -562,17 +570,34 @@ function WeekSkeleton() {
           width: "var(--cal-weekly-sidebar-w)",
           minWidth: "var(--cal-weekly-sidebar-w)",
           borderRight: "1px solid var(--border-subtle)",
-          padding: "var(--space-3) var(--space-2)",
+          padding: "12px 14px",
           display: "flex",
           flexDirection: "column",
-          alignItems: "center",
-          gap: "var(--space-3)",
+          alignItems: "stretch",
+          gap: "14px",
           background: "var(--bg-surface)",
         }}
       >
-        <div style={{ width: 38, height: 38, borderRadius: "50%", background: "var(--bg-elevated)" }} />
-        <div style={{ width: 40, height: 14, borderRadius: 4, background: "var(--bg-elevated)" }} />
-        <div style={{ width: 32, height: 12, borderRadius: 4, background: "var(--bg-elevated)" }} />
+        <div style={{ display: "flex", justifyContent: "space-between" }}>
+          <div style={{ width: 80, height: 16, borderRadius: 4, background: "var(--bg-elevated)" }} />
+          <div style={{ width: 20, height: 16, borderRadius: 4, background: "var(--bg-elevated)" }} />
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px 14px" }}>
+          {Array.from({ length: 6 }).map((_, idx) => (
+            <div key={idx} style={{ display: "flex", justifyContent: "space-between" }}>
+              <div style={{ width: 35, height: 12, borderRadius: 3, background: "var(--bg-elevated)" }} />
+              <div style={{ width: 25, height: 12, borderRadius: 3, background: "var(--bg-elevated)" }} />
+            </div>
+          ))}
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {Array.from({ length: 2 }).map((_, idx) => (
+            <div key={idx} style={{ display: "flex", flexDirection: "column", gap: 6, padding: "8px", border: "1px solid var(--border-subtle)", borderRadius: 6 }}>
+              <div style={{ width: 60, height: 12, borderRadius: 3, background: "var(--bg-elevated)" }} />
+              <div style={{ width: "100%", height: 14, borderRadius: 4, background: "var(--bg-elevated)" }} />
+            </div>
+          ))}
+        </div>
       </div>
 
       {Array.from({ length: 7 }).map((_, i) => (
@@ -713,7 +738,17 @@ export function WeekView() {
         onTouchEnd={onTouchEnd}
       >
         {/* Weekly summary sidebar */}
-        <WeeklySidebar stats={weekStats} />
+        <WeeklySummaryColumn
+          events={allWeekEvents}
+          weekNumber={getWeekNumber(from)}
+          style={{
+            borderRight: "1px solid var(--border-subtle)",
+            borderBottom: "none",
+            height: "auto",
+            width: "var(--cal-weekly-sidebar-w)",
+            minWidth: "var(--cal-weekly-sidebar-w)",
+          }}
+        />
 
         {/* Day columns */}
         {weekDates.map((date) => {

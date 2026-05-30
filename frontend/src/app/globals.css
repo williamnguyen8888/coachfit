@@ -332,7 +332,7 @@ body {
   --sport-other-glow: rgba(107, 114, 128, 0.1);
 
   /* Calendar layout */
-  --cal-weekly-sidebar-w: 72px;
+  --cal-weekly-sidebar-w: 240px;
   --cal-chip-height-normal: 54px;
   --cal-chip-height-compact: 36px;
   --cal-day-header-h: 52px;

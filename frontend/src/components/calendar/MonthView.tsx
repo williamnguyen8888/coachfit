@@ -18,12 +18,20 @@ import { useDragDrop } from "@/hooks/useDragDrop";
 import { CalendarEventChip } from "./CalendarEventChip";
 import { CalendarEventModal } from "./CalendarEventModal";
 import { DailyWellnessSummary } from "./DailyWellnessSummary";
+import { WeeklySummaryColumn } from "./WeeklySummaryColumn";
 import type { WellnessEntry } from "@/lib/types/wellness";
 import type { DailyHealthSummary, SleepRecord } from "@/lib/services/health";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const DAY_NAMES_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+function getWeekNumber(dateStr: string): number {
+  const d = new Date(dateStr + "T00:00:00");
+  const oneJan = new Date(d.getFullYear(), 0, 1);
+  const numberOfDays = Math.floor((d.getTime() - oneJan.getTime()) / (24 * 60 * 60 * 1000));
+  return Math.ceil((numberOfDays + oneJan.getDay() + 1) / 7);
+}
 
 function toISODate(d: Date): string {
   return d.toISOString().split("T")[0];
@@ -427,6 +435,10 @@ export function MonthView() {
   );
 
   const gridDates = buildMonthGrid(anchorDate);
+  const weeks: string[][] = [];
+  for (let i = 0; i < gridDates.length; i += 7) {
+    weeks.push(gridDates.slice(i, i + 7));
+  }
 
   if (isLoading) return <MonthSkeleton />;
 
@@ -437,7 +449,7 @@ export function MonthView() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(7, 1fr)",
+            gridTemplateColumns: "repeat(7, 1fr) 240px",
             borderBottom: "1px solid var(--border-default)",
           }}
         >
@@ -462,40 +474,68 @@ export function MonthView() {
               </div>
             );
           })}
+          <div
+            style={{
+              padding: "var(--space-2)",
+              textAlign: "center",
+              fontSize: "var(--text-xs)",
+              fontWeight: 600,
+              color: "var(--text-muted)",
+              textTransform: "uppercase",
+              letterSpacing: "0.07em",
+              borderRight: "1px solid var(--border-subtle)",
+              background: "var(--bg-elevated)",
+            }}
+          >
+            Summary
+          </div>
         </div>
 
         {/* Day grid */}
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(7, 1fr)",
+            gridTemplateColumns: "repeat(7, 1fr) 240px",
             flex: 1,
           }}
         >
-          {gridDates.map((date) => {
-            const inMonth   = isCurrentMonth(date, anchorDate);
-            const isDragOver = dragState.dragOverDate === date;
+          {weeks.map((weekDates, weekIdx) => {
+            const dayCells = weekDates.map((date) => {
+              const inMonth   = isCurrentMonth(date, anchorDate);
+              const isDragOver = dragState.dragOverDate === date;
 
-            return (
-              <DayCell
-                key={date}
-                date={date}
-                events={eventsByDate[date] ?? []}
-                inMonth={inMonth}
-                onEventClick={(event) => setModalState({ mode: "edit", event })}
-                onAddClick={(d) => setModalState({ mode: "create", date: d })}
-                isDragOver={isDragOver}
-                draggingId={dragState.draggingId}
-                dropZoneProps={getDropZoneProps(date, inMonth)}
-                getChipDragProps={getChipDragProps}
-                getTouchDragProps={getTouchDragProps}
-                onComplete={handleComplete}
-                onSkip={handleSkip}
-                wellness={wellnessByDate?.[date]}
-                health={healthSummaryByDate?.[date]}
-                sleep={sleepByDate?.[date]}
+              return (
+                <DayCell
+                  key={date}
+                  date={date}
+                  events={eventsByDate[date] ?? []}
+                  inMonth={inMonth}
+                  onEventClick={(event) => setModalState({ mode: "edit", event })}
+                  onAddClick={(d) => setModalState({ mode: "create", date: d })}
+                  isDragOver={isDragOver}
+                  draggingId={dragState.draggingId}
+                  dropZoneProps={getDropZoneProps(date, inMonth)}
+                  getChipDragProps={getChipDragProps}
+                  getTouchDragProps={getTouchDragProps}
+                  onComplete={handleComplete}
+                  onSkip={handleSkip}
+                  wellness={wellnessByDate?.[date]}
+                  health={healthSummaryByDate?.[date]}
+                  sleep={sleepByDate?.[date]}
+                />
+              );
+            });
+
+            const allWeekEvents = weekDates.flatMap((d) => eventsByDate[d] ?? []);
+
+            return [
+              ...dayCells,
+              <WeeklySummaryColumn
+                key={`summary-${weekIdx}`}
+                events={allWeekEvents}
+                weekNumber={getWeekNumber(weekDates[0])}
               />
-            );
+            ];
           })}
         </div>
       </div>
