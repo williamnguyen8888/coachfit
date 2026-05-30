@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
+import { AuthProvider } from "@/components/providers";
 import "./globals.css";
 
 const inter = Inter({
@@ -40,7 +41,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      // Default dark mode; toggled via data-theme attr by UI store
+      // Default dark mode; AuthProvider syncs data-theme on theme change
       className={`${inter.variable} h-full`}
       data-theme="dark"
     >
@@ -53,8 +54,9 @@ export default function RootLayout({
         />
       </head>
       <body className="h-full antialiased">
-        {children}
+        <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
   );
 }
+

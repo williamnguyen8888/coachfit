@@ -1,12 +1,17 @@
 import { AppShell } from "@/components/layout/AppShell";
+import { AuthGuard } from "@/components/layout/AuthGuard";
 
-// This layout wraps all authenticated app pages with the app shell
-// (sidebar on desktop, bottom tab bar on mobile).
-// Auth guard is added in F03.
+// Authenticated route group layout.
+// AuthGuard redirects to /login when the user is not authenticated.
+// AppShell renders sidebar (desktop) + bottom tab bar (mobile).
 export default function AuthenticatedLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <AppShell>{children}</AppShell>;
+  return (
+    <AuthGuard>
+      <AppShell>{children}</AppShell>
+    </AuthGuard>
+  );
 }
