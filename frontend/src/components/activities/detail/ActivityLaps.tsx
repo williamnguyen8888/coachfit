@@ -19,11 +19,37 @@ function fmtSpeed(ms: number | null) {
   return `${(ms * 3.6).toFixed(1)} km/h`;
 }
 
-interface ActivityLapsProps {
-  laps: ActivityLap[] | null;
+function formatSpeedToPace(speedMps: number | null | undefined, type: "run" | "swim"): string {
+  if (speedMps == null || speedMps <= 0.1) return "--:--";
+  const totalSecs = type === "run" ? 1000 / speedMps : 100 / speedMps;
+  if (totalSecs > 1800) return "--:--";
+  const m = Math.floor(totalSecs / 60);
+  const s = Math.round(totalSecs % 60);
+  return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-export function ActivityLaps({ laps }: ActivityLapsProps) {
+interface ActivityLapsProps {
+  laps: ActivityLap[] | null;
+  sport: string;
+  selectedRange?: { startTime: number; endTime: number } | null;
+  onSelectLapRange?: (range: { startTime: number; endTime: number } | null) => void;
+}
+
+export function ActivityLaps({ laps, sport, selectedRange, onSelectLapRange }: ActivityLapsProps) {
+  // Compute cumulative intervals for laps
+  const lapIntervals = React.useMemo(() => {
+    if (!laps) return [];
+    let currentStart = 0;
+    return laps.map((lap) => {
+      const interval = {
+        startTime: currentStart,
+        endTime: currentStart + lap.durationSeconds,
+      };
+      currentStart = interval.endTime;
+      return interval;
+    });
+  }, [laps]);
+
   if (!laps || laps.length === 0) {
     return (
       <Card>
@@ -69,7 +95,7 @@ export function ActivityLaps({ laps }: ActivityLapsProps) {
         >
           <thead>
             <tr style={{ borderBottom: "1px solid var(--border-subtle)" }}>
-              {["Lap", "Duration", "Dist", "Avg HR", "Avg Pwr", "Speed"].map((h) => (
+              {["Lap", "Duration", "Dist", "Avg HR", "Avg Pwr", (sport === "running" || sport === "swimming") ? "Pace" : "Speed"].map((h) => (
                 <th
                   key={h}
                   style={{
@@ -91,12 +117,34 @@ export function ActivityLaps({ laps }: ActivityLapsProps) {
           <tbody>
             {laps.map((lap, idx) => {
               const widthPct = (lap.durationSeconds / maxDuration) * 100;
+              const interval = lapIntervals[idx];
+              const isSelected = selectedRange && interval &&
+                selectedRange.startTime === interval.startTime &&
+                selectedRange.endTime === interval.endTime;
+
               return (
                 <tr
                   key={lap.lapIndex ?? idx}
-                  style={{ borderBottom: idx < laps.length - 1 ? "1px solid var(--border-subtle)" : "none" }}
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLTableRowElement).style.background = "var(--bg-elevated)"; }}
-                  onMouseLeave={(e) => { (e.currentTarget as HTMLTableRowElement).style.background = "transparent"; }}
+                  style={{
+                    borderBottom: idx < laps.length - 1 ? "1px solid var(--border-subtle)" : "none",
+                    background: isSelected ? "var(--bg-elevated)" : "transparent",
+                    cursor: "pointer",
+                  }}
+                  onClick={() => {
+                    if (onSelectLapRange && interval) {
+                      if (isSelected) {
+                        onSelectLapRange(null); // Click to deselect
+                      } else {
+                        onSelectLapRange({ startTime: interval.startTime, endTime: interval.endTime });
+                      }
+                    }
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isSelected) (e.currentTarget as HTMLTableRowElement).style.background = "var(--bg-elevated)";
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isSelected) (e.currentTarget as HTMLTableRowElement).style.background = "transparent";
+                  }}
                 >
                   <td style={{ padding: "12px 16px", textAlign: "left" }}>
                     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -143,7 +191,11 @@ export function ActivityLaps({ laps }: ActivityLapsProps) {
                   </td>
                   <td style={{ padding: "12px 16px", textAlign: "right" }}>
                     <span className="tabular-nums" style={{ color: "var(--text-secondary)" }}>
-                      {fmtSpeed(lap.avgSpeed)}
+                      {sport === "running"
+                        ? (lap.avgSpeed ? `${formatSpeedToPace(lap.avgSpeed, "run")} /km` : "—")
+                        : sport === "swimming"
+                        ? (lap.avgSpeed ? `${formatSpeedToPace(lap.avgSpeed, "swim")} /100m` : "—")
+                        : fmtSpeed(lap.avgSpeed)}
                     </span>
                   </td>
                 </tr>

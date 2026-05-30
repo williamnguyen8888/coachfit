@@ -1,25 +1,39 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import {
+  BarChart,
+  Bar,
+  AreaChart,
+  Area,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
+import { Heart, Award, Flame, Info } from "lucide-react";
 import type { StreamPoint } from "@/lib/types/activity";
 
 interface ActivityHrTabProps {
   points: StreamPoint[];
-  lthr?: number; // default to 154
-  restingHr?: number; // default to 53
-  maxHr?: number; // default to 170
-  estimatedLoad?: number; // default to 48
-  actualLoad?: number; // default to 49
+  lthr?: number;
+  restingHr?: number;
+  maxHr?: number;
+  estimatedLoad?: number;
+  actualLoad?: number;
 }
 
 const ZONE_COLORS: Record<number, string> = {
-  1: "#0D9488", // Teal/Recovery
-  2: "#22C55E", // Green/Aerobic
-  3: "#EAB308", // Yellow/Tempo
-  4: "#F97316", // Orange/SubThreshold
-  5: "#EF4444", // Red/SuperThreshold
-  6: "#A855F7", // Purple/Aerobic Capacity
-  7: "#EC4899", // Pink/Anaerobic
+  1: "#0D9488",
+  2: "#22C55E",
+  3: "#EAB308",
+  4: "#F97316",
+  5: "#EF4444",
+  6: "#A855F7",
+  7: "#EC4899",
 };
 
 const ZONE_NAMES: Record<number, string> = {
@@ -53,6 +67,33 @@ function formatDuration(secs: number): string {
   return `${s}s`;
 }
 
+// Custom Glassmorphic Tooltip Component for HR Charts
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function CustomHrTooltip({ active, payload, labelFormatter, unit = "bpm" }: any) {
+  if (!active || !payload || !payload.length) return null;
+  return (
+    <div className="bg-bg-elevated/90 backdrop-blur-md border border-border-default rounded-lg p-2.5 shadow-lg text-xs flex flex-col gap-1.5 pointer-events-none z-50">
+      {labelFormatter && (
+        <div className="text-[10px] text-text-muted font-mono border-b border-border-subtle pb-1 mb-1 font-bold">
+          {labelFormatter(payload[0].payload)}
+        </div>
+      )}
+      {payload.map((entry: { color: string; value: number; name: string }, i: number) => (
+        <div key={i} className="flex items-center justify-between gap-6">
+          <span style={{ color: entry.color }} className="font-bold flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full" style={{ background: entry.color }} />
+            {entry.name}:
+          </span>
+          <span className="font-mono font-bold text-text-primary">
+            {Math.round(entry.value)}
+            <span className="text-[10px] text-text-muted font-normal ml-0.5">{unit}</span>
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function ActivityHrTab({
   points,
   lthr = 154,
@@ -61,11 +102,6 @@ export function ActivityHrTab({
   estimatedLoad = 48,
   actualLoad = 49,
 }: ActivityHrTabProps) {
-  // Interactive chart states
-  const [hoverHistoIdx, setHoverHistoIdx] = useState<number | null>(null);
-  const [hoverCurveIdx, setHoverCurveIdx] = useState<number | null>(null);
-  const [hoverCumIdx, setHoverCumIdx] = useState<number | null>(null);
-
   const hasHR = useMemo(() => points.some((p) => p.hr != null && p.hr > 0), [points]);
 
   // ─── 1. Calculate Zone Durations ─────────────────────────────────────────
@@ -74,14 +110,13 @@ export function ActivityHrTab({
     let total = 0;
 
     if (!hasHR) {
-      // Mock durations matching 42m03s (2523s) from the screenshot
-      durations[1] = 692; // Z1: 11m32s
-      durations[2] = 347; // Z2: 5m47s
-      durations[3] = 275; // Z3: 4m35s
-      durations[4] = 742; // Z4: 12m22s
-      durations[5] = 399; // Z5: 6m39s
-      durations[6] = 68;  // Z6: 1m08s
-      durations[7] = 0;   // Z7: 0s
+      durations[1] = 692;
+      durations[2] = 347;
+      durations[3] = 275;
+      durations[4] = 742;
+      durations[5] = 399;
+      durations[6] = 68;
+      durations[7] = 0;
       total = 2523;
     } else {
       points.forEach((p) => {
@@ -99,7 +134,7 @@ export function ActivityHrTab({
           else if (pct <= 1.05) zoneKey = 6;
           else zoneKey = 7;
 
-          durations[zoneKey as keyof typeof durations]++;
+          durations[zoneKey]++;
         }
       });
     }
@@ -110,15 +145,14 @@ export function ActivityHrTab({
   // ─── 2. HR Distribution Histogram calculation ────────────────────────────
   const histogramBuckets = useMemo(() => {
     const buckets = [
-      { label: "80", count: 0 },
-      { label: "100", count: 0 },
-      { label: "120", count: 0 },
-      { label: "140", count: 0 },
-      { label: "160", count: 0 },
+      { label: "80", count: 0, bpmVal: 80 },
+      { label: "100", count: 0, bpmVal: 100 },
+      { label: "120", count: 0, bpmVal: 120 },
+      { label: "140", count: 0, bpmVal: 140 },
+      { label: "160", count: 0, bpmVal: 160 },
     ];
 
     if (!hasHR) {
-      // Mock histogram aligned to intervals.icu screenshot
       buckets[0].count = 10;
       buckets[1].count = 180;
       buckets[2].count = 520;
@@ -135,17 +169,12 @@ export function ActivityHrTab({
       });
     }
 
-    const maxCount = Math.max(...buckets.map((b) => b.count), 1);
-    return buckets.map((b) => ({
-      ...b,
-      heightPct: (b.count / maxCount) * 100,
-    }));
+    return buckets;
   }, [points, hasHR]);
 
   // ─── 3. HR Duration Curve calculation ────────────────────────────────────
   const hrCurve = useMemo(() => {
     if (!hasHR) {
-      // Mock peak HR curve matching the ride efforts
       return [
         { label: "1s", bpm: 159 },
         { label: "5s", bpm: 159 },
@@ -200,12 +229,12 @@ export function ActivityHrTab({
 
   // ─── 4. HR Cumulative Time Curve calculation ─────────────────────────────
   const cumulativePoints = useMemo(() => {
-    // Generate 10 points between 110 bpm and maxHr
-    const numPoints = 10;
-    const step = (maxHr - 110) / numPoints;
+    const numPoints = 12;
+    const startBpm = 110;
+    const step = (maxHr - startBpm) / numPoints;
     const hrScale: number[] = [];
     for (let i = 0; i <= numPoints; i++) {
-      hrScale.push(Math.round(110 + i * step));
+      hrScale.push(Math.round(startBpm + i * step));
     }
 
     const hrStream = points.map((p) => p.hr ?? 0);
@@ -213,9 +242,8 @@ export function ActivityHrTab({
     return hrScale.map((h) => {
       let count = 0;
       if (!hasHR) {
-        // Mock downward curve matching screenshot
-        const ratio = (maxHr - h) / (maxHr - 110);
-        count = Math.round(ratio * ratio * 2000);
+        const ratio = (maxHr - h) / (maxHr - startBpm);
+        count = Math.round(Math.max(0, ratio * ratio * 2000));
       } else {
         count = hrStream.filter((val) => val >= h).length;
       }
@@ -228,523 +256,173 @@ export function ActivityHrTab({
   }, [points, maxHr, hasHR]);
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexWrap: "wrap",
-        gap: "16px",
-        justifyContent: "space-between",
-        background: "var(--bg-elevated)",
-        borderRadius: "var(--radius-lg)",
-        padding: "20px",
-        border: "1px solid var(--border-subtle)",
-      }}
-    >
-      {/* Component 1: Heart Rate Zones Table */}
-      <div
-        style={{
-          flex: "1 1 230px",
-          background: "var(--bg-surface)",
-          border: "1px solid var(--border-subtle)",
-          borderRadius: "var(--radius-md)",
-          padding: "12px 14px",
-          minWidth: "230px",
-        }}
-      >
-        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-          {[1, 2, 3, 4, 5, 6, 7].map((zNum) => {
-            const secs = zoneDurations[zNum] || 0;
-            const pct = (secs / totalSeconds) * 100;
-            const color = ZONE_COLORS[zNum];
-            const name = ZONE_NAMES[zNum];
-            const range = ZONE_RANGES[zNum];
+    <div className="flex flex-col gap-6 bg-bg-elevated border border-border-subtle rounded-xl p-5 shadow-lg select-none">
+      
+      {/* Grid containing heart rate tables and charts */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-12 gap-5">
+        
+        {/* Column 1: Zones Table */}
+        <div className="xl:col-span-4 bg-bg-surface border border-border-subtle rounded-lg p-4 flex flex-col gap-3">
+          <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Heart Rate Training Zones</span>
+          <div className="flex flex-col gap-2.5">
+            {[1, 2, 3, 4, 5, 6, 7].map((zNum) => {
+              const secs = zoneDurations[zNum] || 0;
+              const pct = (secs / totalSeconds) * 100;
+              const color = ZONE_COLORS[zNum];
+              const name = ZONE_NAMES[zNum];
+              const range = ZONE_RANGES[zNum];
 
-            const minB = Math.round(lthr * range.minPct);
-            const maxB = range.maxPct ? Math.round(lthr * range.maxPct) : maxHr;
-            const rangeStr = range.maxPct ? `${minB}-${maxB}` : `>${minB}`;
+              const minB = Math.round(lthr * range.minPct);
+              const maxB = range.maxPct ? Math.round(lthr * range.maxPct) : maxHr;
+              const rangeStr = range.maxPct ? `${minB}-${maxB} bpm` : `>${minB} bpm`;
 
-            return (
-              <div key={zNum} style={{ display: "flex", flexDirection: "column", gap: "2px", fontSize: "11px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", color: "var(--text-primary)" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                    <span style={{ width: "8px", height: "8px", borderRadius: "1px", background: color }} />
-                    <span style={{ fontWeight: 600 }}>
-                      Z{zNum} {name}
+              return (
+                <div key={zNum} className="flex flex-col gap-1 text-[11px]">
+                  <div className="flex justify-between items-center text-text-primary">
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-2.5 h-2.5 rounded-full" style={{ background: color }} />
+                      <span className="font-bold">
+                        Z{zNum} - {name}
+                      </span>
+                    </div>
+                    <span className="text-text-muted font-mono text-[10px]">{rangeStr}</span>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 h-1.5 bg-bg-input rounded-full overflow-hidden">
+                      <div className="h-full rounded-full transition-all duration-300" style={{ width: `${pct}%`, background: color }} />
+                    </div>
+                    <span className="w-10 text-right font-mono font-bold text-text-primary text-[10.5px]">
+                      {formatDuration(secs)}
+                    </span>
+                    <span className="w-8 text-right font-mono text-text-muted text-[10px]">
+                      {pct > 0 ? `${pct.toFixed(1)}%` : "0.0%"}
                     </span>
                   </div>
-                  <span style={{ color: "var(--text-muted)", fontFamily: "var(--font-mono, monospace)" }}>
-                    {rangeStr} bpm
-                  </span>
                 </div>
-
-                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                  <div style={{ flex: 1, height: "5px", background: "var(--bg-input)", borderRadius: "2px", overflow: "hidden" }}>
-                    <div style={{ width: `${pct}%`, height: "100%", background: color, borderRadius: "2px" }} />
-                  </div>
-                  <span style={{ width: "42px", textAlign: "right", fontFamily: "var(--font-mono, monospace)", fontWeight: 600, fontSize: "10px", color: secs > 0 ? "var(--text-primary)" : "var(--text-muted)" }}>
-                    {formatDuration(secs)}
-                  </span>
-                  <span style={{ width: "32px", textAlign: "right", fontFamily: "var(--font-mono, monospace)", fontSize: "10px", color: pct > 0 ? "var(--text-secondary)" : "var(--text-muted)" }}>
-                    {pct > 0 ? `${pct.toFixed(1)}%` : "0.0%"}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Component 2: HR Distribution Histogram */}
-      <div
-        style={{
-          flex: "1 1 150px",
-          background: "var(--bg-surface)",
-          border: "1px solid var(--border-subtle)",
-          borderRadius: "var(--radius-md)",
-          padding: "12px 14px",
-          minWidth: "150px",
-          display: "flex",
-          flexDirection: "column",
-          position: "relative",
-        }}
-      >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-          <span style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-muted)" }}>HR DISTRIBUTION</span>
-          <span style={{ fontSize: "10px", color: "var(--text-muted)", cursor: "pointer" }}>✏️</span>
-        </div>
-
-        <div style={{ flex: 1, display: "flex", alignItems: "flex-end", gap: "4px", minHeight: "180px", borderBottom: "1px solid var(--border-subtle)", paddingBottom: "4px", position: "relative" }}>
-          {histogramBuckets.map((b, idx) => (
-            <div
-              key={idx}
-              style={{
-                flex: 1,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                height: "100%",
-                justifyContent: "flex-end",
-                cursor: "pointer",
-              }}
-              onMouseEnter={() => setHoverHistoIdx(idx)}
-              onMouseLeave={() => setHoverHistoIdx(null)}
-            >
-              <div
-                style={{
-                  width: "100%",
-                  height: `${b.heightPct}%`,
-                  background: "var(--color-danger)",
-                  opacity: hoverHistoIdx === null ? 0.85 : hoverHistoIdx === idx ? 1.0 : 0.35,
-                  borderRadius: "1px 1px 0 0",
-                  transition: "all 0.2s ease",
-                  boxShadow: hoverHistoIdx === idx ? "0 0 8px var(--color-danger)" : "none",
-                }}
-              />
-            </div>
-          ))}
-
-          {/* Floating Glassmorphic Tooltip */}
-          {hoverHistoIdx !== null && (
-            <div
-              style={{
-                position: "absolute",
-                left: `${((hoverHistoIdx + 0.5) / histogramBuckets.length) * 100}%`,
-                bottom: `calc(${histogramBuckets[hoverHistoIdx].heightPct}% + 10px)`,
-                transform: "translateX(-50%)",
-                background: "rgba(15, 23, 42, 0.9)",
-                backdropFilter: "blur(12px)",
-                WebkitBackdropFilter: "blur(12px)",
-                border: "1px solid var(--border-subtle)",
-                borderRadius: "var(--radius-sm)",
-                padding: "6px 10px",
-                pointerEvents: "none",
-                zIndex: 10,
-                boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -4px rgba(0, 0, 0, 0.3)",
-                whiteSpace: "nowrap",
-                fontSize: "10px",
-                color: "var(--text-primary)",
-                display: "flex",
-                flexDirection: "column",
-                gap: "2px",
-                alignItems: "center",
-              }}
-            >
-              <div style={{ fontWeight: 600, color: "var(--color-danger)" }}>
-                {histogramBuckets[hoverHistoIdx].label} bpm Bucket
-              </div>
-              <div>
-                Duration: <strong style={{ color: "var(--text-primary)" }}>{formatDuration(histogramBuckets[hoverHistoIdx].count)}</strong>
-              </div>
-              <div style={{ color: "var(--text-secondary)", fontSize: "9px" }}>
-                {((histogramBuckets[hoverHistoIdx].count / totalSeconds) * 100).toFixed(1)}% of ride
-              </div>
-            </div>
-          )}
-        </div>
-        {/* X axis labels */}
-        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "8.5px", color: "var(--text-muted)", marginTop: "4px" }}>
-          <span>80</span>
-          <span>100</span>
-          <span>120</span>
-          <span>140</span>
-          <span>160</span>
-        </div>
-      </div>
-
-      {/* Component 3: HR Duration Curve */}
-      <div
-        style={{
-          flex: "1.2 1 200px",
-          background: "var(--bg-surface)",
-          border: "1px solid var(--border-subtle)",
-          borderRadius: "var(--radius-md)",
-          padding: "12px 14px",
-          minWidth: "200px",
-          display: "flex",
-          flexDirection: "column",
-        }}
-      >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "8px" }}>
-          <span style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-muted)" }}>HR CURVES</span>
-          <span style={{ fontSize: "9px", color: "var(--text-muted)", fontStyle: "italic" }}>This ride</span>
-        </div>
-
-        <div style={{ flex: 1, minHeight: "180px", position: "relative" }}>
-          <svg
-            viewBox="0 0 200 130"
-            style={{ width: "100%", height: "180px", overflow: "visible", cursor: "crosshair" }}
-            onMouseMove={(e) => {
-              const svg = e.currentTarget;
-              const rect = svg.getBoundingClientRect();
-              const relativeX = (e.clientX - rect.left) / rect.width;
-              const svgX = relativeX * 200; // viewBox width is 200
-              const len = hrCurve.length;
-              if (len === 0) return;
-
-              let closestIdx = 0;
-              let minDiff = Infinity;
-              for (let i = 0; i < len; i++) {
-                const x = 25 + (i / (len - 1)) * 160;
-                const diff = Math.abs(x - svgX);
-                if (diff < minDiff) {
-                  minDiff = diff;
-                  closestIdx = i;
-                }
-              }
-              setHoverCurveIdx(closestIdx);
-            }}
-            onMouseLeave={() => setHoverCurveIdx(null)}
-          >
-            {/* Grid lines mapped to 120 bpm - 170 bpm */}
-            {[120, 130, 140, 150, 160, 170].map((bpm, i) => {
-              const y = 10 + 95 - ((bpm - 120) / 50) * 95;
-              return (
-                <line
-                  key={i}
-                  x1="20"
-                  y1={y}
-                  x2="190"
-                  y2={y}
-                  stroke="var(--border-subtle)"
-                  strokeWidth={0.5}
-                />
               );
             })}
-            {/* HR Curve path */}
-            <path
-              d={hrCurve.map((d, i) => {
-                const x = 25 + (i / (hrCurve.length - 1)) * 160;
-                const y = 10 + 95 - ((Math.min(170, Math.max(120, d.bpm)) - 120) / 50) * 95;
-                return `${i === 0 ? "M" : "L"} ${x} ${y}`;
-              }).join(" ")}
-              fill="none"
-              stroke="var(--color-danger)"
-              strokeWidth={1.5}
-            />
-            {/* X ticks */}
-            {["1s", "1m", "5m", "30m"].map((lbl, idx) => {
-              const x = 25 + (idx * 50);
-              return (
-                <text key={idx} x={x} y="122" textAnchor="middle" fontSize="7.5" fill="var(--text-muted)">
-                  {lbl}
-                </text>
-              );
-            })}
+          </div>
+        </div>
 
-            {/* Snapping Interactive Elements */}
-            {hoverCurveIdx !== null && (
-              <g>
-                <line
-                  x1={25 + (hoverCurveIdx / (hrCurve.length - 1)) * 160}
-                  y1={10}
-                  x2={25 + (hoverCurveIdx / (hrCurve.length - 1)) * 160}
-                  y2={105}
-                  stroke="var(--text-muted)"
-                  strokeWidth={0.8}
-                  strokeDasharray="2,2"
+        {/* Column 2: HR Histogram Chart */}
+        <div className="xl:col-span-4 bg-bg-surface border border-border-subtle rounded-lg p-4 flex flex-col gap-2 min-h-[250px]">
+          <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider">HR Distribution</span>
+          <div className="flex-1 w-full min-h-[180px] mt-2">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={histogramBuckets} margin={{ top: 10, right: 5, left: -25, bottom: -5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" vertical={false} />
+                <XAxis dataKey="label" tick={{ fill: "var(--text-muted)", fontSize: 9.5 }} axisLine={{ stroke: "var(--border-subtle)" }} tickLine={false} />
+                <YAxis tick={{ fill: "var(--text-muted)", fontSize: 9.5 }} axisLine={false} tickLine={false} />
+                <Tooltip
+                  content={<CustomHrTooltip unit="s" labelFormatter={(item: any) => `HR range: ~${item.bpmVal} bpm`} />}
+                  cursor={{ fill: "rgba(239, 68, 68, 0.04)" }}
                 />
-                <circle
-                  cx={25 + (hoverCurveIdx / (hrCurve.length - 1)) * 160}
-                  cy={10 + 95 - ((Math.min(170, Math.max(120, hrCurve[hoverCurveIdx].bpm)) - 120) / 50) * 95}
-                  r={3.5}
-                  fill="var(--color-danger)"
-                  stroke="var(--bg-surface)"
-                  strokeWidth={1}
-                />
-              </g>
-            )}
-          </svg>
+                <Bar dataKey="count" fill="var(--color-danger)" radius={[3, 3, 0, 0]} name="Time spent" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
 
-          {/* Floating Glassmorphic Tooltip */}
-          {hoverCurveIdx !== null && (
-            <div
-              style={{
-                position: "absolute",
-                left: `${(25 + (hoverCurveIdx / (hrCurve.length - 1)) * 160) / 2}%`,
-                top: `${(10 + 95 - ((Math.min(170, Math.max(120, hrCurve[hoverCurveIdx].bpm)) - 120) / 50) * 95) * 100 / 130}%`,
-                transform: "translate(-50%, -120%)",
-                background: "rgba(15, 23, 42, 0.9)",
-                backdropFilter: "blur(12px)",
-                WebkitBackdropFilter: "blur(12px)",
-                border: "1px solid var(--border-subtle)",
-                borderRadius: "var(--radius-sm)",
-                padding: "6px 10px",
-                pointerEvents: "none",
-                zIndex: 10,
-                boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -4px rgba(0, 0, 0, 0.3)",
-                whiteSpace: "nowrap",
-                fontSize: "10px",
-                color: "var(--text-primary)",
-                display: "flex",
-                flexDirection: "column",
-                gap: "2px",
-                alignItems: "center",
-              }}
-            >
-              <div style={{ fontWeight: 600, color: "var(--text-muted)", fontSize: "9px" }}>
-                Duration: {hrCurve[hoverCurveIdx].label}
-              </div>
-              <div>
-                Peak HR: <strong style={{ color: "var(--color-danger)" }}>{hrCurve[hoverCurveIdx].bpm} bpm</strong>
-              </div>
-              <div style={{ color: "var(--text-secondary)", fontSize: "9px" }}>
-                {((hrCurve[hoverCurveIdx].bpm / lthr) * 100).toFixed(0)}% of LTHR
-              </div>
+        {/* Column 3: HR Duration Curve */}
+        <div className="xl:col-span-4 bg-bg-surface border border-border-subtle rounded-lg p-4 flex flex-col gap-2 min-h-[250px]">
+          <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Peak HR Curves</span>
+          <div className="flex-1 w-full min-h-[180px] mt-2">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={hrCurve} margin={{ top: 10, right: 5, left: -25, bottom: -5 }}>
+                <defs>
+                  <linearGradient id="hrCurveGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="var(--color-danger)" stopOpacity={0.25} />
+                    <stop offset="95%" stopColor="var(--color-danger)" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" vertical={false} />
+                <XAxis dataKey="label" tick={{ fill: "var(--text-muted)", fontSize: 9.5 }} axisLine={{ stroke: "var(--border-subtle)" }} tickLine={false} />
+                <YAxis tick={{ fill: "var(--text-muted)", fontSize: 9.5 }} axisLine={false} tickLine={false} domain={["auto", "auto"]} />
+                <Tooltip
+                  content={<CustomHrTooltip unit=" bpm" labelFormatter={(item: any) => `Interval: ${item.label}`} />}
+                  cursor={{ stroke: "var(--border-default)", strokeWidth: 1 }}
+                />
+                <Area type="monotone" dataKey="bpm" stroke="var(--color-danger)" strokeWidth={1.8} fill="url(#hrCurveGrad)" name="Peak HR" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+
+      {/* Row containing Cumulative Time and Training load info */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        
+        {/* Cumulative Time spent above specific Heart Rates */}
+        <div className="bg-bg-surface border border-border-subtle rounded-lg p-4 flex flex-col gap-2 min-h-[260px]">
+          <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Cumulative Time</span>
+          <div className="flex-1 w-full min-h-[180px] mt-2">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={cumulativePoints} margin={{ top: 10, right: 5, left: -25, bottom: -5 }}>
+                <defs>
+                  <linearGradient id="hrCumGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#EF4444" stopOpacity={0.16} />
+                    <stop offset="95%" stopColor="#EF4444" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" vertical={false} />
+                <XAxis dataKey="bpm" tick={{ fill: "var(--text-muted)", fontSize: 9.5 }} axisLine={{ stroke: "var(--border-subtle)" }} tickLine={false} />
+                <YAxis tick={{ fill: "var(--text-muted)", fontSize: 9.5 }} axisLine={false} tickLine={false} tickFormatter={(v) => formatDuration(v)} />
+                <Tooltip
+                  content={
+                    <CustomHrTooltip
+                      unit=" spent"
+                      labelFormatter={(item: any) => `Heart Rate &ge; ${item.bpm} bpm`}
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      valueFormatter={(v: any) => formatDuration(v)}
+                    />
+                  }
+                  cursor={{ stroke: "var(--border-default)", strokeWidth: 1 }}
+                />
+                <Area type="monotone" dataKey="seconds" stroke="#EF4444" strokeWidth={1.8} fill="url(#hrCumGrad)" name="Time &ge; HR" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+          <p className="text-[10px] text-text-muted mt-1 leading-relaxed">
+            The cumulative curve displays the total duration spent at or above each heart rate intensity, highlighting threshold thresholds.
+          </p>
+        </div>
+
+        {/* Training Load Estimates details card */}
+        <div className="bg-bg-surface border border-border-subtle rounded-lg p-5 flex flex-col justify-between gap-4">
+          <div className="flex flex-col gap-2">
+            <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Training Load Estimates</span>
+            <p className="text-xs text-text-secondary leading-relaxed mt-1">
+              Since this activity contains power data, its actual load ({actualLoad}) is calculated via Coggan algorithms. HRSS (Heart Rate Stress Score, Normalized TRIMP) estimates a load of {estimatedLoad} based on heart rate zones and threshold limits.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 border-t border-border-subtle pt-4">
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[10px] text-text-muted font-bold uppercase">Resting HR</span>
+              <span className="text-sm font-extrabold text-text-primary font-mono">{restingHr} bpm</span>
             </div>
-          )}
-        </div>
-
-        <div style={{ display: "flex", gap: "8px", fontSize: "9.5px", fontWeight: 700, color: "var(--text-secondary)", marginTop: "6px" }}>
-          <span style={{ cursor: "pointer" }}>HR CURVES ▾</span>
-          <span style={{ cursor: "pointer" }}>CURVE CSV</span>
-        </div>
-      </div>
-
-      {/* Component 4: Cumulative Time Curve */}
-      <div
-        style={{
-          flex: "1.2 1 200px",
-          background: "var(--bg-surface)",
-          border: "1px solid var(--border-subtle)",
-          borderRadius: "var(--radius-md)",
-          padding: "12px 14px",
-          minWidth: "200px",
-          display: "flex",
-          flexDirection: "column",
-        }}
-      >
-        <span style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-muted)", marginBottom: "8px" }}>
-          CUMULATIVE TIME
-        </span>
-
-        <div style={{ flex: 1, minHeight: "180px", position: "relative" }}>
-          <svg
-            viewBox="0 0 200 120"
-            style={{ width: "100%", height: "180px", overflow: "visible", cursor: "crosshair" }}
-            onMouseMove={(e) => {
-              const svg = e.currentTarget;
-              const rect = svg.getBoundingClientRect();
-              const relativeX = (e.clientX - rect.left) / rect.width;
-              const svgX = relativeX * 200; // viewBox width is 200
-              const len = cumulativePoints.length;
-              if (len === 0) return;
-
-              let closestIdx = 0;
-              let minDiff = Infinity;
-              for (let i = 0; i < len; i++) {
-                const x = 25 + (i / (len - 1)) * 160;
-                const diff = Math.abs(x - svgX);
-                if (diff < minDiff) {
-                  minDiff = diff;
-                  closestIdx = i;
-                }
-              }
-              setHoverCumIdx(closestIdx);
-            }}
-            onMouseLeave={() => setHoverCumIdx(null)}
-          >
-            {/* Grid lines */}
-            {[20, 40, 60, 80, 100].map((pct, i) => {
-              const y = 10 + (100 - pct) * 0.9;
-              return (
-                <line
-                  key={i}
-                  x1="20"
-                  y1={y}
-                  x2="190"
-                  y2={y}
-                  stroke="var(--border-subtle)"
-                  strokeWidth={0.5}
-                />
-              );
-            })}
-            {/* Cumulative Curve path */}
-            <path
-              d={cumulativePoints.map((p, idx) => {
-                const x = 25 + (idx / (cumulativePoints.length - 1)) * 160;
-                // Log scale approximation for Y axis: map 0 to 2500s into Y: 100 to 10
-                const logVal = Math.log10(p.seconds + 1);
-                const maxLog = Math.log10(2523);
-                const y = 100 - (logVal / maxLog) * 90;
-                return `${idx === 0 ? "M" : "L"} ${x} ${y}`;
-              }).join(" ")}
-              fill="none"
-              stroke="#EF4444"
-              strokeWidth={1.5}
-            />
-            {/* X labels (bpm) */}
-            {["120", "140", "160", "170"].map((lbl, idx) => {
-              const x = 25 + (idx * 53);
-              return (
-                <text key={idx} x={x} y="112" textAnchor="middle" fontSize="7.5" fill="var(--text-muted)">
-                  {lbl}
-                </text>
-              );
-            })}
-
-            {/* Interactive Snap Crosshairs and Marker */}
-            {hoverCumIdx !== null && (
-              <g>
-                {/* Horizontal line to Y-axis */}
-                <line
-                  x1={25}
-                  y1={100 - (Math.log10(cumulativePoints[hoverCumIdx].seconds + 1) / Math.log10(2523)) * 90}
-                  x2={25 + (hoverCumIdx / (cumulativePoints.length - 1)) * 160}
-                  y2={100 - (Math.log10(cumulativePoints[hoverCumIdx].seconds + 1) / Math.log10(2523)) * 90}
-                  stroke="var(--text-muted)"
-                  strokeWidth={0.8}
-                  strokeDasharray="2,2"
-                />
-                {/* Vertical line to X-axis */}
-                <line
-                  x1={25 + (hoverCumIdx / (cumulativePoints.length - 1)) * 160}
-                  y1={100 - (Math.log10(cumulativePoints[hoverCumIdx].seconds + 1) / Math.log10(2523)) * 90}
-                  x2={25 + (hoverCumIdx / (cumulativePoints.length - 1)) * 160}
-                  y2={100}
-                  stroke="var(--text-muted)"
-                  strokeWidth={0.8}
-                  strokeDasharray="2,2"
-                />
-                {/* Snapped Dot */}
-                <circle
-                  cx={25 + (hoverCumIdx / (cumulativePoints.length - 1)) * 160}
-                  cy={100 - (Math.log10(cumulativePoints[hoverCumIdx].seconds + 1) / Math.log10(2523)) * 90}
-                  r={3.5}
-                  fill="#EF4444"
-                  stroke="var(--bg-surface)"
-                  strokeWidth={1}
-                />
-              </g>
-            )}
-          </svg>
-
-          {/* Floating Glassmorphic Tooltip */}
-          {hoverCumIdx !== null && (
-            <div
-              style={{
-                position: "absolute",
-                left: `${(25 + (hoverCumIdx / (cumulativePoints.length - 1)) * 160) / 2}%`,
-                top: `${(100 - (Math.log10(cumulativePoints[hoverCumIdx].seconds + 1) / Math.log10(2523)) * 90) * 100 / 120}%`,
-                transform: "translate(-50%, -120%)",
-                background: "rgba(15, 23, 42, 0.9)",
-                backdropFilter: "blur(12px)",
-                WebkitBackdropFilter: "blur(12px)",
-                border: "1px solid var(--border-subtle)",
-                borderRadius: "var(--radius-sm)",
-                padding: "6px 10px",
-                pointerEvents: "none",
-                zIndex: 10,
-                boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -4px rgba(0, 0, 0, 0.3)",
-                whiteSpace: "nowrap",
-                fontSize: "10px",
-                color: "var(--text-primary)",
-                display: "flex",
-                flexDirection: "column",
-                gap: "2px",
-                alignItems: "center",
-              }}
-            >
-              <div style={{ fontWeight: 600, color: "var(--text-muted)", fontSize: "9px" }}>
-                Threshold: {cumulativePoints[hoverCumIdx].bpm} bpm
-              </div>
-              <div>
-                Time &ge; HR: <strong style={{ color: "#EF4444" }}>{formatDuration(cumulativePoints[hoverCumIdx].seconds)}</strong>
-              </div>
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[10px] text-text-muted font-bold uppercase">Threshold HR</span>
+              <span className="text-sm font-extrabold text-text-primary font-mono">{lthr} bpm</span>
             </div>
-          )}
-        </div>
-
-        <p style={{ color: "var(--text-muted)", fontSize: "9px", margin: "6px 0 0", lineHeight: "1.3" }}>
-          Lighter red areas show that your zones boundaries are working correctly.
-        </p>
-      </div>
-
-      {/* Component 5: HR Training Load Details */}
-      <div
-        style={{
-          flex: "1.4 1 240px",
-          background: "var(--bg-surface)",
-          border: "1px solid var(--border-subtle)",
-          borderRadius: "var(--radius-md)",
-          padding: "12px 14px",
-          minWidth: "240px",
-          fontSize: "11px",
-          lineHeight: "1.4",
-          display: "flex",
-          flexDirection: "column",
-        }}
-      >
-        <span style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-muted)", marginBottom: "8px" }}>
-          TRAINING LOAD ESTIMATES
-        </span>
-
-        <p style={{ color: "var(--text-muted)", fontSize: "9.5px", margin: "0 0 8px" }}>
-          This activity has power data so its load ({actualLoad}) is from Coggan. HRSS (Normalized TRIMP) estimate is {estimatedLoad} based on threshold relative metrics.
-        </p>
-
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "6px 12px", borderTop: "1px solid var(--border-subtle)", paddingTop: "8px" }}>
-          <div>
-            <div style={{ fontSize: "9px", color: "var(--text-muted)" }}>Resting HR</div>
-            <div style={{ fontSize: "12px", fontWeight: 700, color: "var(--text-primary)" }}>{restingHr}</div>
-          </div>
-          <div>
-            <div style={{ fontSize: "9px", color: "var(--text-muted)" }}>Threshold HR</div>
-            <div style={{ fontSize: "12px", fontWeight: 700, color: "var(--text-primary)" }}>{lthr}</div>
-          </div>
-          <div>
-            <div style={{ fontSize: "9px", color: "var(--text-muted)" }}>Max HR</div>
-            <div style={{ fontSize: "12px", fontWeight: 700, color: "var(--text-primary)" }}>{maxHr}</div>
-          </div>
-          <div>
-            <div style={{ fontSize: "9px", color: "var(--text-muted)" }}>Est. Load</div>
-            <div style={{ fontSize: "12px", fontWeight: 700, color: "var(--color-accent)" }}>{estimatedLoad}</div>
-          </div>
-          <div>
-            <div style={{ fontSize: "9px", color: "var(--text-muted)" }}>Actual Load</div>
-            <div style={{ fontSize: "12px", fontWeight: 700, color: "var(--color-success)" }}>{actualLoad}</div>
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[10px] text-text-muted font-bold uppercase">Max HR</span>
+              <span className="text-sm font-extrabold text-danger font-mono">{maxHr} bpm</span>
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[10px] text-text-muted font-bold uppercase">Est. Load (HRSS)</span>
+              <span className="text-sm font-extrabold text-color-accent font-mono">{estimatedLoad}</span>
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[10px] text-text-muted font-bold uppercase">Actual Load</span>
+              <span className="text-sm font-extrabold text-color-success font-mono">{actualLoad}</span>
+            </div>
           </div>
         </div>
+
       </div>
+
     </div>
   );
 }

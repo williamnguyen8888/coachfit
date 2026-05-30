@@ -3,7 +3,7 @@
 import * as React from "react";
 import { use, useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { AlertCircle, RefreshCw, ChevronLeft, ChevronRight, Paperclip, Share2 } from "lucide-react";
+import { AlertCircle, RefreshCw, ChevronLeft, ChevronRight, Paperclip, Share2, Flame, Heart, Zap, Award, Activity, Database, Scale, Gauge } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { ActivityDetailSkeleton } from "@/components/activities/detail/ActivityDetailSkeleton";
 import { ActivityMap } from "@/components/activities/detail/ActivityMap";
@@ -12,7 +12,9 @@ import { ActivityMetrics } from "@/components/activities/detail/ActivityMetrics"
 import { ActivitySourceInfo } from "@/components/activities/detail/ActivitySourceInfo";
 import { InteractiveMultiLaneChart } from "@/components/activities/detail/InteractiveMultiLaneChart";
 import { ActivityPowerTab } from "@/components/activities/detail/ActivityPowerTab";
+import { ActivityPaceTab } from "@/components/activities/detail/ActivityPaceTab";
 import { ActivityHrTab } from "@/components/activities/detail/ActivityHrTab";
+import { SubjectiveFeedbackCard } from "@/components/activities/detail/SubjectiveFeedbackCard";
 import { activitiesService } from "@/lib/services/activities";
 import type { ActivityDetail, ActivityLap, StreamPoint, Sport } from "@/lib/types/activity";
 
@@ -21,6 +23,15 @@ import type { ActivityDetail, ActivityLap, StreamPoint, Sport } from "@/lib/type
 function formatMinutesSeconds(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = Math.round(seconds % 60);
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
+function formatSpeedToPace(speedMps: number | null | undefined, type: "run" | "swim"): string {
+  if (speedMps == null || speedMps <= 0.1) return "--:--";
+  const totalSecs = type === "run" ? 1000 / speedMps : 100 / speedMps;
+  if (totalSecs > 1800) return "--:--";
+  const m = Math.floor(totalSecs / 60);
+  const s = Math.round(totalSecs % 60);
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
@@ -119,6 +130,7 @@ export default function ActivityDetailPage({ params }: Props) {
 
   // Tabs state: TIMELINE, POWER, HR, ROUTE, DATA
   const [activeTab, setActiveTab] = useState<"TIMELINE" | "POWER" | "HR" | "ROUTE" | "DATA">("TIMELINE");
+  const [selectedTimeRange, setSelectedTimeRange] = useState<{ startTime: number; endTime: number } | null>(null);
 
   // Sidebar Notes/Comments state
   const [noteInput, setNoteInput] = useState("");
@@ -216,8 +228,8 @@ export default function ActivityDetailPage({ params }: Props) {
   return (
     <main
       id="activity-detail"
-      className="flex-1 min-h-screen bg-[var(--bg-default)] text-[var(--text-primary)]"
-      style={{ display: "flex", flexDirection: "column" }}
+      className="flex-1 bg-[var(--bg-default)] text-[var(--text-primary)]"
+      style={{ display: "flex", flexDirection: "column", height: "100%", overflowY: "auto" }}
     >
       {/* ─── Premium intervals.icu Header Bar ──────────────────────────────────── */}
       <div
@@ -264,117 +276,199 @@ export default function ActivityDetailPage({ params }: Props) {
                 {dateFormatted}
               </div>
               <h1 style={{ fontSize: "18px", fontWeight: 700, margin: "2px 0 0", color: "var(--text-primary)" }}>
-                {distanceKm} km / {durationStr}
+                {activity.sport === "swimming" ? `${activity.distanceMeters ?? 1500} m` : `${distanceKm} km`} / {durationStr}
                 <span style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-muted)", marginLeft: "8px" }}>
-                  Avg {avgSpeedKmh} km/h
+                  Avg {activity.sport === "running" ? `${formatSpeedToPace(activity.avgSpeed ?? 4.0, "run")}/km` : 
+                       activity.sport === "swimming" ? `${formatSpeedToPace(activity.avgSpeed ?? 1.0, "swim")}/100m` : 
+                       `${avgSpeedKmh} km/h`}
                 </span>
               </h1>
             </div>
           </div>
 
-          {/* Advanced scientific metrics grid */}
-          <div style={{ display: "flex", gap: "24px", flexWrap: "wrap", fontSize: "12px" }}>
-            {/* Column 1: Intensity / Load */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-              <div style={{ display: "flex", gap: "8px" }}>
-                <span style={{ color: "var(--text-muted)" }}>Intensity</span>
-                <span style={{ fontWeight: 700 }}>{intensityFactor}%</span>
-              </div>
-              <div style={{ display: "flex", gap: "8px" }}>
-                <span style={{ color: "var(--text-muted)" }}>Load</span>
-                <span style={{ fontWeight: 700, color: "var(--color-accent)" }}>{loadTss}</span>
-              </div>
-              <div style={{ display: "flex", gap: "8px" }}>
-                <span style={{ color: "var(--text-muted)" }}>RPE</span>
-                <span style={{ fontWeight: 700 }}>5 / Normal</span>
-              </div>
-              <div style={{ display: "flex", gap: "8px" }}>
-                <span style={{ color: "var(--text-muted)" }}>Compliance</span>
-                <span style={{ fontWeight: 700, color: "var(--color-success)" }}>Coach 91%</span>
-              </div>
-            </div>
+          {/* Advanced scientific metrics grid - Compact & Visual badges */}
+          <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center", marginTop: "4px" }}>
+            {activity.sport === "cycling" && (
+              <>
+                {/* Badge 1: Load & Compliance */}
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)", padding: "6px 12px", fontSize: "11px", boxShadow: "var(--shadow-sm)" }}>
+                  <Flame size={13} className="text-amber-500 animate-pulse" />
+                  <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>TSS</span>
+                  <span style={{ fontWeight: 700, color: "var(--color-accent)" }} className="font-mono text-xs">{loadTss}</span>
+                  <span style={{ color: "var(--text-muted)" }}>•</span>
+                  <span style={{ color: "var(--text-secondary)" }}>IF {intensityFactor}%</span>
+                  <span style={{ color: "var(--text-muted)" }}>•</span>
+                  <span style={{ color: "var(--color-success)", fontWeight: 700 }} className="bg-success-8 px-1 rounded text-[10px]">Coach 91%</span>
+                </div>
 
-            {/* Column 2: Heart Rate stats */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-              <div style={{ display: "flex", gap: "8px" }}>
-                <span style={{ color: "var(--text-muted)" }}>Avg HR</span>
-                <span style={{ fontWeight: 700 }}>{avgHr} bpm</span>
-              </div>
-              <div style={{ display: "flex", gap: "8px" }}>
-                <span style={{ color: "var(--text-muted)" }}>Max HR</span>
-                <span style={{ fontWeight: 700, color: "var(--color-danger)" }}>{maxHr} bpm</span>
-              </div>
-              <div style={{ display: "flex", gap: "8px" }}>
-                <span style={{ color: "var(--text-muted)" }}>HRc</span>
-                <span style={{ fontWeight: 700 }}>18</span>
-              </div>
-              <div style={{ display: "flex", gap: "8px" }}>
-                <span style={{ color: "var(--text-muted)" }}>TRIMP</span>
-                <span style={{ fontWeight: 700 }}>73</span>
-              </div>
-            </div>
+                {/* Badge 2: Power Profile */}
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)", padding: "6px 12px", fontSize: "11px", boxShadow: "var(--shadow-sm)" }}>
+                  <Zap size={13} className="text-blue-500" />
+                  <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>NP</span>
+                  <span style={{ fontWeight: 700, color: "var(--color-fitness)" }} className="font-mono text-xs">{normPower}w</span>
+                  <span style={{ color: "var(--text-muted)" }}>•</span>
+                  <span style={{ color: "var(--text-secondary)" }}>Avg {avgPower}w</span>
+                  <span style={{ color: "var(--text-muted)" }}>•</span>
+                  <span className="text-[10px] text-text-muted">VI 1.05</span>
+                </div>
 
-            {/* Column 3: Power stats */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-              <div style={{ display: "flex", gap: "8px" }}>
-                <span style={{ color: "var(--text-muted)" }}>Norm Power</span>
-                <span style={{ fontWeight: 700 }}>{normPower}w</span>
-              </div>
-              <div style={{ display: "flex", gap: "8px" }}>
-                <span style={{ color: "var(--text-muted)" }}>Avg Power</span>
-                <span style={{ fontWeight: 700 }}>{avgPower}w</span>
-              </div>
-              <div style={{ display: "flex", gap: "8px" }}>
-                <span style={{ color: "var(--text-muted)" }}>Variability</span>
-                <span style={{ fontWeight: 700 }}>1.05</span>
-              </div>
-              <div style={{ display: "flex", gap: "8px" }}>
-                <span style={{ color: "var(--text-muted)" }}>Power/HR</span>
-                <span style={{ fontWeight: 700 }}>0.93</span>
-              </div>
-            </div>
+                {/* Badge 3: Cardio Profile */}
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)", padding: "6px 12px", fontSize: "11px", boxShadow: "var(--shadow-sm)" }}>
+                  <Heart size={13} className="text-red-500" />
+                  <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>HR</span>
+                  <span style={{ fontWeight: 700, color: "var(--color-danger)" }} className="font-mono text-xs">{avgHr} bpm</span>
+                  <span style={{ color: "var(--text-muted)" }}>•</span>
+                  <span style={{ color: "var(--text-secondary)" }}>Max {maxHr}</span>
+                  <span style={{ color: "var(--text-muted)" }}>•</span>
+                  <span className="text-[10px] text-text-muted">HRc 18</span>
+                </div>
 
-            {/* Column 4: Fitness & Fatigue */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-              <div style={{ display: "flex", gap: "8px" }}>
-                <span style={{ color: "var(--text-muted)" }}>Fitness</span>
-                <span style={{ fontWeight: 700 }}>5</span>
-              </div>
-              <div style={{ display: "flex", gap: "8px" }}>
-                <span style={{ color: "var(--text-muted)" }}>Fatigue</span>
-                <span style={{ fontWeight: 700 }}>31</span>
-              </div>
-              <div style={{ display: "flex", gap: "8px" }}>
-                <span style={{ color: "var(--text-muted)" }}>Form</span>
-                <span style={{ fontWeight: 700, color: "var(--color-danger)" }}>-25</span>
-              </div>
-              <div style={{ display: "flex", gap: "8px" }}>
-                <span style={{ color: "var(--text-muted)" }}>Cadence</span>
-                <span style={{ fontWeight: 700 }}>{activity.avgCadence ?? 96} rpm</span>
-              </div>
-            </div>
+                {/* Badge 4: Form & Efficiency */}
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)", padding: "6px 12px", fontSize: "11px", boxShadow: "var(--shadow-sm)" }}>
+                  <Gauge size={13} className="text-purple-500" />
+                  <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>CAD</span>
+                  <span style={{ fontWeight: 700, color: "var(--color-accent)" }} className="font-mono text-xs">{activity.avgCadence ?? 96} rpm</span>
+                  <span style={{ color: "var(--text-muted)" }}>•</span>
+                  <span style={{ color: "var(--text-secondary)" }}>Form -25</span>
+                </div>
 
-            {/* Column 5: Work & Calories */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-              <div style={{ display: "flex", gap: "8px" }}>
-                <span style={{ color: "var(--text-muted)" }}>Work</span>
-                <span style={{ fontWeight: 700 }}>311 kJ</span>
-              </div>
-              <div style={{ display: "flex", gap: "8px" }}>
-                <span style={{ color: "var(--text-muted)" }}>Calories</span>
-                <span style={{ fontWeight: 700 }}>{activity.calories ?? 371} kcal</span>
-              </div>
-              <div style={{ display: "flex", gap: "8px" }}>
-                <span style={{ color: "var(--text-muted)" }}>CHO Used</span>
-                <span style={{ fontWeight: 700 }}>43g</span>
-              </div>
-              <div style={{ display: "flex", gap: "8px", fontSize: "10.5px", color: "var(--text-muted)", fontStyle: "italic", marginTop: "2px" }}>
-                - Garmin Edge 840
-              </div>
-            </div>
+                {/* Badge 5: Work & Energy */}
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)", padding: "6px 12px", fontSize: "11px", boxShadow: "var(--shadow-sm)" }}>
+                  <Award size={13} className="text-emerald-500" />
+                  <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>ENERGY</span>
+                  <span style={{ fontWeight: 700, color: "var(--color-form)" }} className="font-mono text-xs">{activity.calories ?? 371} kcal</span>
+                  <span style={{ color: "var(--text-muted)" }}>•</span>
+                  <span style={{ color: "var(--text-secondary)" }}>311 kJ</span>
+                </div>
+              </>
+            )}
+
+            {activity.sport === "running" && (
+              <>
+                {/* Badge 1: Load & Compliance */}
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)", padding: "6px 12px", fontSize: "11px", boxShadow: "var(--shadow-sm)" }}>
+                  <Flame size={13} className="text-amber-500 animate-pulse" />
+                  <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>rTSS</span>
+                  <span style={{ fontWeight: 700, color: "var(--color-accent)" }} className="font-mono text-xs">{loadTss}</span>
+                  <span style={{ color: "var(--text-muted)" }}>•</span>
+                  <span style={{ color: "var(--text-secondary)" }}>IF {intensityFactor}%</span>
+                  <span style={{ color: "var(--text-muted)" }}>•</span>
+                  <span style={{ color: "var(--color-success)", fontWeight: 700 }} className="bg-success-8 px-1 rounded text-[10px]">Coach 94%</span>
+                </div>
+
+                {/* Badge 2: Pace Profile */}
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)", padding: "6px 12px", fontSize: "11px", boxShadow: "var(--shadow-sm)" }}>
+                  <Zap size={13} className="text-blue-500" />
+                  <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>Pace</span>
+                  <span style={{ fontWeight: 700, color: "var(--color-fitness)" }} className="font-mono text-xs">{formatSpeedToPace(activity.avgSpeed ?? 4.0, "run")}/km</span>
+                  <span style={{ color: "var(--text-muted)" }}>•</span>
+                  <span style={{ color: "var(--text-secondary)" }}>GAP {formatSpeedToPace(activity.avgSpeed ? activity.avgSpeed * 1.03 : 4.12, "run")}</span>
+                </div>
+
+                {/* Badge 3: Cardio Profile */}
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)", padding: "6px 12px", fontSize: "11px", boxShadow: "var(--shadow-sm)" }}>
+                  <Heart size={13} className="text-red-500" />
+                  <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>HR</span>
+                  <span style={{ fontWeight: 700, color: "var(--color-danger)" }} className="font-mono text-xs">{avgHr} bpm</span>
+                  <span style={{ color: "var(--text-muted)" }}>•</span>
+                  <span style={{ color: "var(--text-secondary)" }}>Max {maxHr}</span>
+                </div>
+
+                {/* Badge 4: Form & Cadence */}
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)", padding: "6px 12px", fontSize: "11px", boxShadow: "var(--shadow-sm)" }}>
+                  <Gauge size={13} className="text-purple-500" />
+                  <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>CADENCE</span>
+                  <span style={{ fontWeight: 700, color: "var(--color-accent)" }} className="font-mono text-xs">{activity.avgCadence ?? 174} spm</span>
+                  <span style={{ color: "var(--text-muted)" }}>•</span>
+                  <span style={{ color: "var(--text-secondary)" }}>Form -18</span>
+                </div>
+
+                {/* Badge 5: Energy */}
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)", padding: "6px 12px", fontSize: "11px", boxShadow: "var(--shadow-sm)" }}>
+                  <Award size={13} className="text-emerald-500" />
+                  <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>ENERGY</span>
+                  <span style={{ fontWeight: 700, color: "var(--color-form)" }} className="font-mono text-xs">{activity.calories ?? 620} kcal</span>
+                </div>
+              </>
+            )}
+
+            {activity.sport === "swimming" && (
+              <>
+                {/* Badge 1: Swim Load */}
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)", padding: "6px 12px", fontSize: "11px", boxShadow: "var(--shadow-sm)" }}>
+                  <Flame size={13} className="text-amber-500 animate-pulse" />
+                  <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>sTSS</span>
+                  <span style={{ fontWeight: 700, color: "var(--color-accent)" }} className="font-mono text-xs">{loadTss}</span>
+                  <span style={{ color: "var(--text-muted)" }}>•</span>
+                  <span style={{ color: "var(--text-secondary)" }}>IF {intensityFactor}%</span>
+                  <span style={{ color: "var(--text-muted)" }}>•</span>
+                  <span style={{ color: "var(--color-success)", fontWeight: 700 }} className="bg-success-8 px-1 rounded text-[10px]">Coach 90%</span>
+                </div>
+
+                {/* Badge 2: Swim Pace */}
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)", padding: "6px 12px", fontSize: "11px", boxShadow: "var(--shadow-sm)" }}>
+                  <Zap size={13} className="text-blue-500" />
+                  <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>Pace</span>
+                  <span style={{ fontWeight: 700, color: "var(--color-fitness)" }} className="font-mono text-xs">{formatSpeedToPace(activity.avgSpeed ?? 1.0, "swim")}/100m</span>
+                  <span style={{ color: "var(--text-muted)" }}>•</span>
+                  <span style={{ color: "var(--text-secondary)" }}>CSS {formatSpeedToPace(1.0, "swim")}</span>
+                </div>
+
+                {/* Badge 3: Stroke & SWOLF */}
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)", padding: "6px 12px", fontSize: "11px", boxShadow: "var(--shadow-sm)" }}>
+                  <Gauge size={13} className="text-purple-500" />
+                  <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>SWOLF</span>
+                  <span style={{ fontWeight: 700, color: "var(--color-accent)" }} className="font-mono text-xs">38</span>
+                  <span style={{ color: "var(--text-muted)" }}>•</span>
+                  <span style={{ color: "var(--text-secondary)" }}>{activity.avgCadence ?? 34} spm</span>
+                </div>
+
+                {/* Badge 4: Cardio Profile (if HR exists) */}
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)", padding: "6px 12px", fontSize: "11px", boxShadow: "var(--shadow-sm)" }}>
+                  <Heart size={13} className="text-red-500" />
+                  <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>HR</span>
+                  <span style={{ fontWeight: 700, color: "var(--color-danger)" }} className="font-mono text-xs">{avgHr} bpm</span>
+                </div>
+
+                {/* Badge 5: Energy */}
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)", padding: "6px 12px", fontSize: "11px", boxShadow: "var(--shadow-sm)" }}>
+                  <Award size={13} className="text-emerald-500" />
+                  <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>ENERGY</span>
+                  <span style={{ fontWeight: 700, color: "var(--color-form)" }} className="font-mono text-xs">{activity.calories ?? 410} kcal</span>
+                </div>
+              </>
+            )}
+
+            {activity.sport !== "cycling" && activity.sport !== "running" && activity.sport !== "swimming" && (
+              <>
+                {/* Badge 1: Load */}
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)", padding: "6px 12px", fontSize: "11px", boxShadow: "var(--shadow-sm)" }}>
+                  <Flame size={13} className="text-amber-500 animate-pulse" />
+                  <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>hrTSS</span>
+                  <span style={{ fontWeight: 700, color: "var(--color-accent)" }} className="font-mono text-xs">{loadTss}</span>
+                </div>
+
+                {/* Badge 2: Cardio */}
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)", padding: "6px 12px", fontSize: "11px", boxShadow: "var(--shadow-sm)" }}>
+                  <Heart size={13} className="text-red-500" />
+                  <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>HR</span>
+                  <span style={{ fontWeight: 700, color: "var(--color-danger)" }} className="font-mono text-xs">{avgHr} bpm</span>
+                  <span style={{ color: "var(--text-muted)" }}>•</span>
+                  <span style={{ color: "var(--text-secondary)" }}>Max {maxHr}</span>
+                </div>
+
+                {/* Badge 3: Energy */}
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)", padding: "6px 12px", fontSize: "11px", boxShadow: "var(--shadow-sm)" }}>
+                  <Award size={13} className="text-emerald-500" />
+                  <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>ENERGY</span>
+                  <span style={{ fontWeight: 700, color: "var(--color-form)" }} className="font-mono text-xs">{activity.calories ?? 300} kcal</span>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
+
 
       {/* ─── Tabs Navigation Bar ──────────────────────────────────────────────── */}
       <div
@@ -390,6 +484,7 @@ export default function ActivityDetailPage({ params }: Props) {
       >
         {(["TIMELINE", "POWER", "HR", "ROUTE", "DATA"] as const).map((tab) => {
           const isActive = activeTab === tab;
+          const displayLabel = tab === "POWER" && (activity.sport === "running" || activity.sport === "swimming") ? "PACE" : tab;
           return (
             <button
               key={tab}
@@ -408,21 +503,29 @@ export default function ActivityDetailPage({ params }: Props) {
                 transition: "color 150ms ease",
               }}
             >
-              {tab}
+              {displayLabel}
             </button>
           );
         })}
       </div>
 
       {/* ─── Two-Column Layout (Left: tab content, Right: Notes panel) ─────────── */}
-      <div style={{ flex: 1, display: "flex", flexWrap: "wrap", overflow: "hidden" }}>
+      <div className="flex flex-col lg:flex-row flex-1">
         {/* Left Column: Tab contents */}
-        <div style={{ flex: 1, minWidth: "300px", padding: "20px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "20px" }}>
+        <div className="flex-1 min-w-[320px] p-5 flex flex-col gap-5">
           {activeTab === "TIMELINE" && (
             <>
+              {/* Subjective Feedback Panel */}
+              <SubjectiveFeedbackCard sport={activity.sport} />
+
               {/* Streams Interactive Charts */}
               {streams && (
-                <InteractiveMultiLaneChart points={streams} sport={activity.sport} />
+                <InteractiveMultiLaneChart 
+                  points={streams} 
+                  sport={activity.sport} 
+                  selectedRange={selectedTimeRange}
+                  onRangeSelect={setSelectedTimeRange}
+                />
               )}
 
               {/* Intervals visual progression */}
@@ -439,7 +542,7 @@ export default function ActivityDetailPage({ params }: Props) {
                   <span>10:00</span>
                   <span>20:00</span>
                   <span>30:00</span>
-                  <span>42:54</span>
+                  <span>{durationStr}</span>
                 </div>
               </div>
 
@@ -455,7 +558,7 @@ export default function ActivityDetailPage({ params }: Props) {
                   paddingTop: "16px",
                 }}
               >
-                {["MAP", "CHARTS", "FIELDS", "OPTIONS", "ADD INTERVAL (A)", "SPLIT (S)", "MERGE (M)", "DEL (D)", "CUSTOM", "ACTIVITY CHARTS", "ACTIONS"].map((btn) => (
+                {["MAP", "CHARTS", "FIELDS", "OPTIONS", "ADD INTERVAL (A)", "SPLIT (S)", "MERGE (M)", "DEL (D)", "CUSTOM", "ACTIONS"].map((btn) => (
                   <button
                     key={btn}
                     style={{
@@ -476,13 +579,23 @@ export default function ActivityDetailPage({ params }: Props) {
           )}
 
           {activeTab === "ROUTE" && (
-            <div style={{ minHeight: "450px" }}>
+            <div style={{ minHeight: "450px", position: "relative", zIndex: 1, border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)", overflow: "hidden" }}>
               <ActivityMap points={streams} sportColor={sportColor.primary} />
             </div>
           )}
 
           {activeTab === "POWER" && (
-            <ActivityPowerTab points={streams || []} ftp={activity.avgPower ?? 149} />
+            activity.sport === "running" || activity.sport === "swimming" ? (
+              <ActivityPaceTab
+                points={streams || []}
+                sport={activity.sport}
+                thresholdPaceSecs={activity.sport === "running" ? 300 : 100}
+                restingHr={53}
+                maxHr={activity.maxHeartRate ?? 170}
+              />
+            ) : (
+              <ActivityPowerTab points={streams || []} ftp={activity.avgPower ?? 149} />
+            )
           )}
 
           {activeTab === "HR" && (
@@ -492,7 +605,12 @@ export default function ActivityDetailPage({ params }: Props) {
           {activeTab === "DATA" && (
             <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                <ActivityLaps laps={laps} />
+                <ActivityLaps 
+                  laps={laps} 
+                  sport={activity.sport} 
+                  selectedRange={selectedTimeRange}
+                  onSelectLapRange={setSelectedTimeRange}
+                />
                 <ActivityMetrics activity={activity} />
               </div>
               <ActivitySourceInfo activity={activity} />
@@ -502,14 +620,7 @@ export default function ActivityDetailPage({ params }: Props) {
 
         {/* Right Column: Notes / Comments sidebar panel (20% width) */}
         <div
-          style={{
-            width: "260px",
-            borderLeft: "1px solid var(--border-subtle)",
-            background: "var(--bg-elevated)",
-            display: "flex",
-            flexDirection: "column",
-            overflow: "hidden",
-          }}
+          className="w-full lg:w-[260px] border-t lg:border-t-0 lg:border-l border-border-subtle bg-bg-elevated flex flex-col overflow-hidden h-auto lg:h-full"
         >
           {/* Sidebar Header */}
           <div
