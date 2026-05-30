@@ -5,6 +5,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { calendarService } from "@/lib/services/calendar";
+import { activitiesService } from "@/lib/services/activities";
 import type {
   CalendarEvent,
   CalendarViewMode,
@@ -177,7 +178,6 @@ export const useCalendarStore = create<CalendarState>()(
       },
 
       // ── Data fetching ─────────────────────────────────────────────────────
-
       fetchCurrentRange: async () => {
         const { viewMode, getWeekRange, getMonthRange } = get();
         const { from, to } =
@@ -185,10 +185,64 @@ export const useCalendarStore = create<CalendarState>()(
 
         set({ isLoading: true, error: null });
         try {
-          const events = await calendarService.list(from, to);
+          const [events, activitiesRes] = await Promise.all([
+            calendarService.list(from, to),
+            activitiesService.list({ from, to, size: 100 }).catch((err) => {
+              console.error("Failed to load activities for calendar:", err);
+              return { content: [], page: 0, size: 100, totalElements: 0, totalPages: 0 };
+            }),
+          ]);
+
+          // Identify linked activity IDs
+          const linkedActivityIds = new Set<string>();
+          for (const e of events) {
+            if (e.activity?.id) {
+              linkedActivityIds.add(e.activity.id);
+            }
+          }
+
+          // Synthesize pseudo calendar events for standalone activities
+          const unlinkedActivities = activitiesRes.content.filter(
+            (act) => !linkedActivityIds.has(act.id)
+          );
+
+          const pseudoEvents = unlinkedActivities.map((act) => {
+            const dateStr = act.startedAt.split("T")[0];
+            const pseudoEvent: CalendarEvent = {
+              id: `activity-event-${act.id}`,
+              date: dateStr,
+              eventType: "workout", // route to rich cards
+              title: act.name,
+              status: "completed", // route to ActivityCard
+              workout: null,
+              activity: {
+                id: act.id,
+                tss: act.tss,
+                durationSeconds: act.durationSeconds,
+                sport: act.sport,
+                name: act.name,
+                distanceMeters: act.distanceMeters,
+                avgHeartRate: act.avgHeartRate,
+                maxHeartRate: act.avgHeartRate, // Fallback/estimation
+                avgPower: act.avgPower,
+                rpe: null,
+              },
+              complianceScore: null,
+              orderIndex: 999, // Render after planned workouts
+              assignedBy: null,
+              notes: null,
+              garminWorkoutId: null,
+              garminScheduledId: null,
+              garminSyncedAt: null,
+            };
+            return pseudoEvent;
+          });
+
+          const mergedEvents = [...events, ...pseudoEvents];
+
           set({
-            events,
-            eventsByDate: groupByDate(events),
+            events: mergedEvents,
+            eventsByDate: groupByDate(mergedEvents),
             loadedFrom: from,
             loadedTo: to,
             isLoading: false,
@@ -199,7 +253,6 @@ export const useCalendarStore = create<CalendarState>()(
           set({ isLoading: false, error: message });
         }
       },
-
       // ── CRUD ──────────────────────────────────────────────────────────────
 
       createEvent: async (payload) => {

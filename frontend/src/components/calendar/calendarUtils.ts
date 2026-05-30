@@ -152,3 +152,95 @@ export function computeWeekStats(events: CalendarEvent[]): WeekStats {
   const completionPct  = total > 0 ? Math.round((completedCount / total) * 100) : 0;
   return { totalDurationSec, plannedCount, completedCount, skippedCount, totalLoad, completionPct };
 }
+
+// ─── Raw sport hex colors (for gradients, no CSS var indirection) ────────────
+
+export const SPORT_HEX: Record<string, { primary: string; light: string; dark: string }> = {
+  cycling:  { primary: "#3b82f6", light: "#dbeafe", dark: "#1e40af" },
+  running:  { primary: "#b45309", light: "#fef3c7", dark: "#92400e" },
+  swimming: { primary: "#0891b2", light: "#cffafe", dark: "#155e75" },
+  strength: { primary: "#f97316", light: "#ffedd5", dark: "#c2410c" },
+  other:    { primary: "#6b7280", light: "#f3f4f6", dark: "#374151" },
+};
+
+export function getSportHex(sport: string): { primary: string; light: string; dark: string } {
+  return SPORT_HEX[sport] ?? SPORT_HEX.other;
+}
+
+// ─── SVG sport icon paths ─────────────────────────────────────────────────────
+// Compact SVG path data for inline rendering (viewBox 0 0 24 24)
+
+export const SPORT_SVG_ICONS: Record<string, { path: string; viewBox: string }> = {
+  swimming: {
+    viewBox: "0 0 24 24",
+    path: "M2 18c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2s2.5 2 5 2 2.5-2 5-2c1.3 0 1.9.5 2.5 1M2 14c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2s2.5 2 5 2 2.5-2 5-2c1.3 0 1.9.5 2.5 1M8.5 8.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5ZM5 12l3.5-3.5L12 12",
+  },
+  cycling: {
+    viewBox: "0 0 24 24",
+    path: "M5.5 17a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9ZM18.5 17a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9ZM15 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2ZM12 12.5l-3.5-5L12 5h3l-2.5 3.5L16 12.5h-4Z",
+  },
+  running: {
+    viewBox: "0 0 24 24",
+    path: "M13 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm-1.75 6L8 10.5l-1 5.5h2l.75-3L12 15v6h2v-7.5l-2.25-2L13 7.5c1.13 1.38 2.76 2.38 4.62 2.75l.38-1.97a5.994 5.994 0 0 1-3.75-2.53L13 4.25c-.37-.6-1-.97-1.7-1L8 3.5l-3 3 1.5 1.5L8.75 6l2.5 2Z",
+  },
+  strength: {
+    viewBox: "0 0 24 24",
+    path: "M20.57 14.86L22 13.43 20.57 12 17 15.57 8.43 7 12 3.43 10.57 2 9.14 3.43 7.71 2 5.57 4.14 4.14 2.71 2.71 4.14l1.43 1.43L2 7.71l1.43 1.43L2 10.57 3.43 12 7 8.43 15.57 17 12 20.57 13.43 22l1.43-1.43L16.29 22l2.14-2.14 1.43 1.43 1.43-1.43-1.43-1.43L22 16.29Z",
+  },
+  other: {
+    viewBox: "0 0 24 24",
+    path: "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2Zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8Zm-1-13h2v6h-2Zm0 8h2v2h-2Z",
+  },
+};
+
+export function getSportSvgIcon(sport: string): { path: string; viewBox: string } {
+  return SPORT_SVG_ICONS[sport] ?? SPORT_SVG_ICONS.other;
+}
+
+// ─── Distance formatting ──────────────────────────────────────────────────────
+
+export function formatDistance(meters: number | null | undefined): string | null {
+  if (!meters || meters <= 0) return null;
+  if (meters >= 1000) {
+    const km = meters / 1000;
+    return km >= 10 ? `${Math.round(km)} km` : `${km.toFixed(1)} km`;
+  }
+  return `${Math.round(meters)} m`;
+}
+
+// ─── Pace formatting ──────────────────────────────────────────────────────────
+
+export function formatPace(speedMs: number | null | undefined, sport: string): string | null {
+  if (!speedMs || speedMs <= 0) return null;
+  if (sport === "cycling") {
+    const kmh = speedMs * 3.6;
+    return `${kmh.toFixed(1)} km/h`;
+  }
+  // Running / swimming: min/km
+  const secPerKm = 1000 / speedMs;
+  const mins = Math.floor(secPerKm / 60);
+  const secs = Math.round(secPerKm % 60);
+  return `${mins}:${secs.toString().padStart(2, "0")}/km`;
+}
+
+// ─── RPE emoji ────────────────────────────────────────────────────────────────
+
+export function getRpeEmoji(rpe: number): string {
+  if (rpe <= 2) return "😌";
+  if (rpe <= 4) return "🙂";
+  if (rpe <= 6) return "😐";
+  if (rpe <= 7) return "😤";
+  if (rpe <= 8) return "😰";
+  if (rpe <= 9) return "🥵";
+  return "💀";
+}
+
+// ─── RPE color ────────────────────────────────────────────────────────────────
+
+export function getRpeColor(rpe: number): string {
+  if (rpe <= 3) return "#22c55e"; // green — easy
+  if (rpe <= 5) return "#f59e0b"; // amber — moderate
+  if (rpe <= 7) return "#f97316"; // orange — hard
+  if (rpe <= 8) return "#ef4444"; // red — very hard
+  return "#dc2626";               // deep red — maximal
+}

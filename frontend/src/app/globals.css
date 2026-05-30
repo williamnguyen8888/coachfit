@@ -336,6 +336,22 @@ body {
   --cal-chip-height-normal: 54px;
   --cal-chip-height-compact: 36px;
   --cal-day-header-h: 52px;
+  --cal-card-radius: 8px;
+}
+
+/* ---------- Calendar card styles ---------- */
+
+/* Workout & Activity card hover animations */
+@media (hover: hover) {
+  .workout-card .cal-chip-actions,
+  .activity-card .cal-chip-actions {
+    opacity: 0;
+    transition: opacity 150ms ease-out;
+  }
+  .workout-card:hover .cal-chip-actions,
+  .activity-card:hover .cal-chip-actions {
+    opacity: 1;
+  }
 }
 
 /* ---------- Scrollbar (dark) ---------- */

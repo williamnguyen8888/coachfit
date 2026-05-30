@@ -31,6 +31,13 @@ export interface CalendarActivityRef {
   id: string;
   tss: number | null;
   durationSeconds: number;
+  sport?: Sport;
+  name?: string;
+  distanceMeters?: number | null;
+  avgHeartRate?: number | null;
+  maxHeartRate?: number | null;
+  avgPower?: number | null;
+  rpe?: number | null;
 }
 
 /** Calendar event as returned by GET /calendar */

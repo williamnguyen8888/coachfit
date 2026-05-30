@@ -85,14 +85,13 @@ function DayCellOverflowPopover({ extraEvents, onEventClick, onClose }: DayCellO
         display: "flex",
         flexDirection: "column",
         gap: "var(--space-1)",
-        minWidth: 180,
+        minWidth: 220,
       }}
     >
       {extraEvents.map((event) => (
         <CalendarEventChip
           key={event.id}
           event={event}
-          compact
           onClick={(e) => { onEventClick(e); onClose(); }}
         />
       ))}
@@ -170,7 +169,7 @@ function DayCell({
         position: "relative",
         borderRight: "1px solid var(--border-subtle)",
         borderBottom: "1px solid var(--border-subtle)",
-        minHeight: 100,
+        minHeight: 140,
         display: "flex",
         flexDirection: "column",
         background: baseBg,
@@ -271,7 +270,7 @@ function DayCell({
           padding: "0 var(--space-1) var(--space-1)",
           display: "flex",
           flexDirection: "column",
-          gap: "2px",
+          gap: "4px",
         }}
       >
         {visibleEvents.map((event) => {
@@ -281,7 +280,6 @@ function DayCell({
             <CalendarEventChip
               key={event.id}
               event={event}
-              compact
               onClick={onEventClick}
               draggable={inMonth}
               onDragStart={chipDragProps.onDragStart}
