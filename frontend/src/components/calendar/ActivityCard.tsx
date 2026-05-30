@@ -14,6 +14,7 @@
 // │       ✅ 91%                  │  ← Compliance score
 // └──────────────────────────────┘
 
+import { useRouter } from "next/navigation";
 import type { CalendarEvent } from "@/lib/types/calendar";
 import {
   getSportHex,
@@ -44,7 +45,11 @@ function SportIcon({
       width={size}
       height={size}
       viewBox={icon.viewBox}
-      fill={color}
+      fill="none"
+      stroke={color}
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
       style={{ flexShrink: 0 }}
     >
       <path d={icon.path} />
@@ -85,6 +90,7 @@ export function ActivityCard({
   onTouchEnd,
   isDragging = false,
 }: ActivityCardProps) {
+  const router = useRouter();
   const sport = event.workout?.sport ?? event.activity?.sport ?? "other";
   const sportHex = getSportHex(sport);
   const dist = getZoneDistribution(sport, event.status);
@@ -129,6 +135,14 @@ export function ActivityCard({
     paceOrPowerStr = formatPace(speedMs, sport);
   }
 
+  const handleClick = (e: React.MouseEvent) => {
+    if (activityRef?.id) {
+      router.push(`/activities/${activityRef.id}`);
+    } else {
+      onClick?.(event);
+    }
+  };
+
   // ── Compact mode (month view) ──────────────────────────────────────────────
   if (compact) {
     return (
@@ -142,7 +156,7 @@ export function ActivityCard({
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
-        onClick={() => onClick?.(event)}
+        onClick={handleClick}
         style={{
           display: "flex",
           alignItems: "center",
@@ -221,7 +235,7 @@ export function ActivityCard({
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
-        onClick={() => onClick?.(event)}
+        onClick={handleClick}
         className="cal-chip-btn"
         aria-label={`${event.title} — ${event.status}`}
         style={{

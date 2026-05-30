@@ -193,20 +193,8 @@ export const useCalendarStore = create<CalendarState>()(
             }),
           ]);
 
-          // Identify linked activity IDs
-          const linkedActivityIds = new Set<string>();
-          for (const e of events) {
-            if (e.activity?.id) {
-              linkedActivityIds.add(e.activity.id);
-            }
-          }
-
-          // Synthesize pseudo calendar events for standalone activities
-          const unlinkedActivities = activitiesRes.content.filter(
-            (act) => !linkedActivityIds.has(act.id)
-          );
-
-          const pseudoEvents = unlinkedActivities.map((act) => {
+          // Synthesize pseudo calendar events for all activities
+          const pseudoEvents = activitiesRes.content.map((act) => {
             const dateStr = act.startedAt.split("T")[0];
             const pseudoEvent: CalendarEvent = {
               id: `activity-event-${act.id}`,
