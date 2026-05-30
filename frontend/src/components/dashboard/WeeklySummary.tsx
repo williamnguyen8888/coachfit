@@ -140,7 +140,7 @@ export function WeeklySummary({ data, className }: Props) {
           This Week
         </h2>
         <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
-          {data.weekLabel}
+          {data.weekLabel ?? ''}
         </span>
       </div>
 
@@ -151,12 +151,12 @@ export function WeeklySummary({ data, className }: Props) {
       >
         <StatPill
           label="Done"
-          value={`${data.totalCompletedHours.toFixed(1)}h`}
+          value={`${(data.totalCompletedHours ?? 0).toFixed(1)}h`}
           color="var(--color-fitness)"
         />
         <StatPill
           label="Target"
-          value={`${data.totalPlannedHours.toFixed(1)}h`}
+          value={`${(data.totalPlannedHours ?? 0).toFixed(1)}h`}
           color="var(--text-secondary)"
         />
         <div className="flex flex-col items-center gap-0.5 flex-1">
@@ -164,10 +164,10 @@ export function WeeklySummary({ data, className }: Props) {
             className="font-metric tabular-nums font-bold"
             style={{
               fontSize: "var(--text-xl)",
-              color: complianceColor(data.compliance),
+              color: complianceColor(data.compliance ?? 0),
             }}
           >
-            {Math.round(data.compliance)}%
+            {Math.round(data.compliance ?? 0)}%
           </span>
           <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
             Compliance
@@ -179,7 +179,7 @@ export function WeeklySummary({ data, className }: Props) {
       <div style={{ height: 140 }}>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
-            data={data.days}
+            data={data.days ?? []}
             margin={{ top: 4, right: 0, bottom: 0, left: -24 }}
             barCategoryGap="30%"
             barGap={2}
@@ -207,13 +207,13 @@ export function WeeklySummary({ data, className }: Props) {
             />
             {/* Planned — subtle outline bars */}
             <Bar dataKey="planned" name="Planned" radius={[3, 3, 0, 0]} fill="var(--border-default)">
-              {data.days.map((_day, i) => (
+              {(data.days ?? []).map((_day, i) => (
                 <Cell key={i} fill="var(--border-default)" />
               ))}
             </Bar>
             {/* Completed — colored bars */}
             <Bar dataKey="completed" name="Completed" radius={[3, 3, 0, 0]}>
-              {data.days.map((day, i) => (
+              {(data.days ?? []).map((day, i) => (
                 <Cell
                   key={i}
                   fill={

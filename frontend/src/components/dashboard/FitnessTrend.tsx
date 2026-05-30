@@ -179,7 +179,7 @@ export function FitnessTrend({ data, trend = "stable", className }: Props) {
     .filter((i) => i % 7 === 0 || i === chartData.length - 1);
   const ticks = tickIndices.map((i) => chartData[i]?.date).filter(Boolean);
 
-  const tsb = data.currentTsb;
+  const tsb = data.currentTsb ?? 0;
   const formColor = tsbColor(tsb);
 
   return (
@@ -216,14 +216,14 @@ export function FitnessTrend({ data, trend = "stable", className }: Props) {
       >
         <StatBadge
           label="Fitness"
-          value={data.currentCtl}
+          value={data.currentCtl ?? 0}
           color="var(--color-fitness)"
           sub="CTL"
         />
         <div style={{ width: 1, background: "var(--border-subtle)", flexShrink: 0 }} />
         <StatBadge
           label="Fatigue"
-          value={data.currentAtl}
+          value={data.currentAtl ?? 0}
           color="var(--color-fatigue)"
           sub="ATL"
         />
