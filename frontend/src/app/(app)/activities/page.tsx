@@ -4,11 +4,11 @@
  * Activities List Page — /activities
  *
  * Features:
- *  - Sticky filter bar (sport, source, date range)
- *  - Paginated activity cards with source badges
+ *  - Premium Hero summary dashboard (aggregated stats)
+ *  - Sticky frosted-glass filter bar (sport, source, date range, view toggle)
+ *  - Grid and List layouts with responsive behavior
  *  - Loading skeleton, empty, and error states
  *  - Upload button in page header
- *  - Filter state managed in React state (no URL sync needed for v1)
  */
 
 import * as React from "react";
@@ -19,7 +19,8 @@ import { Button } from "@/components/ui/Button";
 import { ActivityFilters } from "@/components/activities/ActivityFilters";
 import { ActivityList } from "@/components/activities/ActivityList";
 import { UploadModal } from "@/components/activities/UploadModal";
-import type { ActivitiesFilter } from "@/lib/types/activity";
+import { ActivitiesSummaryDashboard } from "@/components/activities/ActivitiesSummaryDashboard";
+import type { ActivitiesFilter, ActivitySummary } from "@/lib/types/activity";
 
 /* ------------------------------------------------------------------ */
 /*  Default filter state                                                 */
@@ -40,6 +41,8 @@ export default function ActivitiesPage() {
   const [totalElements, setTotalElements] = useState<number | undefined>(
     undefined
   );
+  const [viewMode, setViewMode] = useState<"grid" | "list">("list");
+  const [loadedActivities, setLoadedActivities] = useState<ActivitySummary[]>([]);
 
   /* ── Filter management ── */
   const handleFilterChange = useCallback(
@@ -67,7 +70,7 @@ export default function ActivitiesPage() {
   }, []);
 
   const handleUploadSuccess = useCallback(
-    (activityId: string) => {
+    () => {
       setShowUpload(false);
       // Refetch list after a short delay (processing lag)
       setTimeout(() => {
@@ -97,6 +100,12 @@ export default function ActivitiesPage() {
         }
       />
 
+      {/* ── Summary statistics dashboard ── */}
+      <ActivitiesSummaryDashboard 
+        activities={loadedActivities} 
+        loading={totalElements === undefined} 
+      />
+
       {/* ── Sticky filter bar ── */}
       <ActivityFilters
         filter={filter}
@@ -104,6 +113,8 @@ export default function ActivitiesPage() {
         onReset={handleReset}
         totalElements={totalElements}
         loading={totalElements === undefined}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
       />
 
       {/* ── Activities list ── */}
@@ -114,9 +125,11 @@ export default function ActivitiesPage() {
       >
         <ActivityList
           filter={filter}
+          viewMode={viewMode}
           onPageChange={handlePageChange}
           onReset={handleReset}
           onTotalChange={setTotalElements}
+          onActivitiesLoaded={setLoadedActivities}
         />
       </main>
 

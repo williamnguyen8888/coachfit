@@ -2,19 +2,17 @@
 
 /**
  * ActivityFilters — filter bar for the activities list.
- *
- * Filters:
- *  - Sport (cycling | running | swimming | strength | other | all)
- *  - Source (strava | garmin | manual | upload | all)
- *  - Date range (from / to) — free-form date pickers
- *
- * Active filters also show an "X" clear chip so users can quickly remove them.
+ * Includes:
+ *  - Sport filter (cycling | running | swimming | strength | other | all)
+ *  - Source filter (strava | garmin | manual | upload | all)
+ *  - Date range (from / to)
+ *  - Layout view toggle (Grid / List)
+ *  - Glassmorphic frosting overlay container
  */
 
 import * as React from "react";
-import { X, SlidersHorizontal, ChevronDown } from "lucide-react";
+import { X, SlidersHorizontal, ChevronDown, LayoutGrid, List } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { SportDot } from "./SportIcon";
 import type { Sport, ActivitySource, ActivitiesFilter } from "@/lib/types/activity";
 
 /* ------------------------------------------------------------------ */
@@ -75,13 +73,13 @@ function FilterSelect({
             WebkitAppearance: "none",
             background: isActive
               ? "var(--color-accent-12)"
-              : "var(--bg-elevated)",
-            border: `1px solid ${isActive ? "var(--color-accent-40)" : "var(--border-default)"}`,
-            borderRadius: "var(--radius-sm)",
+              : "rgba(255, 255, 255, 0.02)",
+            border: `1px solid ${isActive ? "var(--color-accent-40)" : "rgba(255, 255, 255, 0.08)"}`,
+            borderRadius: "var(--radius-md)",
             color: isActive ? "var(--color-accent)" : "var(--text-secondary)",
             fontSize: "var(--text-sm)",
             fontWeight: isActive ? 600 : 400,
-            padding: "6px 32px 6px 10px",
+            padding: "8px 34px 8px 12px",
             cursor: "pointer",
             minWidth: 130,
             transition: `all var(--duration-micro) ease-out`,
@@ -96,7 +94,7 @@ function FilterSelect({
           onBlur={(e) => {
             (e.currentTarget as HTMLSelectElement).style.borderColor = isActive
               ? "var(--color-accent-40)"
-              : "var(--border-default)";
+              : "rgba(255, 255, 255, 0.08)";
             (e.currentTarget as HTMLSelectElement).style.boxShadow = "none";
           }}
         >
@@ -114,7 +112,7 @@ function FilterSelect({
           size={14}
           style={{
             position: "absolute",
-            right: 8,
+            right: 10,
             pointerEvents: "none",
             color: isActive ? "var(--color-accent)" : "var(--text-muted)",
           }}
@@ -149,15 +147,15 @@ function DateInput({ id, label, value, onChange }: DateInputProps) {
         style={{
           background: isActive
             ? "var(--color-accent-12)"
-            : "var(--bg-elevated)",
-          border: `1px solid ${isActive ? "var(--color-accent-40)" : "var(--border-default)"}`,
-          borderRadius: "var(--radius-sm)",
+            : "rgba(255, 255, 255, 0.02)",
+          border: `1px solid ${isActive ? "var(--color-accent-40)" : "rgba(255, 255, 255, 0.08)"}`,
+          borderRadius: "var(--radius-md)",
           color: isActive ? "var(--color-accent)" : "var(--text-secondary)",
           fontSize: "var(--text-sm)",
           fontWeight: isActive ? 600 : 400,
-          padding: "6px 10px",
+          padding: "8px 12px",
           cursor: "pointer",
-          width: 140,
+          width: 145,
           outline: "none",
           transition: `all var(--duration-micro) ease-out`,
           colorScheme: "dark",
@@ -169,7 +167,7 @@ function DateInput({ id, label, value, onChange }: DateInputProps) {
         onBlur={(e) => {
           e.currentTarget.style.borderColor = isActive
             ? "var(--color-accent-40)"
-            : "var(--border-default)";
+            : "rgba(255, 255, 255, 0.08)";
           e.currentTarget.style.boxShadow = "none";
         }}
       />
@@ -192,8 +190,8 @@ function ActiveChip({ label, onRemove }: ActiveChipProps) {
       style={{
         display: "inline-flex",
         alignItems: "center",
-        gap: 4,
-        padding: "2px 8px 2px 8px",
+        gap: 6,
+        padding: "3px 10px",
         borderRadius: "var(--radius-full)",
         background: "var(--color-accent-15)",
         border: "1px solid var(--color-accent-30)",
@@ -221,7 +219,7 @@ function ActiveChip({ label, onRemove }: ActiveChipProps) {
         onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
         onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.7")}
       >
-        <X size={11} aria-hidden="true" />
+        <X size={12} aria-hidden="true" />
       </button>
     </span>
   );
@@ -238,6 +236,8 @@ export interface ActivityFiltersProps {
   /** Total results count — shown in the bar */
   totalElements?: number;
   loading?: boolean;
+  viewMode: "grid" | "list";
+  onViewModeChange: (mode: "grid" | "list") => void;
 }
 
 export function ActivityFilters({
@@ -246,6 +246,8 @@ export function ActivityFilters({
   onReset,
   totalElements,
   loading,
+  viewMode,
+  onViewModeChange,
 }: ActivityFiltersProps) {
   const hasActiveFilters =
     !!filter.sport || !!filter.source || !!filter.from || !!filter.to;
@@ -254,113 +256,150 @@ export function ActivityFilters({
     <div
       style={{
         borderBottom: "1px solid var(--border-subtle)",
-        background: "var(--bg-primary)",
+        background: "rgba(10, 10, 15, 0.65)",
+        backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
         position: "sticky",
         top: 0,
         zIndex: 10,
       }}
     >
       {/* ── Filter controls ── */}
-      <div className="px-4 lg:px-6 py-3">
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Icon label */}
-          <span
-            className="flex items-center gap-1.5 mr-1"
-            style={{
-              fontSize: "var(--text-sm)",
-              color: "var(--text-muted)",
-              fontWeight: 500,
-            }}
-            aria-hidden="true"
-          >
-            <SlidersHorizontal size={14} />
-            Filters
-          </span>
-
-          {/* Sport selector */}
-          <FilterSelect
-            id="filter-sport"
-            label="Filter by sport"
-            value={filter.sport ?? ""}
-            options={SPORTS}
-            onChange={(v) =>
-              onFilterChange({ sport: (v as Sport) || undefined, page: 0 })
-            }
-          />
-
-          {/* Source selector */}
-          <FilterSelect
-            id="filter-source"
-            label="Filter by source"
-            value={filter.source ?? ""}
-            options={SOURCES}
-            onChange={(v) =>
-              onFilterChange({
-                source: (v as ActivitySource) || undefined,
-                page: 0,
-              })
-            }
-          />
-
-          {/* Date range */}
-          <DateInput
-            id="filter-from"
-            label="From date"
-            value={filter.from ?? ""}
-            onChange={(v) =>
-              onFilterChange({ from: v || undefined, page: 0 })
-            }
-          />
-          <span
-            style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)" }}
-            aria-hidden="true"
-          >
-            →
-          </span>
-          <DateInput
-            id="filter-to"
-            label="To date"
-            value={filter.to ?? ""}
-            onChange={(v) =>
-              onFilterChange({ to: v || undefined, page: 0 })
-            }
-          />
-
-          {/* Reset */}
-          {hasActiveFilters && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onReset}
-              aria-label="Clear all filters"
-              leftIcon={<X size={13} />}
-            >
-              Clear
-            </Button>
-          )}
-
-          {/* Results count */}
-          {!loading && totalElements !== undefined && (
+      <div className="px-4 lg:px-6 py-4">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Icon label */}
             <span
-              className="ml-auto"
+              className="flex items-center gap-1.5 mr-1"
               style={{
-                fontSize: "var(--text-xs)",
+                fontSize: "var(--text-sm)",
                 color: "var(--text-muted)",
+                fontWeight: 500,
               }}
-              aria-live="polite"
-              aria-atomic="true"
+              aria-hidden="true"
             >
-              {totalElements.toLocaleString()} activit
-              {totalElements === 1 ? "y" : "ies"}
+              <SlidersHorizontal size={14} />
+              Filters
             </span>
-          )}
+
+            {/* Sport selector */}
+            <FilterSelect
+              id="filter-sport"
+              label="Filter by sport"
+              value={filter.sport ?? ""}
+              options={SPORTS}
+              onChange={(v) =>
+                onFilterChange({ sport: (v as Sport) || undefined, page: 0 })
+              }
+            />
+
+            {/* Source selector */}
+            <FilterSelect
+              id="filter-source"
+              label="Filter by source"
+              value={filter.source ?? ""}
+              options={SOURCES}
+              onChange={(v) =>
+                onFilterChange({
+                  source: (v as ActivitySource) || undefined,
+                  page: 0,
+                })
+              }
+            />
+
+            {/* Date range */}
+            <div className="flex items-center gap-2">
+              <DateInput
+                id="filter-from"
+                label="From date"
+                value={filter.from ?? ""}
+                onChange={(v) =>
+                  onFilterChange({ from: v || undefined, page: 0 })
+                }
+              />
+              <span
+                style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)" }}
+                aria-hidden="true"
+              >
+                to
+              </span>
+              <DateInput
+                id="filter-to"
+                label="To date"
+                value={filter.to ?? ""}
+                onChange={(v) =>
+                  onFilterChange({ to: v || undefined, page: 0 })
+                }
+              />
+            </div>
+
+            {/* Reset */}
+            {hasActiveFilters && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onReset}
+                aria-label="Clear all filters"
+                leftIcon={<X size={13} />}
+                className="hover:bg-[rgba(255,255,255,0.04)]"
+              >
+                Clear
+              </Button>
+            )}
+          </div>
+
+          <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto">
+            {/* Results count */}
+            {!loading && totalElements !== undefined && (
+              <span
+                style={{
+                  fontSize: "var(--text-xs)",
+                  color: "var(--text-muted)",
+                  fontWeight: 500,
+                }}
+                aria-live="polite"
+                aria-atomic="true"
+              >
+                {totalElements.toLocaleString()} activit
+                {totalElements === 1 ? "y" : "ies"}
+              </span>
+            )}
+
+            {/* View mode toggle */}
+            <div className="flex items-center gap-1 bg-[rgba(255,255,255,0.02)] p-1 rounded-[var(--radius-md)] border border-[rgba(255,255,255,0.08)]">
+              <button
+                onClick={() => onViewModeChange("list")}
+                className={`p-2 sm:p-1.5 rounded-[var(--radius-sm)] transition-all cursor-pointer ${
+                  viewMode === "list"
+                    ? "bg-[var(--color-accent)] text-white shadow-sm"
+                    : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
+                }`}
+                title="List View"
+                aria-label="Switch to list view"
+              >
+                <List size={16} />
+              </button>
+              <button
+                onClick={() => onViewModeChange("grid")}
+                className={`p-2 sm:p-1.5 rounded-[var(--radius-sm)] transition-all cursor-pointer ${
+                  viewMode === "grid"
+                    ? "bg-[var(--color-accent)] text-white shadow-sm"
+                    : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
+                }`}
+                title="Grid View"
+                aria-label="Switch to grid view"
+              >
+                <LayoutGrid size={16} />
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* ── Active filter chips ── */}
       {hasActiveFilters && (
         <div
-          className="px-4 lg:px-6 pb-2 flex flex-wrap gap-1.5"
+          className="px-4 lg:px-6 pb-3 flex flex-wrap gap-2"
           aria-label="Active filters"
         >
           {filter.sport && (

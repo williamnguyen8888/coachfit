@@ -2,11 +2,10 @@
 
 /**
  * ActivityCard — a single activity row / card in the list.
+ * Supports "grid" and "list" layouts.
  *
  * Displays: sport icon, name, date, key metrics (distance, duration, HR, power, TSS),
  * and a source badge. Highlighted variant uses the sport's accent colour on the left border.
- *
- * The card is NOT a link to the detail page (that's a separate ticket).
  */
 
 import * as React from "react";
@@ -27,6 +26,14 @@ const sportColorVar: Record<Sport, string> = {
   swimming: "var(--sport-swimming)",
   strength: "var(--sport-strength)",
   other: "var(--sport-other)",
+};
+
+const sportGlowVar: Record<Sport, string> = {
+  cycling: "var(--sport-cycling-glow, rgba(59, 130, 246, 0.15))",
+  running: "var(--sport-running-glow, rgba(34, 197, 94, 0.15))",
+  swimming: "var(--sport-swimming-glow, rgba(6, 182, 212, 0.15))",
+  strength: "var(--sport-strength-glow, rgba(249, 115, 22, 0.15))",
+  other: "var(--sport-other-glow, rgba(107, 114, 128, 0.1))",
 };
 
 /* ------------------------------------------------------------------ */
@@ -59,22 +66,26 @@ interface MetricChipProps {
   icon: React.ReactNode;
   value: string;
   label: string;
+  isHighIntensity?: boolean;
 }
 
-function MetricChip({ icon, value, label }: MetricChipProps) {
+function MetricChip({ icon, value, label, isHighIntensity }: MetricChipProps) {
   return (
     <div
-      className="flex items-center gap-1"
+      className="flex items-center gap-1 sm:gap-1.5 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-[var(--radius-sm)] border border-[rgba(255,255,255,0.02)] bg-[rgba(255,255,255,0.01)] transition-all duration-200 hover:bg-[rgba(255,255,255,0.03)]"
       title={label}
       aria-label={`${label}: ${value}`}
     >
-      <span style={{ color: "var(--text-muted)" }} aria-hidden="true">
+      <span 
+        className={isHighIntensity ? "animate-pulse" : ""} 
+        style={{ color: isHighIntensity ? "var(--color-danger)" : "var(--text-muted)" }} 
+        aria-hidden="true"
+      >
         {icon}
       </span>
       <span
-        className="tabular-nums"
+        className="tabular-nums text-xs sm:text-token-sm"
         style={{
-          fontSize: "var(--text-sm)",
           color: "var(--text-primary)",
           fontWeight: 500,
         }}
@@ -91,11 +102,12 @@ function MetricChip({ icon, value, label }: MetricChipProps) {
 
 export interface ActivityCardProps {
   activity: ActivitySummary;
+  viewMode?: "grid" | "list";
   /** Called when the card is clicked (future: navigate to detail) */
   onClick?: (id: string) => void;
 }
 
-export function ActivityCard({ activity, onClick }: ActivityCardProps) {
+export function ActivityCard({ activity, viewMode = "list", onClick }: ActivityCardProps) {
   const {
     id,
     sport,
@@ -109,7 +121,10 @@ export function ActivityCard({ activity, onClick }: ActivityCardProps) {
     source,
   } = activity;
 
+  const [hovered, setHovered] = React.useState(false);
+
   const accentColor = sportColorVar[sport] ?? sportColorVar.other;
+  const glowColor = sportGlowVar[sport] ?? sportGlowVar.other;
 
   const metrics: MetricChipProps[] = [];
 
@@ -134,6 +149,7 @@ export function ActivityCard({ activity, onClick }: ActivityCardProps) {
       icon: <Heart size={13} />,
       value: `${avgHeartRate} bpm`,
       label: "Avg heart rate",
+      isHighIntensity: avgHeartRate > 150,
     });
   }
 
@@ -153,51 +169,65 @@ export function ActivityCard({ activity, onClick }: ActivityCardProps) {
     });
   }
 
-  return (
-    <Card
-      variant="highlighted"
-      accentColor={accentColor}
-      className={onClick ? "cursor-pointer" : ""}
-      onClick={onClick ? () => onClick(id) : undefined}
-      role={onClick ? "button" : undefined}
-      tabIndex={onClick ? 0 : undefined}
-      onKeyDown={
-        onClick
-          ? (e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                onClick(id);
+  const customStyle: React.CSSProperties = {
+    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+    boxShadow: hovered 
+      ? `0 10px 30px -5px ${glowColor}, 0 0 15px ${glowColor}` 
+      : "var(--shadow-sm)",
+    borderColor: hovered ? accentColor : undefined,
+    transform: hovered ? "translateY(-2px)" : "none",
+  };
+
+  if (viewMode === "grid") {
+    return (
+      <Card
+        variant="highlighted"
+        accentColor={accentColor}
+        className={`${onClick ? "cursor-pointer" : ""} flex flex-col justify-between h-full`}
+        onClick={onClick ? () => onClick(id) : undefined}
+        role={onClick ? "button" : undefined}
+        tabIndex={onClick ? 0 : undefined}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        onKeyDown={
+          onClick
+            ? (e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onClick(id);
+                }
               }
-            }
-          : undefined
-      }
-      aria-label={`Activity: ${name}`}
-      style={{
-        transition: `transform var(--duration-micro) ease-out, box-shadow var(--duration-micro) ease-out`,
-      }}
-    >
-      {/* ── Row: Icon + Name + Source + Date ── */}
-      <div className="flex items-start justify-between gap-3">
-        {/* Left: sport icon + name */}
-        <div className="flex items-center gap-3 min-w-0">
-          <div
-            aria-hidden="true"
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: "var(--radius-md)",
-              background: `${accentColor}1A`, // 10% opacity
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              flexShrink: 0,
-            }}
-          >
-            <SportIcon sport={sport} size={20} />
+            : undefined
+        }
+        aria-label={`Activity: ${name}`}
+        style={customStyle}
+      >
+        <div>
+          {/* Header row */}
+          <div className="flex items-start justify-between gap-3 mb-4">
+            <div
+              aria-hidden="true"
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: "var(--radius-md)",
+                background: `linear-gradient(135deg, ${accentColor}2A 0%, ${accentColor}0A 100%)`,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+                border: `1px solid ${accentColor}20`,
+              }}
+            >
+              <SportIcon sport={sport} size={22} />
+            </div>
+            <SourceBadge source={source} />
           </div>
-          <div className="min-w-0">
+
+          {/* Title & Date */}
+          <div className="mb-4">
             <h3
-              className="truncate font-semibold"
+              className="font-semibold line-clamp-2"
               style={{
                 fontSize: "var(--text-base)",
                 color: "var(--text-primary)",
@@ -210,6 +240,88 @@ export function ActivityCard({ activity, onClick }: ActivityCardProps) {
               style={{
                 fontSize: "var(--text-xs)",
                 color: "var(--text-muted)",
+                marginTop: 4,
+              }}
+            >
+              {formatActivityDate(startedAt)} · {formatActivityTime(startedAt)}
+            </p>
+          </div>
+        </div>
+
+        {/* Metrics Grid */}
+        {metrics.length > 0 && (
+          <div
+            className="grid grid-cols-2 gap-2 pt-3"
+            style={{ borderTop: "1px solid var(--border-subtle)" }}
+          >
+            {metrics.map((m) => (
+              <MetricChip key={m.label} {...m} />
+            ))}
+          </div>
+        )}
+      </Card>
+    );
+  }
+
+  // List View (sleek table row)
+  return (
+    <Card
+      variant="highlighted"
+      accentColor={accentColor}
+      className={onClick ? "cursor-pointer" : ""}
+      onClick={onClick ? () => onClick(id) : undefined}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onKeyDown={
+        onClick
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onClick(id);
+              }
+            }
+          : undefined
+      }
+      aria-label={`Activity: ${name}`}
+      style={customStyle}
+    >
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        {/* Left: Icon + Title details */}
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          <div
+            aria-hidden="true"
+            style={{
+              width: 38,
+              height: 38,
+              borderRadius: "var(--radius-md)",
+              background: `linear-gradient(135deg, ${accentColor}20 0%, ${accentColor}05 100%)`,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+              border: `1px solid ${accentColor}15`,
+            }}
+          >
+            <SportIcon sport={sport} size={18} />
+          </div>
+          <div className="min-w-0 flex-1 sm:flex sm:items-baseline sm:gap-4">
+            <h3
+              className="truncate font-semibold sm:max-w-[280px] md:max-w-[360px]"
+              style={{
+                fontSize: "var(--text-base)",
+                color: "var(--text-primary)",
+                lineHeight: 1.3,
+              }}
+            >
+              {name}
+            </h3>
+            <p
+              className="shrink-0"
+              style={{
+                fontSize: "var(--text-xs)",
+                color: "var(--text-muted)",
                 marginTop: 2,
               }}
             >
@@ -218,21 +330,18 @@ export function ActivityCard({ activity, onClick }: ActivityCardProps) {
           </div>
         </div>
 
-        {/* Right: source badge */}
-        <SourceBadge source={source} />
-      </div>
-
-      {/* ── Metrics row ── */}
-      {metrics.length > 0 && (
-        <div
-          className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-3"
-          style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: 12 }}
-        >
-          {metrics.map((m) => (
-            <MetricChip key={m.label} {...m} />
-          ))}
+        {/* Right: Metrics + Source badge */}
+        <div className="flex flex-wrap items-center justify-between sm:justify-end gap-3 sm:gap-4 shrink-0">
+          {metrics.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+              {metrics.map((m) => (
+                <MetricChip key={m.label} {...m} />
+              ))}
+            </div>
+          )}
+          <SourceBadge source={source} />
         </div>
-      )}
+      </div>
     </Card>
   );
 }

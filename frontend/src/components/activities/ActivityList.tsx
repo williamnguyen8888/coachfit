@@ -5,7 +5,7 @@
  *   loading  → skeleton cards
  *   error    → error panel with retry button
  *   empty    → friendly empty state
- *   data     → grid of ActivityCard
+ *   data     → grid or list of ActivityCard
  *
  * Uses the useQuery hook + activitiesService.
  */
@@ -19,13 +19,64 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { ActivityCard } from "./ActivityCard";
 import { Pagination } from "./Pagination";
 import { useQuery } from "@/hooks/useQuery";
-import type { ActivitiesFilter, PaginatedActivities } from "@/lib/types/activity";
+import type { ActivitiesFilter, PaginatedActivities, ActivitySummary } from "@/lib/types/activity";
 
 /* ------------------------------------------------------------------ */
 /*  Skeleton loading state                                               */
 /* ------------------------------------------------------------------ */
 
-function ActivityCardSkeleton() {
+interface ActivityCardSkeletonProps {
+  viewMode?: "grid" | "list";
+}
+
+function ActivityCardSkeleton({ viewMode = "list" }: ActivityCardSkeletonProps) {
+  if (viewMode === "grid") {
+    return (
+      <div
+        style={{
+          background: "var(--bg-surface)",
+          border: "1px solid var(--border-subtle)",
+          borderLeft: "3px solid var(--border-default)",
+          borderRadius: "var(--radius-lg)",
+          padding: "var(--space-4)",
+          display: "flex",
+          flexDirection: "column",
+          gap: 16,
+          height: "100%",
+          justifyContent: "space-between",
+        }}
+        aria-hidden="true"
+      >
+        <div>
+          {/* Header row */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 12 }}>
+            <Skeleton width={44} height={44} />
+            <Skeleton width={56} height={20} />
+          </div>
+          {/* Title row */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <Skeleton width="85%" height={16} />
+            <Skeleton width="50%" height={12} />
+          </div>
+        </div>
+        {/* Metrics row */}
+        <div
+          style={{
+            borderTop: "1px solid var(--border-subtle)",
+            paddingTop: 12,
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: 8,
+          }}
+        >
+          <Skeleton width="100%" height={26} />
+          <Skeleton width="100%" height={26} />
+        </div>
+      </div>
+    );
+  }
+
+  // List view skeleton
   return (
     <div
       style={{
@@ -40,41 +91,44 @@ function ActivityCardSkeleton() {
       }}
       aria-hidden="true"
     >
-      {/* Header row */}
-      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <Skeleton width={40} height={40} />
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
-          <Skeleton width="55%" height={15} />
-          <Skeleton width="35%" height={11} />
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        {/* Left skeleton */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1 }}>
+          <Skeleton width={38} height={38} />
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
+            <Skeleton width="45%" height={15} />
+            <Skeleton width="25%" height={11} />
+          </div>
         </div>
-        <Skeleton width={56} height={20} />
-      </div>
-      {/* Metrics row */}
-      <div
-        style={{
-          borderTop: "1px solid var(--border-subtle)",
-          paddingTop: 12,
-          display: "flex",
-          gap: 24,
-        }}
-      >
-        <Skeleton width={64} height={14} />
-        <Skeleton width={60} height={14} />
-        <Skeleton width={68} height={14} />
+        {/* Right skeleton */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <Skeleton width={70} height={24} />
+          <Skeleton width={60} height={24} />
+          <Skeleton width={56} height={20} />
+        </div>
       </div>
     </div>
   );
 }
 
-function LoadingState({ count = 8 }: { count?: number }) {
+interface LoadingStateProps {
+  count?: number;
+  viewMode?: "grid" | "list";
+}
+
+function LoadingState({ count = 8, viewMode = "list" }: LoadingStateProps) {
+  const containerClass = viewMode === "grid"
+    ? "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4"
+    : "flex flex-col gap-3";
+
   return (
     <div
       role="status"
       aria-label="Loading activities"
-      className="flex flex-col gap-3"
+      className={containerClass}
     >
       {Array.from({ length: count }).map((_, i) => (
-        <ActivityCardSkeleton key={i} />
+        <ActivityCardSkeleton key={i} viewMode={viewMode} />
       ))}
     </div>
   );
@@ -225,16 +279,20 @@ function ErrorState({ message, onRetry }: ErrorStateProps) {
 
 export interface ActivityListProps {
   filter: ActivitiesFilter;
+  viewMode?: "grid" | "list";
   onPageChange: (page: number) => void;
   onReset: () => void;
   onTotalChange?: (total: number) => void;
+  onActivitiesLoaded?: (activities: ActivitySummary[]) => void;
 }
 
 export function ActivityList({
   filter,
+  viewMode = "list",
   onPageChange,
   onReset,
   onTotalChange,
+  onActivitiesLoaded,
 }: ActivityListProps) {
   const router = useRouter();
 
@@ -269,6 +327,15 @@ export function ActivityList({
     }
   }, [data?.totalElements, onTotalChange]);
 
+  // Pass loaded activities up to parent for summary dashboard calculation
+  React.useEffect(() => {
+    if (data?.content) {
+      onActivitiesLoaded?.(data.content);
+    } else if (!loading && !data) {
+      onActivitiesLoaded?.([]);
+    }
+  }, [data, loading, onActivitiesLoaded]);
+
   const hasFilters = !!(
     filter.sport ||
     filter.source ||
@@ -278,7 +345,7 @@ export function ActivityList({
 
   /* ── Loading ── */
   if (loading && !data) {
-    return <LoadingState count={6} />;
+    return <LoadingState count={8} viewMode={viewMode} />;
   }
 
   /* ── Error ── */
@@ -345,16 +412,23 @@ export function ActivityList({
         <EmptyState hasFilters={hasFilters} onReset={onReset} />
       ) : (
         <>
-          {/* Activity list */}
+          {/* Activity list / grid */}
           <ol
-            className="flex flex-col gap-3"
+            className={viewMode === "grid" 
+              ? "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4" 
+              : "flex flex-col gap-3"
+            }
             aria-label="Activities"
             aria-live="polite"
             aria-atomic="false"
           >
             {activities.map((activity) => (
-              <li key={activity.id}>
-                <ActivityCard activity={activity} onClick={handleCardClick} />
+              <li key={activity.id} className={viewMode === "grid" ? "h-full" : ""}>
+                <ActivityCard 
+                  activity={activity} 
+                  viewMode={viewMode} 
+                  onClick={handleCardClick} 
+                />
               </li>
             ))}
           </ol>
