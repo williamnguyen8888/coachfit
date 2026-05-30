@@ -17,6 +17,7 @@
 // │ Workout name...    │
 // └────────────────────┘
 
+import { useRouter } from "next/navigation";
 import type { CalendarEvent } from "@/lib/types/calendar";
 import {
   getSportHex,
@@ -92,6 +93,7 @@ export function WorkoutCard({
   onComplete,
   onSkip,
 }: WorkoutCardProps) {
+  const router = useRouter();
   const sport = event.workout?.sport ?? "other";
   const sportHex = getSportHex(sport);
   const dist = getZoneDistribution(sport, event.status);
@@ -218,13 +220,21 @@ export function WorkoutCard({
         onTouchEnd={onTouchEnd}
         onClick={(e) => {
           if ((e.target as HTMLElement).closest(".cal-quick-action")) return;
-          onClick?.(event);
+          if ((event.status === "completed" || event.status === "partial") && event.activity?.id) {
+            router.push(`/activities/${event.activity.id}`);
+          } else {
+            onClick?.(event);
+          }
         }}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
             if ((e.target as HTMLElement).closest(".cal-quick-action")) return;
-            onClick?.(event);
+            if ((event.status === "completed" || event.status === "partial") && event.activity?.id) {
+              router.push(`/activities/${event.activity.id}`);
+            } else {
+              onClick?.(event);
+            }
           }
         }}
         className="cal-chip-btn"

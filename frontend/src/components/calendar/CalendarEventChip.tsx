@@ -60,7 +60,7 @@ export function CalendarEventChip(props: CalendarEventChipProps) {
   // ── Route to rich card components ────────────────────────────────────────
   const isWorkout = event.eventType === "workout";
   const isStandaloneActivity = event.id.startsWith("activity-event-");
-  const isCompletedWithActivity = isStandaloneActivity;
+  const isCompletedWithActivity = isStandaloneActivity || event.status === "completed" || event.status === "partial";
   const isDraggable = props.draggable && !isStandaloneActivity;
 
   // Determine which card to render
