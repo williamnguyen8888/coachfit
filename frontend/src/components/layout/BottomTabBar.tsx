@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Calendar, Activity, Dumbbell, Settings } from "lucide-react";
+import { Home, Calendar, Activity, Dumbbell, HeartPulse, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const TAB_ITEMS = [
@@ -10,6 +10,7 @@ const TAB_ITEMS = [
   { label: "Calendar", href: "/calendar", icon: Calendar },
   { label: "Activities", href: "/activities", icon: Activity },
   { label: "Workouts", href: "/workouts", icon: Dumbbell },
+  { label: "Wellness", href: "/wellness", icon: HeartPulse },
   { label: "Settings", href: "/settings", icon: Settings },
 ] as const;
 
@@ -53,7 +54,7 @@ export function BottomTabBar() {
               {isActive && (
                 <span
                   className="absolute -inset-1.5 rounded-lg -z-10"
-                  style={{ background: "rgba(139, 92, 246, 0.12)" }}
+                  style={{ background: "var(--color-accent-12)" }}
                 />
               )}
               <Icon

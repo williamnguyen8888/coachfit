@@ -13,6 +13,7 @@ import {
   ChevronRight,
   Zap,
   LogOut,
+  HeartPulse,
 } from "lucide-react";
 import { useUIStore } from "@/stores/ui.store";
 import { useAuthStore } from "@/stores/auth.store";
@@ -23,6 +24,7 @@ const NAV_ITEMS = [
   { label: "Calendar", href: "/calendar", icon: Calendar },
   { label: "Activities", href: "/activities", icon: Activity },
   { label: "Workouts", href: "/workouts", icon: Dumbbell },
+  { label: "Wellness", href: "/wellness", icon: HeartPulse },
   { label: "Analytics", href: "/analytics", icon: BarChart2 },
   { label: "Settings", href: "/settings", icon: Settings },
 ] as const;
@@ -91,11 +93,11 @@ export function Sidebar() {
               )}
               style={{
                 color: isActive ? "var(--color-accent)" : "var(--text-secondary)",
-                background: isActive ? "rgba(139, 92, 246, 0.1)" : "transparent",
+                background: isActive ? "var(--color-accent-10)" : "transparent",
               }}
               onMouseEnter={(e) => {
                 if (!isActive)
-                  e.currentTarget.style.background = "rgba(255,255,255,0.04)";
+                  e.currentTarget.style.background = "var(--bg-elevated)";
                 if (!isActive)
                   e.currentTarget.style.color = "var(--text-primary)";
               }}
@@ -164,7 +166,7 @@ export function Sidebar() {
             style={{
               width: 32,
               height: 32,
-              background: "rgba(139, 92, 246, 0.2)",
+              background: "var(--color-accent-20)",
               color: "var(--color-accent)",
               fontSize: "var(--text-xs)",
             }}
@@ -200,7 +202,7 @@ export function Sidebar() {
           )}
           style={{ color: "var(--color-danger)" }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.background = "rgba(239, 68, 68, 0.08)";
+            e.currentTarget.style.background = "var(--color-danger-8)";
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.background = "transparent";
@@ -225,7 +227,7 @@ export function Sidebar() {
           )}
           style={{ color: "var(--text-muted)" }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.background = "rgba(255,255,255,0.04)";
+            e.currentTarget.style.background = "var(--bg-elevated)";
             e.currentTarget.style.color = "var(--text-primary)";
           }}
           onMouseLeave={(e) => {

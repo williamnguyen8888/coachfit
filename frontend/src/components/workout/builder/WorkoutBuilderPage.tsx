@@ -578,9 +578,9 @@ export function WorkoutBuilderPage({ initialWorkout }: WorkoutBuilderPageProps) 
             style={{
               padding: "10px 16px",
               borderRadius: "var(--radius-md)",
-              background: t.type === "success" ? "rgba(34,197,94,0.15)" : "rgba(239,68,68,0.15)",
-              border: `1px solid ${t.type === "success" ? "#22C55E" : "#EF4444"}`,
-              color: t.type === "success" ? "#22C55E" : "#EF4444",
+              background: t.type === "success" ? "var(--color-success-15)" : "var(--color-danger-15)",
+              border: `1px solid ${t.type === "success" ? "var(--color-success)" : "var(--color-danger)"}`,
+              color: t.type === "success" ? "var(--color-success)" : "var(--color-danger)",
               fontSize: "var(--text-sm)",
               fontWeight: 500,
               boxShadow: "var(--shadow-md)",

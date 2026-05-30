@@ -215,7 +215,7 @@ interface Props {
 
 export function MorningBriefing({ data, className }: Props) {
   const tod = getTimeOfDay();
-  const firstName = data.greeting.split(",")[1]?.trim().replace("!", "") ?? "";
+  const firstName = (data.greeting ?? "").split(",")[1]?.trim().replace("!", "") ?? "";
   const greeting = `Good ${tod}${firstName ? `, ${firstName}` : ""}`;
 
   return (

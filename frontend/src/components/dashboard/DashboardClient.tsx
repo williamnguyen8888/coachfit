@@ -24,7 +24,7 @@ import { RecentActivities, RecentActivitiesSkeleton } from "./RecentActivities";
 import { FitnessStatusBadge } from "./FitnessStatusBadge";
 import { WellnessLastKnown, WellnessLastKnownSkeleton } from "@/components/wellness/WellnessLastKnown";
 import type { DashboardToday, WeeklySummary as WeeklySummaryType, FitnessTrendResponse } from "@/lib/types/dashboard";
-import type { WellnessEntry } from "@/lib/types/wellness";
+import type { WellnessEntry, WellnessListResponse } from "@/lib/types/wellness";
 
 /* ─── Error state ─────────────────────────────────────────────────────── */
 
@@ -55,11 +55,21 @@ export function DashboardClient() {
   // Fetch today's wellness entry to power the WellnessLastKnown widget.
   // We also pick up lastWellness from today.data as a fallback.
   const todayDate = new Date().toISOString().split("T")[0];
-  const wellnessQuery = useQuery<{ content: WellnessEntry[] }>(
+  const wellnessQuery = useQuery<WellnessListResponse | WellnessEntry[]>(
     `/wellness?from=${todayDate}&to=${todayDate}`,
   );
-  const wellnessEntry: WellnessEntry | null =
-    wellnessQuery.data?.content[0] ?? null;
+  const wellnessEntry: WellnessEntry | null = (() => {
+    const d = wellnessQuery.data as unknown;
+    if (!d) return null;
+    // Raw array (backend returns WellnessEntry[] directly)
+    if (Array.isArray(d)) return (d as WellnessEntry[])[0] ?? null;
+    // Spring-style { content: [...] }
+    const asObj = d as Record<string, unknown>;
+    if (Array.isArray(asObj.content)) return (asObj.content as WellnessEntry[])[0] ?? null;
+    // Fallback: { data: [...] } shape
+    if (Array.isArray(asObj.data)) return (asObj.data as WellnessEntry[])[0] ?? null;
+    return null;
+  })();
   const hasCheckedInToday = !!wellnessEntry;
 
   return (

@@ -74,9 +74,9 @@ function FilterSelect({
             appearance: "none",
             WebkitAppearance: "none",
             background: isActive
-              ? "rgba(139,92,246,0.12)"
+              ? "var(--color-accent-12)"
               : "var(--bg-elevated)",
-            border: `1px solid ${isActive ? "rgba(139,92,246,0.4)" : "var(--border-default)"}`,
+            border: `1px solid ${isActive ? "var(--color-accent-40)" : "var(--border-default)"}`,
             borderRadius: "var(--radius-sm)",
             color: isActive ? "var(--color-accent)" : "var(--text-secondary)",
             fontSize: "var(--text-sm)",
@@ -91,11 +91,11 @@ function FilterSelect({
             (e.currentTarget as HTMLSelectElement).style.borderColor =
               "var(--color-accent)";
             (e.currentTarget as HTMLSelectElement).style.boxShadow =
-              "0 0 0 2px rgba(139,92,246,0.2)";
+              "var(--color-focus-ring)";
           }}
           onBlur={(e) => {
             (e.currentTarget as HTMLSelectElement).style.borderColor = isActive
-              ? "rgba(139,92,246,0.4)"
+              ? "var(--color-accent-40)"
               : "var(--border-default)";
             (e.currentTarget as HTMLSelectElement).style.boxShadow = "none";
           }}
@@ -148,9 +148,9 @@ function DateInput({ id, label, value, onChange }: DateInputProps) {
         placeholder={label}
         style={{
           background: isActive
-            ? "rgba(139,92,246,0.12)"
+            ? "var(--color-accent-12)"
             : "var(--bg-elevated)",
-          border: `1px solid ${isActive ? "rgba(139,92,246,0.4)" : "var(--border-default)"}`,
+          border: `1px solid ${isActive ? "var(--color-accent-40)" : "var(--border-default)"}`,
           borderRadius: "var(--radius-sm)",
           color: isActive ? "var(--color-accent)" : "var(--text-secondary)",
           fontSize: "var(--text-sm)",
@@ -164,11 +164,11 @@ function DateInput({ id, label, value, onChange }: DateInputProps) {
         }}
         onFocus={(e) => {
           e.currentTarget.style.borderColor = "var(--color-accent)";
-          e.currentTarget.style.boxShadow = "0 0 0 2px rgba(139,92,246,0.2)";
+          e.currentTarget.style.boxShadow = "var(--color-focus-ring)";
         }}
         onBlur={(e) => {
           e.currentTarget.style.borderColor = isActive
-            ? "rgba(139,92,246,0.4)"
+            ? "var(--color-accent-40)"
             : "var(--border-default)";
           e.currentTarget.style.boxShadow = "none";
         }}
@@ -195,8 +195,8 @@ function ActiveChip({ label, onRemove }: ActiveChipProps) {
         gap: 4,
         padding: "2px 8px 2px 8px",
         borderRadius: "var(--radius-full)",
-        background: "rgba(139,92,246,0.15)",
-        border: "1px solid rgba(139,92,246,0.3)",
+        background: "var(--color-accent-15)",
+        border: "1px solid var(--color-accent-30)",
         fontSize: "var(--text-xs)",
         color: "var(--color-accent)",
         fontWeight: 600,

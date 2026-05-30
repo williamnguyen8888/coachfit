@@ -164,9 +164,9 @@ function DayCell({
 
   // Base background
   let baseBg = "transparent";
-  if (!inMonth) baseBg = "rgba(0,0,0,0.15)";
-  if (today) baseBg = "rgba(139,92,246,0.04)";
-  if (isDragOver && inMonth) baseBg = "rgba(139,92,246,0.08)";
+  if (!inMonth) baseBg = "color-mix(in srgb, black 15%, var(--bg-primary))";
+  if (today) baseBg = "var(--color-accent-4)";
+  if (isDragOver && inMonth) baseBg = "var(--color-accent-8)";
 
   return (
     <div
@@ -181,15 +181,15 @@ function DayCell({
         display: "flex",
         flexDirection: "column",
         background: baseBg,
-        outline: isDragOver && inMonth ? "1px dashed rgba(139,92,246,0.5)" : "none",
+        outline: isDragOver && inMonth ? `1px dashed var(--color-accent-50)` : "none",
         outlineOffset: -1,
         transition: "background var(--duration-micro) ease-out",
       }}
       onMouseEnter={(e) => {
         if (inMonth && !isDragOver) {
           (e.currentTarget as HTMLDivElement).style.background = today
-            ? "rgba(139,92,246,0.07)"
-            : "rgba(255,255,255,0.02)";
+            ? "var(--color-accent-8)"
+            : "var(--bg-elevated)";
         }
       }}
       onMouseLeave={(e) => {

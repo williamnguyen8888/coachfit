@@ -18,6 +18,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { ActivityFilters } from "@/components/activities/ActivityFilters";
 import { ActivityList } from "@/components/activities/ActivityList";
+import { UploadModal } from "@/components/activities/UploadModal";
 import type { ActivitiesFilter } from "@/lib/types/activity";
 
 /* ------------------------------------------------------------------ */
@@ -58,11 +59,23 @@ export default function ActivitiesPage() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
-  /* ── Upload handler (placeholder — full upload in separate ticket) ── */
+  const [showUpload, setShowUpload] = useState(false);
+
+  /* ── Upload handler ── */
   const handleUpload = useCallback(() => {
-    // TODO: open upload modal (separate ticket)
-    alert("Upload feature coming soon!");
+    setShowUpload(true);
   }, []);
+
+  const handleUploadSuccess = useCallback(
+    (activityId: string) => {
+      setShowUpload(false);
+      // Refetch list after a short delay (processing lag)
+      setTimeout(() => {
+        setFilter({ ...DEFAULT_FILTER });
+      }, 1500);
+    },
+    [],
+  );
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
@@ -106,6 +119,14 @@ export default function ActivitiesPage() {
           onTotalChange={setTotalElements}
         />
       </main>
+
+      {/* ── Upload modal ── */}
+      {showUpload && (
+        <UploadModal
+          onClose={() => setShowUpload(false)}
+          onSuccess={handleUploadSuccess}
+        />
+      )}
     </div>
   );
 }

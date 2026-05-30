@@ -21,27 +21,29 @@ interface SourceConfig {
 const SOURCE_CONFIG: Record<ActivitySource, SourceConfig> = {
   strava: {
     label: "Strava",
+    // Strava brand orange — intentional brand literal, not a design-system color
     bg: "rgba(252, 76, 2, 0.15)",
     text: "#FC4C02",
     border: "rgba(252, 76, 2, 0.3)",
   },
   garmin: {
     label: "Garmin",
+    // Garmin brand teal — intentional brand literal, not a design-system color
     bg: "rgba(0, 167, 106, 0.15)",
     text: "#00A76A",
     border: "rgba(0, 167, 106, 0.3)",
   },
   manual: {
     label: "Manual",
-    bg: "rgba(139, 92, 246, 0.12)",
+    bg: "var(--color-accent-12)",
     text: "var(--color-accent)",
-    border: "rgba(139, 92, 246, 0.25)",
+    border: "var(--color-accent-25)",
   },
   upload: {
     label: "Upload",
-    bg: "rgba(59, 130, 246, 0.12)",
+    bg: "var(--color-accent-10)",
     text: "var(--color-fitness)",
-    border: "rgba(59, 130, 246, 0.25)",
+    border: "var(--color-accent-25)",
   },
 };
 

@@ -135,8 +135,8 @@ export function WorkoutCard({ workout, onClick }: WorkoutCardProps) {
                   style={{
                     fontSize: "var(--text-xs)",
                     color: "var(--color-accent)",
-                    background: "rgba(139,92,246,0.12)",
-                    border: "1px solid rgba(139,92,246,0.25)",
+                    background: "var(--color-accent-12)",
+                    border: "1px solid var(--color-accent-25)",
                     borderRadius: "var(--radius-full)",
                     padding: "1px 7px",
                     fontWeight: 600,

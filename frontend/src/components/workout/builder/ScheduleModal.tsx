@@ -94,7 +94,7 @@ export function ScheduleModal({ workoutId, workoutName, onClose, onSuccess }: Sc
                 width: 36,
                 height: 36,
                 borderRadius: "var(--radius-sm)",
-                background: "rgba(139,92,246,0.15)",
+                background: "var(--color-accent-15)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",

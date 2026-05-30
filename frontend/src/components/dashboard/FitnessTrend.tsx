@@ -163,7 +163,7 @@ interface Props {
 
 export function FitnessTrend({ data, trend = "stable", className }: Props) {
   // Format date labels to abbreviated form
-  const chartData = data.points.map((p) => {
+  const chartData = (data.points ?? []).map((p) => {
     const d = new Date(p.date);
     return {
       date: d.toLocaleDateString("en", { month: "short", day: "numeric" }),
@@ -179,7 +179,7 @@ export function FitnessTrend({ data, trend = "stable", className }: Props) {
     .filter((i) => i % 7 === 0 || i === chartData.length - 1);
   const ticks = tickIndices.map((i) => chartData[i]?.date).filter(Boolean);
 
-  const tsb = data.currentTsb ?? 0;
+  const tsb = data?.currentTsb ?? 0;
   const formColor = tsbColor(tsb);
 
   return (

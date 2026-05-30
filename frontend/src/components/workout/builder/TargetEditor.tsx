@@ -217,7 +217,7 @@ export function TargetEditor({ value, sport, onSave, onClose }: TargetEditorProp
                 padding: "6px 12px",
                 borderRadius: "var(--radius-full)",
                 border: `1px solid ${type === t.type ? "var(--color-accent)" : "var(--border-default)"}`,
-                background: type === t.type ? "rgba(139,92,246,0.15)" : "var(--bg-input)",
+                background: type === t.type ? "var(--color-accent-15)" : "var(--bg-input)",
                 color: type === t.type ? "var(--color-accent)" : "var(--text-secondary)",
                 fontSize: "var(--text-xs)",
                 fontWeight: type === t.type ? 600 : 400,

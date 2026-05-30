@@ -159,7 +159,7 @@ export function DurationEditor({ value, onSave, onClose }: DurationEditorProps) 
                 padding: "10px 8px",
                 borderRadius: "var(--radius-sm)",
                 border: `1px solid ${type === dt.type ? "var(--color-accent)" : "var(--border-default)"}`,
-                background: type === dt.type ? "rgba(139,92,246,0.12)" : "var(--bg-input)",
+                background: type === dt.type ? "var(--color-accent-12)" : "var(--bg-input)",
                 color: type === dt.type ? "var(--color-accent)" : "var(--text-secondary)",
                 cursor: "pointer",
                 fontSize: "var(--text-xs)",

@@ -46,7 +46,7 @@ function DropLine() {
         borderRadius: 1,
         background: "var(--color-accent)",
         margin: "1px 0",
-        boxShadow: "0 0 6px rgba(139,92,246,0.6)",
+        boxShadow: "0 0 6px var(--color-accent-60)",
         animation: "dropLinePulse 0.8s ease-in-out infinite alternate",
       }}
     />
@@ -106,12 +106,12 @@ function DayColumn({
         borderRight: "1px solid var(--border-subtle)",
         transition: "background var(--duration-micro) ease-out, box-shadow var(--duration-micro) ease-out",
         background: isDragOver
-          ? "rgba(139,92,246,0.06)"
+          ? "var(--color-accent-6)"
           : today
-            ? "rgba(139,92,246,0.02)"
+            ? "var(--color-accent-4)"
             : "transparent",
         outline: isDragOver
-          ? "1px dashed rgba(139,92,246,0.5)"
+          ? `1px dashed var(--color-accent-50)`
           : "none",
         outlineOffset: -1,
       }}
@@ -122,7 +122,7 @@ function DayColumn({
           padding: "var(--space-2) var(--space-1)",
           textAlign: "center",
           borderBottom: "1px solid var(--border-subtle)",
-          background: today ? "rgba(139,92,246,0.06)" : "transparent",
+          background: today ? "var(--color-accent-6)" : "transparent",
           flexShrink: 0,
         }}
       >

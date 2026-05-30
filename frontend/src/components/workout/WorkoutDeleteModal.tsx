@@ -84,8 +84,8 @@ export function WorkoutDeleteModal({
                 width: 44,
                 height: 44,
                 borderRadius: "var(--radius-md)",
-                background: "rgba(239,68,68,0.12)",
-                border: "1px solid rgba(239,68,68,0.25)",
+                background: "var(--color-danger-12)",
+                border: "1px solid var(--color-danger-25)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -145,8 +145,8 @@ export function WorkoutDeleteModal({
         {/* Warning note */}
         <div
           style={{
-            background: "rgba(239,68,68,0.06)",
-            border: "1px solid rgba(239,68,68,0.15)",
+            background: "var(--color-danger-6)",
+            border: "1px solid var(--color-danger-15)",
             borderRadius: "var(--radius-sm)",
             padding: "10px 12px",
             fontSize: "var(--text-sm)",

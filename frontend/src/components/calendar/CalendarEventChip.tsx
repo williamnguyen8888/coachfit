@@ -202,9 +202,9 @@ export function CalendarEventChip({
           width: "100%",
           padding: compact ? "3px var(--space-2)" : "var(--space-1) var(--space-2)",
           background: isCompleted
-            ? "rgba(34,197,94,0.08)"
+            ? "var(--color-success-8)"
             : isSkipped
-              ? "rgba(239,68,68,0.06)"
+              ? "var(--color-danger-6)"
               : "var(--bg-elevated)",
           border: "none",
           borderLeft: `3px solid ${color}`,
@@ -220,17 +220,17 @@ export function CalendarEventChip({
         className="cal-chip-btn"
         onMouseEnter={(e) => {
           (e.currentTarget as HTMLButtonElement).style.background = isCompleted
-            ? "rgba(34,197,94,0.14)"
+            ? "var(--color-success-14)"
             : isSkipped
-              ? "rgba(239,68,68,0.10)"
+              ? "var(--color-danger-10)"
               : "var(--bg-input)";
           (e.currentTarget as HTMLButtonElement).style.transform = "translateX(1px)";
         }}
         onMouseLeave={(e) => {
           (e.currentTarget as HTMLButtonElement).style.background = isCompleted
-            ? "rgba(34,197,94,0.08)"
+            ? "var(--color-success-8)"
             : isSkipped
-              ? "rgba(239,68,68,0.06)"
+              ? "var(--color-danger-6)"
               : "var(--bg-elevated)";
           (e.currentTarget as HTMLButtonElement).style.transform = "translateX(0)";
         }}
@@ -299,8 +299,8 @@ export function CalendarEventChip({
                   width: 22,
                   height: 22,
                   minWidth: 22,
-                  background: "rgba(34,197,94,0.12)",
-                  border: "1px solid rgba(34,197,94,0.3)",
+                  background: "var(--color-success-12)",
+                  border: "1px solid var(--color-success-30)",
                   borderRadius: "var(--radius-sm)",
                   color: "var(--color-success)",
                   fontSize: 11,
@@ -316,11 +316,11 @@ export function CalendarEventChip({
                 }}
                 onMouseEnter={(e) => {
                   (e.currentTarget as HTMLButtonElement).style.background =
-                    "rgba(34,197,94,0.25)";
+                    "var(--color-success-25)";
                 }}
                 onMouseLeave={(e) => {
                   (e.currentTarget as HTMLButtonElement).style.background =
-                    "rgba(34,197,94,0.12)";
+                    "var(--color-success-12)";
                 }}
               >
                 ✓
@@ -341,8 +341,8 @@ export function CalendarEventChip({
                   width: 22,
                   height: 22,
                   minWidth: 22,
-                  background: "rgba(239,68,68,0.08)",
-                  border: "1px solid rgba(239,68,68,0.25)",
+                  background: "var(--color-danger-8)",
+                  border: "1px solid var(--color-danger-25)",
                   borderRadius: "var(--radius-sm)",
                   color: "var(--color-danger)",
                   fontSize: 13,
@@ -358,11 +358,11 @@ export function CalendarEventChip({
                 }}
                 onMouseEnter={(e) => {
                   (e.currentTarget as HTMLButtonElement).style.background =
-                    "rgba(239,68,68,0.18)";
+                    "var(--color-danger-18)";
                 }}
                 onMouseLeave={(e) => {
                   (e.currentTarget as HTMLButtonElement).style.background =
-                    "rgba(239,68,68,0.08)";
+                    "var(--color-danger-8)";
                 }}
               >
                 ×

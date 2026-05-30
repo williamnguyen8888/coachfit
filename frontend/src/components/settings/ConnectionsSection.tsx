@@ -10,6 +10,7 @@ import { useQuery } from "@/hooks/useQuery";
 import { connectionsService } from "@/lib/services/settings";
 import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { SyncStatusWidget } from "./SyncStatusWidget";
 import { CheckCircle, ExternalLink, Link2, Link2Off, RefreshCw } from "lucide-react";
 import type { ConnectedAccount, ConnectionProvider, ConnectionsResponse } from "@/lib/types/settings";
 
@@ -294,6 +295,13 @@ export function ConnectionsSection() {
           );
         })}
       </div>
+
+      {/* Sync status for connected providers */}
+      {connections.length > 0 && (
+        <SyncStatusWidget
+          connectedProviders={connections.map((c) => c.provider)}
+        />
+      )}
 
       {/* Error */}
       {disconnectError && (

@@ -174,8 +174,8 @@ function ErrorState({ message, onRetry }: ErrorStateProps) {
           width: 56,
           height: 56,
           borderRadius: "var(--radius-lg)",
-          background: "rgba(239,68,68,0.1)",
-          border: "1px solid rgba(239,68,68,0.2)",
+          background: "var(--color-danger-10)",
+          border: "1px solid var(--color-danger-20)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -320,8 +320,8 @@ export function ActivityList({
         <div
           role="alert"
           style={{
-            background: "rgba(239,68,68,0.08)",
-            border: "1px solid rgba(239,68,68,0.2)",
+            background: "var(--color-danger-8)",
+            border: "1px solid var(--color-danger-20)",
             borderRadius: "var(--radius-md)",
             padding: "10px 14px",
             marginBottom: 12,
