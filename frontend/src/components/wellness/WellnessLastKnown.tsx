@@ -13,6 +13,7 @@ import {
   Flame,
   ChevronRight,
   PlusCircle,
+  ClipboardList,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
 import type { WellnessEntry } from "@/lib/types/wellness";
@@ -33,11 +34,11 @@ function moodColor(score: number): string {
 function fatigueColor(score: number): string {
   if (score <= 2) return "var(--color-danger)";
   if (score === 3) return "var(--color-fatigue)";
-  return "var(--color-form)";
+  return "var(--color-success)";
 }
 
 function rpeColor(score: number): string {
-  if (score <= 4) return "var(--color-form)";
+  if (score <= 4) return "var(--color-success)";
   if (score <= 6) return "var(--color-fatigue)";
   if (score <= 8) return "var(--color-warning)";
   return "var(--color-danger)";
@@ -66,17 +67,17 @@ function MetricChip({
 }) {
   return (
     <div
-      className="flex flex-col gap-1 rounded-[var(--radius-sm)] px-3 py-2 flex-1"
+      className="flex flex-col gap-1 rounded-[var(--radius-lg)] px-3 py-2.5 flex-1 border transition-all duration-[var(--duration-micro)] hover:scale-[1.02]"
       style={{
-        background: `color-mix(in srgb, ${color} 8%, var(--bg-elevated))`,
-        border: `1px solid color-mix(in srgb, ${color} 20%, var(--border-subtle))`,
+        background: `linear-gradient(135deg, var(--bg-elevated) 0%, color-mix(in srgb, ${color} 6%, var(--bg-elevated)) 100%)`,
+        borderColor: `color-mix(in srgb, ${color} 15%, var(--border-subtle))`,
       }}
     >
       <div className="flex items-center gap-1.5" style={{ color: "var(--text-muted)" }}>
-        {icon}
-        <span style={{ fontSize: "var(--text-xs)" }}>{label}</span>
+        <span style={{ color }}>{icon}</span>
+        <span style={{ fontSize: "var(--text-xs)", fontWeight: 500 }}>{label}</span>
       </div>
-      <span className="font-metric tabular-nums" style={{ fontSize: "var(--text-lg)", color, fontWeight: 700 }}>
+      <span className="font-metric tabular-nums font-bold" style={{ fontSize: "var(--text-base)", color, fontWeight: 700, marginTop: 1 }}>
         {value}
       </span>
     </div>
@@ -88,19 +89,18 @@ function MetricChip({
 export function WellnessLastKnownSkeleton() {
   return (
     <div
-      className="rounded-[var(--radius-xl)] p-4 flex flex-col gap-3"
-      style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)" }}
+      className="rounded-[var(--radius-xl)] p-5 flex flex-col gap-4 glass-card"
     >
       <div className="flex items-center justify-between">
-        <Skeleton width="45%" height="18px" />
+        <Skeleton width="45%" height="20px" />
         <Skeleton width="20%" height="14px" />
       </div>
-      <div className="flex gap-2">
-        <Skeleton height="56px" className="flex-1" />
-        <Skeleton height="56px" className="flex-1" />
-        <Skeleton height="56px" className="flex-1" />
+      <div className="flex gap-2.5">
+        <Skeleton height="60px" className="flex-1 rounded-[var(--radius-lg)]" />
+        <Skeleton height="60px" className="flex-1 rounded-[var(--radius-lg)]" />
+        <Skeleton height="60px" className="flex-1 rounded-[var(--radius-lg)]" />
       </div>
-      <Skeleton height="36px" />
+      <Skeleton height="36px" className="rounded-[var(--radius-md)]" />
     </div>
   );
 }
@@ -109,7 +109,6 @@ export function WellnessLastKnownSkeleton() {
 
 interface WellnessLastKnownProps {
   entry: WellnessEntry | null;
-  /** True when today already has an entry */
   hasCheckedInToday?: boolean;
   className?: string;
 }
@@ -120,27 +119,22 @@ export function WellnessLastKnown({ entry, hasCheckedInToday, className }: Welln
 
   return (
     <div
-      className={clsx("rounded-[var(--radius-xl)] p-4 flex flex-col gap-3", className)}
-      style={{
-        background: "var(--bg-surface)",
-        border: "1px solid var(--border-subtle)",
-      }}
+      className={clsx("rounded-[var(--radius-xl)] p-5 flex flex-col gap-4 glass-card", className)}
     >
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <SmilePlus size={16} strokeWidth={1.75} style={{ color: "var(--color-accent)" }} />
+          <ClipboardList size={18} strokeWidth={1.75} style={{ color: "var(--color-accent)" }} />
           <span style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--text-primary)" }}>
-            Wellness
+            Wellness Biofeedback
           </span>
           {entry && (
             <span
-              className="rounded-[var(--radius-full)] px-2 py-0.5"
+              className="rounded-full px-2.5 py-0.5 text-[10px] font-bold tracking-wider uppercase text-glow"
               style={{
-                fontSize: "var(--text-xs)",
                 color: isToday ? "var(--color-success)" : "var(--text-muted)",
-                background: isToday ? "color-mix(in srgb, var(--color-success) 12%, var(--bg-elevated))" : "var(--bg-elevated)",
-                border: `1px solid ${isToday ? "color-mix(in srgb, var(--color-success) 25%, transparent)" : "var(--border-subtle)"}`,
+                background: isToday ? "var(--color-success-8)" : "var(--bg-elevated)",
+                border: `1px solid ${isToday ? "rgba(34, 197, 94, 0.15)" : "var(--border-subtle)"}`,
               }}
             >
               {formatRelativeDate(entry.date)}
@@ -148,8 +142,8 @@ export function WellnessLastKnown({ entry, hasCheckedInToday, className }: Welln
           )}
         </div>
         {entry && (
-          <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
-            {entry.source === "manual" ? "Manual" : entry.source}
+          <span style={{ fontSize: "10px", color: "var(--text-muted)", fontWeight: 600, textTransform: "uppercase" }}>
+            {entry.source === "manual" ? "Self-Report" : entry.source}
           </span>
         )}
       </div>
@@ -157,24 +151,30 @@ export function WellnessLastKnown({ entry, hasCheckedInToday, className }: Welln
       {/* No entry state */}
       {!entry ? (
         <div
-          className="flex flex-col items-center gap-2 py-4 rounded-[var(--radius-md)]"
-          style={{ background: "var(--bg-elevated)", border: "1px dashed var(--border-default)" }}
+          className="flex flex-col items-center gap-2 py-6 rounded-[var(--radius-lg)] border border-dashed border-[var(--border-default)]"
+          style={{ background: "rgba(0,0,0,0.1)" }}
         >
-          <span style={{ fontSize: 28 }}>📋</span>
-          <span style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>
-            No wellness data yet
-          </span>
+          <span style={{ fontSize: 32 }} className="animate-pulse">📝</span>
+          <div className="text-center">
+            <span style={{ fontSize: "var(--text-sm)", color: "var(--text-secondary)", fontWeight: 500 }}>
+              No check-in recorded today
+            </span>
+            <p style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", marginTop: 2 }}>
+              Log your mood, fatigue, and recovery to keep your coach informed.
+            </p>
+          </div>
         </div>
       ) : (
         /* Metric chips */
-        <div className="flex gap-2">
+        <div className="flex gap-2.5">
           {entry.mood && (
             <MetricChip
-              icon={<SmilePlus size={11} strokeWidth={1.75} />}
-              label="Mood"
+              icon={<SmilePlus size={12} strokeWidth={2} />}
+              label="Mood State"
               value={
-                <span style={{ fontSize: "var(--text-xl)" }}>
-                  {MOOD_EMOJIS[entry.mood]}
+                <span className="flex items-center gap-1.5 font-bold" style={{ fontSize: "var(--text-sm)" }}>
+                  <span style={{ fontSize: "var(--text-lg)" }}>{MOOD_EMOJIS[entry.mood]}</span>
+                  {MOOD_LABELS[entry.mood]}
                 </span>
               }
               color={moodColor(entry.mood)}
@@ -182,24 +182,24 @@ export function WellnessLastKnown({ entry, hasCheckedInToday, className }: Welln
           )}
           {entry.fatigue && (
             <MetricChip
-              icon={<Zap size={11} strokeWidth={1.75} />}
-              label="Energy"
-              value={`${entry.fatigue}/5`}
+              icon={<Zap size={12} strokeWidth={2} />}
+              label="Energy Level"
+              value={`${entry.fatigue} / 5`}
               color={fatigueColor(entry.fatigue)}
             />
           )}
           {entry.rpe && (
             <MetricChip
-              icon={<Flame size={11} strokeWidth={1.75} />}
-              label="RPE"
-              value={`${entry.rpe}/10`}
+              icon={<Flame size={12} strokeWidth={2} />}
+              label="RPE (Stress)"
+              value={`${entry.rpe} / 10`}
               color={rpeColor(entry.rpe)}
             />
           )}
           {entry.sleepHours && !entry.rpe && (
             <MetricChip
-              icon={<Moon size={11} strokeWidth={1.75} />}
-              label="Sleep"
+              icon={<Moon size={12} strokeWidth={2} />}
+              label="Sleep Duration"
               value={`${entry.sleepHours}h`}
               color="var(--color-fitness)"
             />
@@ -207,57 +207,48 @@ export function WellnessLastKnown({ entry, hasCheckedInToday, className }: Welln
         </div>
       )}
 
-      {/* Mood label row */}
-      {entry?.mood && (
-        <div className="flex items-center gap-2">
-          <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
-            Feeling:
-          </span>
-          <span style={{ fontSize: "var(--text-xs)", color: moodColor(entry.mood), fontWeight: 500 }}>
-            {MOOD_LABELS[entry.mood]}
-          </span>
-          {entry.notes && (
-            <>
-              <span style={{ color: "var(--border-default)" }}>·</span>
-              <span
-                className="truncate"
-                style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", maxWidth: "60%" }}
-                title={entry.notes}
-              >
-                {entry.notes}
-              </span>
-            </>
-          )}
+      {/* Wellness Notes Section */}
+      {entry?.notes && (
+        <div 
+          className="rounded-[var(--radius-sm)] px-3 py-2.5 border border-[var(--border-subtle)] text-xs relative overflow-hidden" 
+          style={{ background: "rgba(0,0,0,0.15)" }}
+        >
+          <div style={{ color: "var(--text-muted)", fontWeight: 600, textTransform: "uppercase", fontSize: "10px", letterSpacing: "0.02em" }}>
+            Athlete's Log Notes
+          </div>
+          <p className="mt-1 font-medium" style={{ color: "var(--text-secondary)", lineHeight: 1.4 }} title={entry.notes}>
+            "{entry.notes}"
+          </p>
         </div>
       )}
 
-      {/* CTA */}
+      {/* CTA Button */}
       <Link
         href="/wellness"
         id="wellness-checkin-cta"
         className={clsx(
-          "flex items-center justify-center gap-2 w-full h-9 rounded-[var(--radius-md)] font-medium transition-all duration-150",
-          "hover:brightness-110 active:scale-[0.98]",
+          "flex items-center justify-center gap-2 w-full h-10 rounded-[var(--radius-md)] font-semibold transition-all duration-200",
+          "active:scale-[0.98] select-none cursor-pointer border",
         )}
         style={{
           background: hasCheckedInToday
             ? "var(--bg-elevated)"
-            : "var(--color-accent)",
+            : "linear-gradient(135deg, var(--color-accent) 0%, #7c3aed 100%)",
           color: hasCheckedInToday ? "var(--text-secondary)" : "white",
           fontSize: "var(--text-sm)",
-          border: hasCheckedInToday ? "1px solid var(--border-subtle)" : "none",
-          boxShadow: hasCheckedInToday ? "none" : "var(--shadow-glow)",
+          borderColor: hasCheckedInToday ? "var(--border-subtle)" : "rgba(255,255,255,0.08)",
+          boxShadow: hasCheckedInToday ? "none" : "var(--shadow-glow), 0 4px 12px rgba(124, 58, 237, 0.2)",
         }}
       >
         {hasCheckedInToday ? (
           <>
-            <ChevronRight size={14} strokeWidth={2} />
-            Edit today's check-in
+            <ChevronRight size={14} strokeWidth={2.5} />
+            Modify today's check-in
           </>
         ) : (
           <>
-            <PlusCircle size={14} strokeWidth={2} />
-            Check in now
+            <PlusCircle size={14} strokeWidth={2.5} />
+            Complete Wellness Check-in
           </>
         )}
       </Link>

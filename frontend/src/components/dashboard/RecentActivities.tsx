@@ -1,7 +1,7 @@
 "use client";
 // src/components/dashboard/RecentActivities.tsx
 // Feed of last 3-5 activities: sport icon, name, date, distance, duration, TSS.
-// Mobile: slim list rows. No map thumbnails (dashboard constraint).
+// Mobile: slim list rows. Premium design with hover highlights and source tinting.
 
 import React from "react";
 import { clsx } from "clsx";
@@ -12,6 +12,9 @@ import {
   Dumbbell,
   Activity,
   ChevronRight,
+  Clock,
+  Flame,
+  TrendingUp,
 } from "lucide-react";
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -53,13 +56,11 @@ function formatDuration(seconds: number): string {
 }
 
 function formatDistance(meters: number | null, sport: string): string {
-  if (meters === null) return "";
-  // Swimming — show in meters
+  if (meters === null || meters === 0) return "";
   if (sport === "swimming") {
     if (meters >= 1000) return `${(meters / 1000).toFixed(1)}km`;
     return `${Math.round(meters)}m`;
   }
-  // Others — km
   const km = meters / 1000;
   return `${km.toFixed(1)}km`;
 }
@@ -75,91 +76,137 @@ function formatRelativeDate(iso: string): string {
   return d.toLocaleDateString("en", { month: "short", day: "numeric" });
 }
 
-function sourceLabel(source: string): string {
+function sourceColor(source?: string | null): string {
+  if (!source) return "var(--text-muted)";
+  const s = source.toLowerCase();
+  if (s === "strava") return "#fc4c02"; // Strava Orange
+  if (s === "garmin") return "#007cc3"; // Garmin Connect Blue
+  return "var(--text-muted)";
+}
+
+function sourceBg(source?: string | null): string {
+  if (!source) return "var(--bg-elevated)";
+  const s = source.toLowerCase();
+  if (s === "strava") return "rgba(252, 76, 2, 0.08)";
+  if (s === "garmin") return "rgba(0, 124, 195, 0.08)";
+  return "var(--bg-elevated)";
+}
+
+function sourceLabel(source?: string | null): string {
+  if (!source) return "Manual";
+  const s = source.toLowerCase();
   const map: Record<string, string> = {
     strava: "Strava",
     garmin: "Garmin",
     manual: "Manual",
     upload: "Upload",
   };
-  return map[source] ?? source;
+  return map[s] ?? source;
 }
 
-/* ─── Activity row ───────────────────────────────────────────────────── */
+/* ─── Activity card row ────────────────────────────────────────────────── */
 
-function ActivityRow({ activity }: { activity: ActivitySummary }) {
+function ActivityCardRow({ activity }: { activity: ActivitySummary }) {
   const color = sportColor(activity.sport);
   const hasDistance = activity.distanceMeters !== null && activity.distanceMeters > 0;
   const hasTss = activity.tss !== null && activity.tss > 0;
 
+  // Deriving performance zones dynamically for elite coach dashboard context
+  const tssVal = activity.tss ?? 0;
+  const intensityLabel = tssVal > 150 ? "Epic load"
+                       : tssVal > 100 ? "High stress"
+                       : tssVal > 50 ? "Moderate"
+                       : "Recovery";
+
   return (
     <Link
       href={`/activities/${activity.id}`}
-      className="flex items-center gap-3 group -mx-1 px-1 py-2.5 rounded-[var(--radius-md)] transition-all duration-[var(--duration-micro)] hover:bg-[var(--bg-elevated)]"
-      style={{ borderBottom: "1px solid var(--border-subtle)" }}
+      className="flex items-center gap-3 p-3.5 rounded-[var(--radius-lg)] border border-[var(--border-subtle)] hover-elevation transition-all duration-[var(--duration-micro)] hover:bg-[rgba(255,255,255,0.02)] group"
+      style={{
+        background: `linear-gradient(135deg, var(--bg-elevated) 0%, rgba(0,0,0,0.15) 100%)`,
+      }}
     >
-      {/* Sport icon */}
+      {/* Sport icon container with colored glow */}
       <div
-        className="flex-shrink-0 rounded-[var(--radius-sm)] p-2 flex items-center justify-center"
-        style={{ background: `${color}18`, color }}
+        className="flex-shrink-0 rounded-full p-2.5 flex items-center justify-center transition-transform group-hover:scale-110"
+        style={{ 
+          background: `color-mix(in srgb, ${color} 12%, var(--bg-elevated))`, 
+          color,
+          boxShadow: `0 0 10px ${color}12`
+        }}
       >
-        <SportIcon sport={activity.sport} size={15} />
+        <SportIcon sport={activity.sport} size={16} />
       </div>
 
       {/* Name + meta */}
       <div className="flex-1 min-w-0">
-        <p
-          className="truncate font-medium"
+        <h4
+          className="truncate font-semibold tracking-tight transition-colors group-hover:text-[var(--color-accent)]"
           style={{ fontSize: "var(--text-sm)", color: "var(--text-primary)" }}
         >
           {activity.name}
-        </p>
+        </h4>
         <div
-          className="flex items-center gap-2 mt-0.5"
+          className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1 font-medium"
           style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}
         >
-          <span>{formatRelativeDate(activity.startedAt)}</span>
+          <span style={{ color: "var(--text-secondary)" }}>{formatRelativeDate(activity.startedAt)}</span>
+          <span style={{ opacity: 0.4 }}>·</span>
           {hasDistance && (
             <>
-              <span style={{ opacity: 0.4 }}>·</span>
-              <span>{formatDistance(activity.distanceMeters, activity.sport)}</span>
-            </>
-          )}
-          <span style={{ opacity: 0.4 }}>·</span>
-          <span>{formatDuration(activity.durationSeconds)}</span>
-          {hasTss && (
-            <>
-              <span style={{ opacity: 0.4 }}>·</span>
-              <span
-                className="font-metric tabular-nums"
-                style={{ color: "var(--color-fatigue)" }}
-              >
-                {Math.round(activity.tss!)} TSS
+              <span className="font-metric font-semibold text-secondary" style={{ color: "var(--text-secondary)" }}>
+                {formatDistance(activity.distanceMeters, activity.sport)}
               </span>
+              <span style={{ opacity: 0.4 }}>·</span>
             </>
           )}
+          <span className="flex items-center gap-1 font-metric">
+            <Clock size={11} className="opacity-60" />
+            {formatDuration(activity.durationSeconds)}
+          </span>
         </div>
       </div>
 
-      {/* Source badge + chevron */}
-      <div className="flex items-center gap-1.5 flex-shrink-0">
-        <span
-          className="rounded-full px-2 py-0.5"
-          style={{
-            fontSize: "var(--text-xs)",
-            color: "var(--text-muted)",
-            background: "var(--bg-elevated)",
-            border: "1px solid var(--border-subtle)",
-          }}
-        >
-          {sourceLabel(activity.source)}
-        </span>
-        <ChevronRight
-          size={14}
-          style={{ color: "var(--text-muted)", opacity: 0.5 }}
-          className="transition-opacity group-hover:opacity-100"
-          strokeWidth={1.75}
-        />
+      {/* TSS Indicator + Source tag */}
+      <div className="flex items-center gap-3 flex-shrink-0">
+        {hasTss && (
+          <div className="flex flex-col items-end">
+            <span 
+              className="rounded-[var(--radius-sm)] px-2 py-0.5 font-metric font-bold text-glow"
+              style={{ 
+                fontSize: "11px", 
+                color: "var(--color-fatigue)", 
+                background: "rgba(245, 158, 11, 0.08)",
+                border: "1px solid rgba(245, 158, 11, 0.15)"
+              }}
+              title={`Training Stress Score: ${activity.tss}. Intensity label: ${intensityLabel}`}
+            >
+              {Math.round(activity.tss!)} TSS
+            </span>
+            <span style={{ fontSize: "8px", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 600, marginTop: 2 }}>
+              {intensityLabel}
+            </span>
+          </div>
+        )}
+
+        <div className="flex flex-col items-end gap-1">
+          <span
+            className="rounded-full px-2 py-0.5 font-semibold text-[10px] tracking-wide"
+            style={{
+              color: sourceColor(activity.source),
+              background: sourceBg(activity.source),
+              border: `1px solid color-mix(in srgb, ${sourceColor(activity.source)} 18%, transparent)`,
+            }}
+          >
+            {sourceLabel(activity.source)}
+          </span>
+          <ChevronRight
+            size={14}
+            style={{ color: "var(--text-muted)", opacity: 0.4 }}
+            className="transition-all group-hover:opacity-100 group-hover:translate-x-0.5"
+            strokeWidth={2.5}
+          />
+        </div>
       </div>
     </Link>
   );
@@ -170,14 +217,18 @@ function ActivityRow({ activity }: { activity: ActivitySummary }) {
 function EmptyState() {
   return (
     <div
-      className="flex flex-col items-center justify-center gap-2 py-8"
-      style={{ color: "var(--text-muted)" }}
+      className="flex flex-col items-center justify-center gap-3 py-10 border border-dashed border-[var(--border-default)] rounded-[var(--radius-lg)]"
+      style={{ color: "var(--text-muted)", background: "rgba(0,0,0,0.1)" }}
     >
-      <Activity size={28} strokeWidth={1.5} />
-      <p style={{ fontSize: "var(--text-sm)" }}>No recent activities</p>
-      <p style={{ fontSize: "var(--text-xs)" }}>
-        Sync from Strava or upload a file to get started
-      </p>
+      <div className="rounded-full p-2.5 bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-[var(--text-muted)]">
+        <TrendingUp size={24} strokeWidth={1.5} />
+      </div>
+      <div className="text-center">
+        <p style={{ fontSize: "var(--text-sm)", color: "var(--text-secondary)", fontWeight: 500 }}>No training activities</p>
+        <p style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", marginTop: 2 }}>
+          Connect fitness apps or upload FIT files to populate feed.
+        </p>
+      </div>
     </div>
   );
 }
@@ -187,18 +238,17 @@ function EmptyState() {
 export function RecentActivitiesSkeleton() {
   return (
     <div
-      className="rounded-[var(--radius-xl)] p-5 flex flex-col gap-3"
-      style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)" }}
+      className="rounded-[var(--radius-xl)] p-6 flex flex-col gap-4 glass-card"
     >
-      <Skeleton width="140px" height="20px" />
-      {Array.from({ length: 4 }).map((_, i) => (
-        <div key={i} className="flex items-center gap-3 py-1">
-          <Skeleton shape="circle" width="36px" height="36px" />
-          <div className="flex-1 flex flex-col gap-1">
-            <Skeleton width="60%" height="14px" />
-            <Skeleton width="40%" height="11px" />
+      <Skeleton width="140px" height="22px" />
+      {Array.from({ length: 3 }).map((_, i) => (
+        <div key={i} className="flex items-center gap-3 p-3.5 border border-[var(--border-subtle)] rounded-[var(--radius-lg)]">
+          <Skeleton shape="circle" width="34px" height="34px" />
+          <div className="flex-1 flex flex-col gap-1.5">
+            <Skeleton width="55%" height="15px" />
+            <Skeleton width="35%" height="11px" />
           </div>
-          <Skeleton width="48px" height="20px" />
+          <Skeleton width="55px" height="22px" className="rounded-[var(--radius-sm)]" />
         </div>
       ))}
     </div>
@@ -215,24 +265,23 @@ interface Props {
 export function RecentActivities({ activities, className }: Props) {
   return (
     <div
-      className={clsx("rounded-[var(--radius-xl)] p-5 flex flex-col gap-1", className)}
-      style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)" }}
+      className={clsx("rounded-[var(--radius-xl)] p-6 flex flex-col gap-3 glass-card", className)}
     >
       {/* Header */}
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-1">
         <h2
-          className="font-semibold"
+          className="font-bold tracking-tight"
           style={{ fontSize: "var(--text-lg)", color: "var(--text-primary)" }}
         >
-          Recent Activities
+          Recent Ingested Workouts
         </h2>
         <Link
           href="/activities"
-          className="flex items-center gap-0.5 transition-opacity hover:opacity-80"
+          className="flex items-center gap-0.5 transition-all hover:text-[var(--color-accent)] font-semibold"
           style={{ fontSize: "var(--text-xs)", color: "var(--color-accent)" }}
         >
-          View all
-          <ChevronRight size={12} strokeWidth={2} />
+          View activity list
+          <ChevronRight size={13} strokeWidth={2.5} />
         </Link>
       </div>
 
@@ -240,9 +289,9 @@ export function RecentActivities({ activities, className }: Props) {
       {activities.length === 0 ? (
         <EmptyState />
       ) : (
-        <div className="flex flex-col">
-          {activities.slice(0, 5).map((a) => (
-            <ActivityRow key={a.id} activity={a} />
+        <div className="flex flex-col gap-2.5">
+          {activities.slice(0, 4).map((a) => (
+            <ActivityCardRow key={a.id} activity={a} />
           ))}
         </div>
       )}

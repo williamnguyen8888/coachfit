@@ -1,7 +1,7 @@
 "use client";
 // src/components/dashboard/FitnessTrend.tsx
-// CTL/ATL/TSB sparkline + current values.
-// Compact on mobile (sparkline only); desktop shows full chart.
+// CTL/ATL/TSB area chart + current values + ACWR.
+// Compact on mobile (metrics row + status); desktop shows full chart.
 
 import React from "react";
 import { clsx } from "clsx";
@@ -14,7 +14,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, Info } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
 import type { FitnessTrendResponse, FitnessTrend } from "@/lib/types/dashboard";
 
@@ -35,12 +35,25 @@ function tsbLabel(tsb: number): string {
 }
 
 function TrendIcon({ trend }: { trend: FitnessTrend }) {
-  const iconProps = { size: 14, strokeWidth: 2 };
+  const iconProps = { size: 14, strokeWidth: 2.5 };
   if (trend === "improving" || trend === "building")
     return <TrendingUp {...iconProps} style={{ color: "var(--color-success)" }} />;
   if (trend === "declining")
     return <TrendingDown {...iconProps} style={{ color: "var(--color-danger)" }} />;
   return <Minus {...iconProps} style={{ color: "var(--text-muted)" }} />;
+}
+
+function calculateAcwr(atl: number, ctl: number): number {
+  if (!ctl || ctl <= 0) return 0;
+  return Number((atl / ctl).toFixed(2));
+}
+
+function acwrLabel(acwr: number): { label: string; color: string } {
+  if (acwr === 0) return { label: "N/A", color: "var(--text-muted)" };
+  if (acwr < 0.8) return { label: "Under-training", color: "var(--color-info)" };
+  if (acwr <= 1.3) return { label: "Sweet Spot", color: "var(--color-success)" };
+  if (acwr <= 1.5) return { label: "Overreaching", color: "var(--color-warning)" };
+  return { label: "Danger Zone", color: "var(--color-danger)" };
 }
 
 /* ─── Stat badge ─────────────────────────────────────────────────────── */
@@ -57,24 +70,24 @@ function StatBadge({
   sub?: string;
 }) {
   return (
-    <div className="flex flex-col items-center gap-0.5 flex-1">
+    <div className="flex flex-col items-center gap-0.5 flex-1 py-1">
       <div className="flex items-center gap-1">
         <span
           className="inline-block rounded-full"
           style={{ width: 6, height: 6, background: color, flexShrink: 0 }}
         />
-        <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
+        <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", fontWeight: 500 }}>
           {label}
         </span>
       </div>
       <span
-        className="font-metric tabular-nums font-bold"
-        style={{ fontSize: "var(--text-2xl)", color }}
+        className="font-metric tabular-nums font-extrabold"
+        style={{ fontSize: "var(--text-xl)", color }}
       >
         {Math.round(value)}
       </span>
       {sub && (
-        <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
+        <span style={{ fontSize: "9px", color: "var(--text-muted)", fontWeight: 600 }}>
           {sub}
         </span>
       )}
@@ -91,21 +104,20 @@ function CustomTooltip({ active, payload, label }: {
 }) {
   if (!active || !payload?.length) return null;
   const tooltipData = [
-    { key: "CTL", color: "var(--color-fitness)" },
-    { key: "ATL", color: "var(--color-fatigue)" },
-    { key: "TSB", color: "var(--color-form)" },
+    { key: "CTL", label: "CTL (Fitness)", color: "var(--color-fitness)" },
+    { key: "ATL", label: "ATL (Fatigue)", color: "var(--color-fatigue)" },
+    { key: "TSB", label: "TSB (Form)", color: "var(--color-form)" },
   ];
   return (
     <div
-      className="rounded-[var(--radius-md)] px-3 py-2 flex flex-col gap-1"
+      className="rounded-[var(--radius-md)] px-3 py-2 flex flex-col gap-1 border border-[var(--border-default)]"
       style={{
         background: "var(--bg-elevated)",
-        border: "1px solid var(--border-default)",
         boxShadow: "var(--shadow-md)",
-        minWidth: 120,
+        minWidth: 130,
       }}
     >
-      <p style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", marginBottom: 4 }}>
+      <p style={{ fontSize: "10px", color: "var(--text-secondary)", fontWeight: 600, marginBottom: 2 }}>
         {label}
       </p>
       {payload.map((p, i) => (
@@ -116,11 +128,11 @@ function CustomTooltip({ active, payload, label }: {
               style={{ width: 6, height: 6, background: tooltipData[i]?.color ?? p.color }}
             />
             <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
-              {p.name}
+              {tooltipData[i]?.label ?? p.name}
             </span>
           </div>
           <span
-            className="font-metric tabular-nums"
+            className="font-metric tabular-nums font-semibold"
             style={{ fontSize: "var(--text-xs)", color: "var(--text-primary)" }}
           >
             {Math.round(p.value)}
@@ -136,19 +148,18 @@ function CustomTooltip({ active, payload, label }: {
 export function FitnessTrendSkeleton() {
   return (
     <div
-      className="rounded-[var(--radius-xl)] p-5 flex flex-col gap-4"
-      style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)" }}
+      className="rounded-[var(--radius-xl)] p-6 flex flex-col gap-4 glass-card"
     >
-      <Skeleton width="130px" height="20px" />
-      <div className="flex justify-around">
-        {[1, 2, 3].map((i) => (
-          <div key={i} className="flex flex-col items-center gap-1">
-            <Skeleton width="50px" height="28px" />
-            <Skeleton width="30px" height="12px" />
+      <Skeleton width="130px" height="22px" />
+      <div className="flex justify-around border border-[var(--border-subtle)] rounded-[var(--radius-md)] py-2">
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="flex flex-col items-center gap-1 flex-1">
+            <Skeleton width="40px" height="24px" />
+            <Skeleton width="30px" height="10px" />
           </div>
         ))}
       </div>
-      <Skeleton height="140px" />
+      <Skeleton height="140px" className="rounded-[var(--radius-md)]" />
     </div>
   );
 }
@@ -162,7 +173,6 @@ interface Props {
 }
 
 export function FitnessTrend({ data, trend = "stable", className }: Props) {
-  // Format date labels to abbreviated form
   const chartData = (data.points ?? []).map((p) => {
     const d = new Date(p.date);
     return {
@@ -173,10 +183,9 @@ export function FitnessTrend({ data, trend = "stable", className }: Props) {
     };
   });
 
-  // Sample ticks for X axis — every 7 days
   const tickIndices = chartData
     .map((_, i) => i)
-    .filter((i) => i % 7 === 0 || i === chartData.length - 1);
+    .filter((i) => i % 10 === 0 || i === chartData.length - 1);
   const ticks = tickIndices.map((i) => chartData[i]?.date).filter(Boolean);
 
   const lastPoint = chartData.length > 0 ? chartData[chartData.length - 1] : null;
@@ -185,37 +194,41 @@ export function FitnessTrend({ data, trend = "stable", className }: Props) {
   const currentAtl = lastPoint?.ATL ?? 0;
   const formColor = tsbColor(tsb);
 
+  const acwr = calculateAcwr(currentAtl, currentCtl);
+  const acwrInfo = acwrLabel(acwr);
+
   return (
     <div
-      className={clsx("rounded-[var(--radius-xl)] p-5 flex flex-col gap-4", className)}
-      style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)" }}
+      className={clsx("rounded-[var(--radius-xl)] p-6 flex flex-col gap-4 glass-card", className)}
     >
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2
-          className="font-semibold"
+          className="font-bold tracking-tight"
           style={{ fontSize: "var(--text-lg)", color: "var(--text-primary)" }}
         >
           Fitness Trend
         </h2>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 rounded-full px-2.5 py-0.5 border border-accent/10 bg-[rgba(139,92,246,0.06)]">
           <TrendIcon trend={trend} />
           <span
             style={{
-              fontSize: "var(--text-xs)",
-              color: "var(--text-muted)",
-              textTransform: "capitalize",
+              fontSize: "10px",
+              fontWeight: 600,
+              color: "var(--text-secondary)",
+              textTransform: "uppercase",
+              letterSpacing: "0.05em",
             }}
           >
-            {trend}
+            {trend} trend
           </span>
         </div>
       </div>
 
       {/* Current values row */}
       <div
-        className="flex rounded-[var(--radius-md)] py-3"
-        style={{ border: "1px solid var(--border-subtle)" }}
+        className="flex rounded-[var(--radius-md)] py-2.5 border border-[var(--border-subtle)] items-center"
+        style={{ background: "rgba(0,0,0,0.1)" }}
       >
         <StatBadge
           label="Fitness"
@@ -223,59 +236,91 @@ export function FitnessTrend({ data, trend = "stable", className }: Props) {
           color="var(--color-fitness)"
           sub="CTL"
         />
-        <div style={{ width: 1, background: "var(--border-subtle)", flexShrink: 0 }} />
+        <div style={{ width: 1, background: "var(--border-subtle)", height: 28, flexShrink: 0 }} />
         <StatBadge
           label="Fatigue"
           value={currentAtl}
           color="var(--color-fatigue)"
           sub="ATL"
         />
-        <div style={{ width: 1, background: "var(--border-subtle)", flexShrink: 0 }} />
-        <div className="flex flex-col items-center gap-0.5 flex-1">
+        <div style={{ width: 1, background: "var(--border-subtle)", height: 28, flexShrink: 0 }} />
+        <div className="flex flex-col items-center gap-0.5 flex-1 py-1">
           <div className="flex items-center gap-1">
             <span
               className="inline-block rounded-full"
               style={{ width: 6, height: 6, background: formColor, flexShrink: 0 }}
             />
-            <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
+            <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", fontWeight: 500 }}>
               Form
             </span>
           </div>
           <span
-            className="font-metric tabular-nums font-bold"
-            style={{ fontSize: "var(--text-2xl)", color: formColor }}
+            className="font-metric tabular-nums font-extrabold text-glow"
+            style={{ fontSize: "var(--text-xl)", color: formColor }}
           >
             {tsb > 0 ? "+" : ""}
             {Math.round(tsb)}
           </span>
           <span
             style={{
-              fontSize: "var(--text-xs)",
+              fontSize: "9px",
               color: formColor,
-              fontWeight: 500,
+              fontWeight: 600,
             }}
           >
             {tsbLabel(tsb)}
           </span>
         </div>
+
+        {acwr > 0 && (
+          <>
+            <div style={{ width: 1, background: "var(--border-subtle)", height: 28, flexShrink: 0 }} />
+            <div className="flex flex-col items-center gap-0.5 flex-1 py-1">
+              <div className="flex items-center gap-1">
+                <span
+                  className="inline-block rounded-full"
+                  style={{ width: 6, height: 6, background: acwrInfo.color, flexShrink: 0 }}
+                />
+                <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", fontWeight: 500 }}>
+                  ACWR
+                </span>
+              </div>
+              <span
+                className="font-metric tabular-nums font-extrabold"
+                style={{ fontSize: "var(--text-xl)", color: acwrInfo.color }}
+              >
+                {acwr}
+              </span>
+              <span
+                style={{
+                  fontSize: "9px",
+                  color: "var(--text-muted)",
+                  fontWeight: 600,
+                }}
+              >
+                Workload
+              </span>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Chart */}
       {chartData.length > 1 ? (
-        <div style={{ height: 140 }}>
+        <div style={{ height: 150 }}>
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart
               data={chartData}
-              margin={{ top: 4, right: 0, bottom: 0, left: -28 }}
+              margin={{ top: 5, right: 5, bottom: 0, left: -25 }}
             >
               <defs>
                 <linearGradient id="ctlGrad" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="var(--color-fitness)" stopOpacity={0.25} />
-                  <stop offset="95%" stopColor="var(--color-fitness)" stopOpacity={0} />
+                  <stop offset="95%" stopColor="var(--color-fitness)" stopOpacity={0.01} />
                 </linearGradient>
                 <linearGradient id="atlGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="var(--color-fatigue)" stopOpacity={0.2} />
-                  <stop offset="95%" stopColor="var(--color-fatigue)" stopOpacity={0} />
+                  <stop offset="5%" stopColor="var(--color-fatigue)" stopOpacity={0.18} />
+                  <stop offset="95%" stopColor="var(--color-fatigue)" stopOpacity={0.01} />
                 </linearGradient>
               </defs>
               <CartesianGrid
@@ -286,12 +331,12 @@ export function FitnessTrend({ data, trend = "stable", className }: Props) {
               <XAxis
                 dataKey="date"
                 ticks={ticks}
-                tick={{ fontSize: 10, fill: "var(--text-muted)" }}
+                tick={{ fontSize: 9, fill: "var(--text-muted)", fontWeight: 500 }}
                 axisLine={false}
                 tickLine={false}
               />
               <YAxis
-                tick={{ fontSize: 10, fill: "var(--text-muted)" }}
+                tick={{ fontSize: 9, fill: "var(--text-muted)", fontWeight: 500 }}
                 axisLine={false}
                 tickLine={false}
               />
@@ -303,7 +348,7 @@ export function FitnessTrend({ data, trend = "stable", className }: Props) {
                 strokeWidth={2}
                 fill="url(#ctlGrad)"
                 dot={false}
-                activeDot={{ r: 4, fill: "var(--color-fitness)" }}
+                activeDot={{ r: 4, strokeWidth: 1.5, fill: "var(--color-fitness)" }}
               />
               <Area
                 type="monotone"
@@ -313,49 +358,56 @@ export function FitnessTrend({ data, trend = "stable", className }: Props) {
                 fill="url(#atlGrad)"
                 dot={false}
                 strokeDasharray="4 2"
-                activeDot={{ r: 4, fill: "var(--color-fatigue)" }}
+                activeDot={{ r: 4, strokeWidth: 1.5, fill: "var(--color-fatigue)" }}
               />
             </AreaChart>
           </ResponsiveContainer>
         </div>
       ) : (
         <div
-          className="flex items-center justify-center rounded-[var(--radius-md)]"
+          className="flex items-center justify-center rounded-[var(--radius-md)] border border-[var(--border-subtle)]"
           style={{
-            height: 100,
+            height: 120,
             background: "var(--bg-elevated)",
             color: "var(--text-muted)",
             fontSize: "var(--text-xs)",
           }}
         >
-          Not enough data yet — keep logging workouts!
+          Insufficient logs to compute fitness curves. Keep training!
         </div>
       )}
 
-      {/* Legend */}
-      <div className="flex items-center gap-4">
-        {[
-          { label: "CTL (Fitness)", color: "var(--color-fitness)", dash: false },
-          { label: "ATL (Fatigue)", color: "var(--color-fatigue)", dash: true },
-        ].map((l) => (
-          <div key={l.label} className="flex items-center gap-1.5">
-            <svg width="16" height="8" viewBox="0 0 16 8">
-              {l.dash ? (
-                <line
-                  x1="0" y1="4" x2="16" y2="4"
-                  stroke={l.color}
-                  strokeWidth="2"
-                  strokeDasharray="4 2"
-                />
-              ) : (
-                <line x1="0" y1="4" x2="16" y2="4" stroke={l.color} strokeWidth="2" />
-              )}
-            </svg>
-            <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
-              {l.label}
-            </span>
-          </div>
-        ))}
+      {/* Legend & Details */}
+      <div className="flex flex-wrap items-center justify-between gap-y-2 border-t border-[var(--border-subtle)] pt-3">
+        <div className="flex items-center gap-4">
+          {[
+            { label: "CTL (Fitness)", color: "var(--color-fitness)", dash: false },
+            { label: "ATL (Fatigue)", color: "var(--color-fatigue)", dash: true },
+          ].map((l) => (
+            <div key={l.label} className="flex items-center gap-1.5">
+              <svg width="14" height="6" viewBox="0 0 14 6" className="overflow-visible">
+                {l.dash ? (
+                  <line
+                    x1="0" y1="3" x2="14" y2="3"
+                    stroke={l.color}
+                    strokeWidth="2.5"
+                    strokeDasharray="3 2"
+                  />
+                ) : (
+                  <line x1="0" y1="3" x2="14" y2="3" stroke={l.color} strokeWidth="2.5" />
+                )}
+              </svg>
+              <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", fontWeight: 500 }}>
+                {l.label}
+              </span>
+            </div>
+          ))}
+        </div>
+        {acwr > 0 && (
+          <span className="text-[10px] text-muted font-medium flex items-center gap-1">
+            Status: <span style={{ color: acwrInfo.color, fontWeight: 700 }}>{acwrInfo.label}</span>
+          </span>
+        )}
       </div>
     </div>
   );
