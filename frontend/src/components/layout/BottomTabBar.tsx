@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Calendar, Dumbbell, BarChart2, Settings } from "lucide-react";
+import { Home, Calendar, Activity, Dumbbell, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const TAB_ITEMS = [
   { label: "Home", href: "/", icon: Home },
   { label: "Calendar", href: "/calendar", icon: Calendar },
+  { label: "Activities", href: "/activities", icon: Activity },
   { label: "Workouts", href: "/workouts", icon: Dumbbell },
-  { label: "Analytics", href: "/analytics", icon: BarChart2 },
   { label: "Settings", href: "/settings", icon: Settings },
 ] as const;
 

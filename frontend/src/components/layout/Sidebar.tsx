@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   Home,
   Calendar,
+  Activity,
   Dumbbell,
   BarChart2,
   Settings,
@@ -18,6 +19,7 @@ import { cn } from "@/lib/utils";
 const NAV_ITEMS = [
   { label: "Dashboard", href: "/", icon: Home },
   { label: "Calendar", href: "/calendar", icon: Calendar },
+  { label: "Activities", href: "/activities", icon: Activity },
   { label: "Workouts", href: "/workouts", icon: Dumbbell },
   { label: "Analytics", href: "/analytics", icon: BarChart2 },
   { label: "Settings", href: "/settings", icon: Settings },
