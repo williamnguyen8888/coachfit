@@ -6,6 +6,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -83,5 +84,27 @@ class HealthSleepDataPersistenceAdapter implements HealthSleepDataPersistencePor
                 new SleepSnapshot(e.date, e.source, e.durationSeconds,
                         e.deepSeconds, e.remSeconds, e.sleepScore,
                         e.avgHrv, e.hrvStatus));
+    }
+
+    @Override
+    public List<RichSleepSnapshot> listRange(UUID userId, LocalDate from, LocalDate to) {
+        return repo.findByUserIdAndDateBetweenOrderByDateDesc(userId, from, to)
+                .stream().map(this::toRich).toList();
+    }
+
+    @Override
+    public Optional<RichSleepSnapshot> findLatest(UUID userId, String source, LocalDate asOf) {
+        return repo.findFirstByUserIdAndSourceAndDateLessThanEqualOrderByDateDesc(userId, source, asOf)
+                .map(this::toRich);
+    }
+
+    private RichSleepSnapshot toRich(HealthSleepDataEntity e) {
+        return new RichSleepSnapshot(
+                e.date, e.source,
+                e.sleepStart, e.sleepEnd,
+                e.durationSeconds, e.deepSeconds, e.lightSeconds,
+                e.remSeconds, e.awakeSeconds,
+                e.sleepScore, e.avgRespiration, e.avgSpo2,
+                e.avgHrv, e.hrvStatus);
     }
 }

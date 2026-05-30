@@ -13,4 +13,10 @@ interface HealthDailySummaryJpaRepository extends JpaRepository<HealthDailySumma
 
     Optional<HealthDailySummaryEntity> findByUserIdAndSourceAndDate(
             UUID userId, String source, LocalDate date);
+
+    java.util.List<HealthDailySummaryEntity> findByUserIdAndDateBetweenOrderByDateDesc(
+            UUID userId, LocalDate from, LocalDate to);
+
+    java.util.Optional<HealthDailySummaryEntity> findFirstByUserIdAndSourceAndDateLessThanEqualOrderByDateDesc(
+            UUID userId, String source, LocalDate asOf);
 }

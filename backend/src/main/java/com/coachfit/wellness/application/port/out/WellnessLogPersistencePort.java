@@ -2,6 +2,7 @@ package com.coachfit.wellness.application.port.out;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -21,6 +22,12 @@ public interface WellnessLogPersistencePort {
     void upsert(UUID userId, LocalDate date, String source, WellnessFields fields);
 
     Optional<WellnessSnapshot> findByUserAndDate(UUID userId, LocalDate date);
+
+    /**
+     * Returns wellness log entries in a date range, ordered by date DESC.
+     * Both {@code from} and {@code to} are inclusive.
+     */
+    List<WellnessSnapshot> listRange(UUID userId, LocalDate from, LocalDate to);
 
     // ── Data carriers ────────────────────────────────────────────────────────
 

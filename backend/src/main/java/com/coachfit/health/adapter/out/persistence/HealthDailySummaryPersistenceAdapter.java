@@ -6,6 +6,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -100,4 +101,28 @@ class HealthDailySummaryPersistenceAdapter implements HealthDailySummaryPersiste
                 new DailySummarySnapshot(e.date, e.source, e.steps, e.distanceMeters,
                         e.caloriesTotal, e.restingHr, e.avgSpo2, e.vo2max, e.extra));
     }
+
+    @Override
+    public List<RichDailySummarySnapshot> listRange(UUID userId, LocalDate from, LocalDate to) {
+        return repo.findByUserIdAndDateBetweenOrderByDateDesc(userId, from, to)
+                .stream().map(this::toRich).toList();
+    }
+
+    @Override
+    public Optional<RichDailySummarySnapshot> findLatest(UUID userId, String source, LocalDate asOf) {
+        return repo.findFirstByUserIdAndSourceAndDateLessThanEqualOrderByDateDesc(userId, source, asOf)
+                .map(this::toRich);
+    }
+
+    private RichDailySummarySnapshot toRich(HealthDailySummaryEntity e) {
+        return new RichDailySummarySnapshot(
+                e.date, e.source,
+                e.steps, e.distanceMeters, e.caloriesTotal, e.caloriesActive,
+                e.activeMinutes, e.intensityMinutes, e.floorsClimbed,
+                e.restingHr, e.avgHr, e.maxHr,
+                e.avgStress, e.maxStress,
+                e.bodyBatteryHigh, e.bodyBatteryLow,
+                e.avgSpo2, e.avgRespiration, e.vo2max, e.extra);
+    }
 }
+

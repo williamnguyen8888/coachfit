@@ -13,4 +13,10 @@ interface HealthSleepDataJpaRepository extends JpaRepository<HealthSleepDataEnti
 
     Optional<HealthSleepDataEntity> findByUserIdAndSourceAndDate(
             UUID userId, String source, LocalDate date);
+
+    java.util.List<HealthSleepDataEntity> findByUserIdAndDateBetweenOrderByDateDesc(
+            UUID userId, LocalDate from, LocalDate to);
+
+    java.util.Optional<HealthSleepDataEntity> findFirstByUserIdAndSourceAndDateLessThanEqualOrderByDateDesc(
+            UUID userId, String source, LocalDate asOf);
 }

@@ -6,6 +6,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -78,6 +79,12 @@ class WellnessLogPersistenceAdapter implements WellnessLogPersistencePort {
     @Override
     public Optional<WellnessSnapshot> findByUserAndDate(UUID userId, LocalDate date) {
         return repo.findByUserIdAndDate(userId, date).map(this::toSnapshot);
+    }
+
+    @Override
+    public List<WellnessSnapshot> listRange(UUID userId, LocalDate from, LocalDate to) {
+        return repo.findByUserIdAndDateBetweenOrderByDateDesc(userId, from, to)
+                .stream().map(this::toSnapshot).toList();
     }
 
     private WellnessSnapshot toSnapshot(WellnessLogEntity e) {

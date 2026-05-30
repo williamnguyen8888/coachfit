@@ -12,4 +12,7 @@ import java.util.UUID;
 interface WellnessLogJpaRepository extends JpaRepository<WellnessLogEntity, UUID> {
 
     Optional<WellnessLogEntity> findByUserIdAndDate(UUID userId, LocalDate date);
+
+    java.util.List<WellnessLogEntity> findByUserIdAndDateBetweenOrderByDateDesc(
+            UUID userId, LocalDate from, LocalDate to);
 }
