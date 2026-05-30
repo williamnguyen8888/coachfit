@@ -460,3 +460,13 @@ a, button {
 [data-theme="light"] ::-webkit-scrollbar-thumb {
   background: var(--border-default);
 }
+
+/* Hide scrollbar utility */
+.scrollbar-none {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
+

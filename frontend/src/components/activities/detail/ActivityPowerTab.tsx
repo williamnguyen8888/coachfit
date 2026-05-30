@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   BarChart,
   Bar,
@@ -343,14 +343,27 @@ export function ActivityPowerTab({
       });
   }, [points, maxPowerInRide, maxHrVal, restingHr]);
 
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return (
+      <div className="h-[300px] bg-bg-surface border border-border-subtle rounded-lg flex items-center justify-center">
+        <span className="text-xs text-text-muted animate-pulse">Loading power analytics...</span>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col gap-6 bg-bg-elevated border border-border-subtle rounded-xl p-5 shadow-lg select-none">
+    <div className="flex flex-col gap-4 sm:gap-6 bg-bg-elevated border border-border-subtle rounded-lg sm:rounded-xl p-3 sm:p-5 shadow-sm sm:shadow-lg select-none">
       
       {/* Top dashboard panels */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-12 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-12 gap-4 sm:gap-5">
         
         {/* Column 1: Power Zones Table */}
-        <div className="xl:col-span-4 bg-bg-surface border border-border-subtle rounded-lg p-4 flex flex-col gap-3">
+        <div className="xl:col-span-4 bg-bg-surface border border-border-subtle rounded-lg p-3 sm:p-4 flex flex-col gap-3">
           <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Power Training Zones</span>
           <div className="flex flex-col gap-2.5">
             {["1", "2", "3", "4", "5", "6", "7", "SS"].map((zKey) => {
@@ -394,10 +407,10 @@ export function ActivityPowerTab({
         </div>
 
         {/* Column 2: Histogram Recharts Chart */}
-        <div className="xl:col-span-3 bg-bg-surface border border-border-subtle rounded-lg p-4 flex flex-col gap-2 min-h-[250px]">
+        <div className="xl:col-span-3 bg-bg-surface border border-border-subtle rounded-lg p-3 sm:p-4 flex flex-col gap-2 min-h-[250px]">
           <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Power Distribution</span>
           <div className="flex-1 w-full min-h-[180px] mt-2">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
               <BarChart data={histogramBuckets} margin={{ top: 10, right: 5, left: -25, bottom: -5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" vertical={false} />
                 <XAxis dataKey="label" tick={{ fill: "var(--text-muted)", fontSize: 9.5 }} axisLine={{ stroke: "var(--border-subtle)" }} tickLine={false} />
@@ -413,10 +426,10 @@ export function ActivityPowerTab({
         </div>
 
         {/* Column 3: Power Duration Curve Recharts */}
-        <div className="xl:col-span-3 bg-bg-surface border border-border-subtle rounded-lg p-4 flex flex-col gap-2 min-h-[250px]">
+        <div className="xl:col-span-3 bg-bg-surface border border-border-subtle rounded-lg p-3 sm:p-4 flex flex-col gap-2 min-h-[250px]">
           <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Power Duration Curve</span>
           <div className="flex-1 w-full min-h-[180px] mt-2">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
               <AreaChart data={powerCurve} margin={{ top: 10, right: 5, left: -25, bottom: -5 }}>
                 <defs>
                   <linearGradient id="powerCurveGrad" x1="0" y1="0" x2="0" y2="1">
@@ -438,7 +451,7 @@ export function ActivityPowerTab({
         </div>
 
         {/* Column 4: Best Efforts */}
-        <div className="xl:col-span-2 bg-bg-surface border border-border-subtle rounded-lg p-4 flex flex-col gap-2">
+        <div className="xl:col-span-2 bg-bg-surface border border-border-subtle rounded-lg p-3 sm:p-4 flex flex-col gap-2">
           <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Best Efforts</span>
           <table className="w-full border-collapse text-[11px] text-text-primary mt-2">
             <thead>
@@ -462,11 +475,11 @@ export function ActivityPowerTab({
       </div>
 
       {/* ─── Decoupling & Zones Comparison Row ───────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 mt-2">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5 mt-2">
         {/* Left Column: Decoupling details and timeline (col-span-8) */}
-        <div className="lg:col-span-8 flex flex-col gap-5">
+        <div className="lg:col-span-8 flex flex-col gap-4 sm:gap-5">
           {/* Power/HR Decoupling Details and Info */}
-          <div className="bg-bg-surface border border-border-subtle rounded-lg p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-xs">
+          <div className="bg-bg-surface border border-border-subtle rounded-lg p-3 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-xs">
             <div className="flex flex-col gap-1">
               <div className="flex items-center gap-1.5 text-text-primary font-bold">
                 <Info size={14} className="text-color-accent" />
@@ -490,7 +503,7 @@ export function ActivityPowerTab({
           </div>
 
           {/* Bottom Timeline: Decoupling and Power/HR Streams */}
-          <div className="bg-bg-surface border border-border-subtle rounded-lg p-5 flex flex-col gap-3">
+          <div className="bg-bg-surface border border-border-subtle rounded-lg p-3 sm:p-4 flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-bold text-text-primary uppercase tracking-wider">
                 Power, HR & Decoupling Telemetry
@@ -503,7 +516,7 @@ export function ActivityPowerTab({
             </div>
 
             <div className="w-full h-[220px] mt-2">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                 <AreaChart data={timelineData} margin={{ top: 10, right: -25, left: -25, bottom: -10 }}>
                   <defs>
                     <linearGradient id="decouplingShade" x1="0" y1="0" x2="0" y2="1">
@@ -647,12 +660,12 @@ export function ActivityPowerTab({
 
         {/* Right Column: Zones Comparison (col-span-4) */}
         <div className="lg:col-span-4">
-          <div className="bg-bg-surface border border-border-subtle rounded-lg p-5 flex flex-col gap-3 h-full justify-between min-h-[300px]">
+          <div className="bg-bg-surface border border-border-subtle rounded-lg p-3 sm:p-4 flex flex-col gap-3 h-full justify-between min-h-[300px]">
             <span className="text-[10px] font-bold text-text-primary uppercase tracking-wider">
               Zone Comparison (Power vs HR)
             </span>
             <div className="flex-1 w-full min-h-[220px] mt-2">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                 <BarChart data={zonesComparisonData} margin={{ top: 10, right: 5, left: -25, bottom: -5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" vertical={false} />
                   <XAxis dataKey="name" tick={{ fill: "var(--text-muted)", fontSize: 9.5 }} axisLine={{ stroke: "var(--border-subtle)" }} tickLine={false} />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   AreaChart,
   Area,
@@ -74,6 +74,16 @@ export function InteractiveMultiLaneChart({
     point: any; // handles extra computed fields
   } | null>(null);
 
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detect mobile screen sizes
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 640);
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   // --- Dynamic Lane Configurations by Sport Type ---
   const laneDefinitions = useMemo(() => {
     if (sport === "running") {
@@ -101,29 +111,30 @@ export function InteractiveMultiLaneChart({
     ];
   }, [sport]);
 
-  const defaultVisibleKeys = useMemo(() => laneDefinitions.map(l => l.key), [laneDefinitions]);
-  const [visibleLanes, setVisibleLanes] = useState<string[]>(defaultVisibleKeys);
+  const [visibleLanes, setVisibleLanes] = useState<string[]>([]);
 
-  // Sync visible lanes if sport changes (e.g. during dev/live switches)
-  useMemo(() => {
-    setVisibleLanes(laneDefinitions.map(l => l.key));
+  // Sync visible lanes depending on sport and screen size
+  useEffect(() => {
+    const isMobileViewport = window.innerWidth < 640;
+    if (isMobileViewport && laneDefinitions.length > 0) {
+      // Default to only first lane on mobile to prevent clutter
+      setVisibleLanes([laneDefinitions[0].key]);
+    } else {
+      setVisibleLanes(laneDefinitions.map((l) => l.key));
+    }
   }, [laneDefinitions]);
 
   const activeLanes = laneDefinitions.filter((lane) => visibleLanes.includes(lane.key));
   const activeLanesCount = activeLanes.length;
 
-  // --- Fallback if empty ---
-  if (!points || points.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center p-12 bg-bg-surface border border-border-subtle rounded-lg text-text-muted">
-        <Info size={32} className="mb-2 text-text-muted opacity-60" />
-        <p className="text-sm font-medium">No activity telemetry streams available.</p>
-      </div>
-    );
-  }
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // --- Zoom logic & Data Preparation ---
   const filteredPoints = useMemo(() => {
+    if (!points || points.length === 0) return [];
     if (!zoomRange) return points;
     const subset = points.filter((p) => p.t >= zoomRange.startTime && p.t <= zoomRange.endTime);
     return subset.length > 2 ? subset : points;
@@ -131,6 +142,7 @@ export function InteractiveMultiLaneChart({
 
   // Compute sport-specific parameters (like pace seconds & simulated SWOLF)
   const chartData = useMemo(() => {
+    if (!filteredPoints || filteredPoints.length === 0) return [];
     return filteredPoints.map((p) => {
       const pt: any = { ...p };
       
@@ -156,47 +168,84 @@ export function InteractiveMultiLaneChart({
     });
   }, [filteredPoints, sport]);
 
-  const currentStartTime = chartData[0].t;
-  const currentEndTime = chartData[chartData.length - 1].t;
+  const currentStartTime = chartData.length > 0 ? chartData[0].t : 0;
+  const currentEndTime = chartData.length > 0 ? chartData[chartData.length - 1].t : 0;
   const totalDuration = currentEndTime - currentStartTime;
 
   // Calculate dynamic scale ranges based on visible data
-  const laneScales = useMemo(() => {
+  // Calculate dynamic scale ranges and summary statistics based on visible data
+  const laneStats = useMemo(() => {
     return activeLanes.map((lane) => {
-      let min = Infinity;
-      let max = -Infinity;
+      let minVal = Infinity;
+      let maxVal = -Infinity;
+      let sum = 0;
+      let count = 0;
 
       chartData.forEach((p) => {
         const val = p[lane.key] as number | undefined;
-        if (val != null) {
-          if (val < min) min = val;
-          if (val > max) max = val;
+        if (val != null && !isNaN(val)) {
+          if (val < minVal) minVal = val;
+          if (val > maxVal) maxVal = val;
+          sum += val;
+          count++;
         }
       });
 
-      if (min === Infinity) {
-        min = 0;
-        max = lane.key === "hr" ? 180 : lane.key === "power" ? 300 : lane.key === "cadence" ? 100 : 100;
-      }
+      const avg = count > 0 ? sum / count : null;
+      const finalMinVal = minVal === Infinity ? null : minVal;
+      const finalMaxVal = maxVal === -Infinity ? null : maxVal;
 
-      // Buffer
-      if (min === max) {
-        min = Math.max(0, min - 10);
-        max += 10;
+      // Calculate buffered min/max for chart scale
+      let minScale = minVal === Infinity ? 0 : minVal;
+      let maxScale = maxVal === -Infinity ? (lane.key === "hr" ? 180 : lane.key === "power" ? 300 : lane.key === "cadence" ? 100 : 100) : maxVal;
+
+      if (minScale === maxScale) {
+        minScale = Math.max(0, minScale - 10);
+        maxScale += 10;
       } else {
-        const diff = max - min;
-        min = Math.max(0, min - diff * 0.08);
-        max += diff * 0.08;
+        const diff = maxScale - minScale;
+        // Increase padding (breathing room) so the line doesn't crowd the top/bottom boundaries
+        if (lane.isPace) {
+          // Pace chart is inverted: minScale is top, maxScale is bottom
+          minScale = Math.max(0, minScale - diff * 0.22); // 22% top padding (smaller number = faster)
+          maxScale = maxScale + diff * 0.15;             // 15% bottom padding (larger number = slower)
+        } else {
+          // Normal chart: maxScale is top, minScale is bottom
+          minScale = Math.max(0, minScale - diff * 0.15); // 15% bottom padding
+          maxScale = maxScale + diff * 0.22;             // 22% top padding to avoid text overlay
+        }
       }
 
-      // For inverted pace, min/max values denote the range in seconds
       return {
         key: lane.key,
-        min: Math.round(min),
-        max: Math.round(max),
+        minScale: Math.round(minScale),
+        maxScale: Math.round(maxScale),
+        avg,
+        minVal: finalMinVal,
+        maxVal: finalMaxVal,
       };
     });
   }, [chartData, activeLanes]);
+
+  const formatValue = (lane: typeof laneDefinitions[0], val: number | null | undefined) => {
+    if (val == null || isNaN(val)) return "—";
+    if (lane.isPace) {
+      return formatSecondsToPace(val) + " " + lane.unit;
+    }
+    return Math.round(val) + (lane.unit ? ` ${lane.unit}` : "");
+  };
+
+  const formatStats = (lane: typeof laneDefinitions[0], avg: number | null, minVal: number | null, maxVal: number | null) => {
+    if (avg == null) return "No data";
+    const unitStr = lane.unit ? ` ${lane.unit}` : "";
+    if (lane.isPace) {
+      return `Avg: ${formatSecondsToPace(avg)}${unitStr} · Min: ${formatSecondsToPace(minVal)}${unitStr}`;
+    }
+    if (lane.key === "altitude") {
+      return `Min: ${Math.round(minVal ?? 0)}${unitStr} · Max: ${Math.round(maxVal ?? 0)}${unitStr}`;
+    }
+    return `Avg: ${Math.round(avg)}${unitStr} · Max: ${Math.round(maxVal ?? 0)}${unitStr}`;
+  };
 
   // --- Dynamic Stats calculation for selected range ---
   const selectionStats = useMemo(() => {
@@ -280,6 +329,7 @@ export function InteractiveMultiLaneChart({
 
   // --- Drag Select Handlers ---
   const handleMouseDown = (e: any) => {
+    if (isMobile) return; // Disable drag selection zoom on mobile to prevent scrolling interception
     if (e && e.activeLabel != null) {
       setRefAreaLeft(e.activeLabel);
       setRefAreaRight(e.activeLabel);
@@ -288,12 +338,14 @@ export function InteractiveMultiLaneChart({
   };
 
   const handleMouseMove = (e: any) => {
+    if (isMobile) return;
     if (refAreaLeft !== null && e && e.activeLabel != null) {
       setRefAreaRight(e.activeLabel);
     }
   };
 
   const handleMouseUp = () => {
+    if (isMobile) return;
     if (refAreaLeft !== null && refAreaRight !== null) {
       let start = refAreaLeft;
       let end = refAreaRight;
@@ -332,8 +384,25 @@ export function InteractiveMultiLaneChart({
     setSelectedRange(null);
   };
 
+  if (!mounted) {
+    return (
+      <div className="h-[250px] bg-bg-surface border border-border-subtle rounded-lg flex items-center justify-center">
+        <span className="text-xs text-text-muted animate-pulse">Loading telemetry charts...</span>
+      </div>
+    );
+  }
+
+  if (!points || points.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center p-12 bg-bg-surface border border-border-subtle rounded-lg text-text-muted">
+        <Info size={32} className="mb-2 text-text-muted opacity-60" />
+        <p className="text-sm font-medium">No activity telemetry streams available.</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col gap-4 bg-bg-surface border border-border-subtle rounded-xl p-5 shadow-lg select-none">
+    <div className="flex flex-col gap-3 sm:gap-4 bg-bg-surface border border-border-subtle rounded-lg sm:rounded-xl p-2.5 sm:p-5 shadow-sm sm:shadow-lg select-none">
       
       {/* Toggles and Zoom Controls */}
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border-subtle pb-4">
@@ -364,7 +433,25 @@ export function InteractiveMultiLaneChart({
           })}
         </div>
 
-        <div className="flex items-center gap-2 text-xs font-semibold">
+        <div className="flex items-center gap-3 text-xs font-semibold">
+          {/* Time Offset / Duration Indicator */}
+          <div className="flex items-center gap-1.5 bg-bg-elevated px-2.5 py-1.5 rounded-lg border border-border-subtle shadow-sm text-text-secondary font-mono text-[11px]">
+            {hoverData ? (
+              <>
+                <span className="font-bold text-text-primary">
+                  {formatTime(hoverData.time)}
+                </span>
+                <span className="text-text-muted">/</span>
+                <span className="text-text-muted">{formatTime(currentEndTime)}</span>
+              </>
+            ) : (
+              <>
+                <span className="text-text-muted">Duration:</span>
+                <span className="font-bold text-text-primary">{formatTime(totalDuration)}</span>
+              </>
+            )}
+          </div>
+
           {zoomRange && (
             <button
               onClick={resetZoom}
@@ -386,56 +473,7 @@ export function InteractiveMultiLaneChart({
         </div>
       </div>
 
-      {/* Synchronized Hover Telemetry Strip */}
-      <div className="min-h-[44px] flex items-center bg-bg-elevated/70 backdrop-blur-md border border-border-subtle rounded-lg px-4 py-2 text-xs text-text-secondary gap-5 overflow-x-auto">
-        <div className="flex items-center gap-1 border-r border-border-subtle pr-4 mr-1">
-          <Info size={13} className="text-text-muted" />
-          <span className="font-semibold text-text-primary font-mono">
-            {hoverData ? formatTime(hoverData.time) : formatTime(currentStartTime)}
-          </span>
-          <span className="text-text-muted">/ {formatTime(currentEndTime)}</span>
-        </div>
-
-        {activeLanes.map((lane) => {
-          const val = hoverData
-            ? (hoverData.point[lane.key] as number | undefined)
-            : (chartData[0]?.[lane.key] as number | undefined);
-
-          const scale = laneScales.find((s) => s.key === lane.key);
-          const hasVal = val != null;
-
-          // Special formatting for pace
-          const displayVal = hasVal
-            ? (lane.isPace
-              ? formatSecondsToPace(val)
-              : Math.round(val))
-            : "—";
-
-          const displayRange = scale
-            ? (lane.isPace
-              ? `${formatSecondsToPace(scale.max)}-${formatSecondsToPace(scale.min)}` // inverted display order
-              : `${Math.round(scale.min)}-${Math.round(scale.max)}`)
-            : "";
-
-          return (
-            <div key={lane.key} className="flex items-center gap-2">
-              <span style={{ color: lane.color }} className="flex items-center gap-1">
-                {lane.icon}
-                <span className="text-[10px] uppercase font-bold tracking-wider">{lane.label}</span>
-              </span>
-              <span className="font-mono font-bold text-text-primary">
-                {displayVal}
-                <span className="text-[10px] text-text-muted font-normal ml-0.5">{lane.unit}</span>
-              </span>
-              {scale && (
-                <span className="text-[10px] text-text-muted font-mono">
-                  (Range: {displayRange})
-                </span>
-              )}
-            </div>
-          );
-        })}
-      </div>
+      {/* Telemetry info now displayed directly on each chart lane overlay */}
 
       {/* Selected Interval Stats Summary Card */}
       {selectedRange && selectionStats && (
@@ -484,15 +522,40 @@ export function InteractiveMultiLaneChart({
       <div className="flex flex-col gap-2">
         {activeLanes.map((lane, activeIdx) => {
           const isLast = activeIdx === activeLanesCount - 1;
-          const scale = laneScales.find((s) => s.key === lane.key)!;
+          const stats = laneStats.find((s) => s.key === lane.key)!;
 
           return (
-            <div key={lane.key} className="h-[96px] w-full bg-bg-surface border border-border-subtle rounded-lg p-2.5 relative shadow-inner">
-              <ResponsiveContainer width="100%" height="100%">
+            <div 
+              key={lane.key} 
+              className="h-[180px] sm:h-[150px] w-full relative border-b border-border-subtle/50 last:border-b-0 py-2"
+              style={{ touchAction: "pan-y" }}
+            >
+              {/* Floating glassmorphic info banner at top-left/grid-left alignment */}
+              <div className="absolute top-2 left-10 pointer-events-none select-none z-10 flex flex-col gap-0.5 bg-bg-surface/85 backdrop-blur-md px-2.5 py-1 rounded-md border border-border-subtle/50 shadow-sm max-w-[calc(100%-100px)]">
+                <div className="flex items-center gap-1.5">
+                  <span style={{ color: lane.color }} className="flex items-center gap-1 shrink-0">
+                    {lane.icon}
+                    <span className="text-[10px] uppercase font-extrabold tracking-wider">{lane.label}</span>
+                  </span>
+                  
+                  {/* Current value on hover, or summary stats off hover */}
+                  {hoverData ? (
+                    <span className="text-xs font-mono font-extrabold" style={{ color: lane.color }}>
+                      {formatValue(lane, hoverData.point[lane.key])}
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-text-secondary font-semibold font-mono">
+                      {formatStats(lane, stats.avg, stats.minVal, stats.maxVal)}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                 <AreaChart
                   data={chartData}
                   syncId="activityTelemetry"
-                  margin={{ top: 5, right: 10, left: -25, bottom: isLast ? 5 : 0 }}
+                  margin={{ top: 22, right: 10, left: -32, bottom: isLast ? 10 : 4 }}
                   onMouseDown={handleMouseDown}
                   onMouseMove={(e) => {
                     handleChartMouseMove(e);
@@ -500,6 +563,13 @@ export function InteractiveMultiLaneChart({
                   }}
                   onMouseUp={handleMouseUp}
                   onMouseLeave={handleChartMouseLeave}
+                  onTouchStart={(e) => {
+                    handleChartMouseMove(e);
+                  }}
+                  onTouchMove={(e) => {
+                    handleChartMouseMove(e);
+                  }}
+                  onTouchEnd={handleChartMouseLeave}
                 >
                   <defs>
                     <linearGradient id={`grad-${lane.key}`} x1="0" y1="0" x2="0" y2="1">
@@ -508,7 +578,7 @@ export function InteractiveMultiLaneChart({
                     </linearGradient>
                   </defs>
                   
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" vertical={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" strokeOpacity={0.35} vertical={false} />
                   
                   <XAxis
                     dataKey="t"
@@ -521,7 +591,7 @@ export function InteractiveMultiLaneChart({
                   
                   <YAxis
                     yAxisId={lane.key}
-                    domain={[scale.min, scale.max]}
+                    domain={[stats.minScale, stats.maxScale]}
                     reversed={lane.isPace} // INVERT YAxis for running/swimming pace!
                     tickFormatter={lane.isPace ? formatSecondsToPace : undefined}
                     tick={{ fill: "var(--text-muted)", fontSize: 9 }}
@@ -530,7 +600,7 @@ export function InteractiveMultiLaneChart({
                   />
                   
                   <Tooltip
-                    content={() => null} // telemetry strip handles values
+                    content={() => null} // floating indicators handle values
                     cursor={{ stroke: "var(--text-primary)", strokeWidth: 1.2, strokeDasharray: "3,3" }}
                   />
                   
@@ -557,12 +627,6 @@ export function InteractiveMultiLaneChart({
                   )}
                 </AreaChart>
               </ResponsiveContainer>
-              
-              {/* Floating Badge Label */}
-              <div className="absolute top-2 right-3 text-[9px] font-bold text-text-muted flex items-center gap-1 pointer-events-none">
-                <span style={{ color: lane.color }}>{lane.icon}</span>
-                <span>{lane.label.toUpperCase()}</span>
-              </div>
             </div>
           );
         })}

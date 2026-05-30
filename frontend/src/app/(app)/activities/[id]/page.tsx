@@ -233,16 +233,9 @@ export default function ActivityDetailPage({ params }: Props) {
     >
       {/* ─── Premium intervals.icu Header Bar ──────────────────────────────────── */}
       <div
-        style={{
-          borderBottom: "1px solid var(--border-subtle)",
-          background: "var(--bg-elevated)",
-          padding: "16px 20px",
-          display: "flex",
-          flexDirection: "column",
-          gap: "12px",
-        }}
+        className="border-b border-border-subtle bg-bg-elevated p-3 sm:px-5 sm:py-4 flex flex-col gap-4 shrink-0"
       >
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "16px" }}>
+        <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
           {/* Title and date */}
           <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
             <button
@@ -275,9 +268,11 @@ export default function ActivityDetailPage({ params }: Props) {
               <div style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: 500 }}>
                 {dateFormatted}
               </div>
-              <h1 style={{ fontSize: "18px", fontWeight: 700, margin: "2px 0 0", color: "var(--text-primary)" }}>
-                {activity.sport === "swimming" ? `${activity.distanceMeters ?? 1500} m` : `${distanceKm} km`} / {durationStr}
-                <span style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-muted)", marginLeft: "8px" }}>
+              <h1 style={{ fontSize: "18px", fontWeight: 700, margin: "2px 0 0", color: "var(--text-primary)", display: "flex", alignItems: "baseline", flexWrap: "wrap", gap: "6px" }}>
+                <span>{activity.sport === "swimming" ? `${activity.distanceMeters ?? 1500} m` : `${distanceKm} km`}</span>
+                <span className="text-text-muted font-normal text-sm">/</span>
+                <span>{durationStr}</span>
+                <span style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-muted)", marginLeft: "4px" }}>
                   Avg {activity.sport === "running" ? `${formatSpeedToPace(activity.avgSpeed ?? 4.0, "run")}/km` : 
                        activity.sport === "swimming" ? `${formatSpeedToPace(activity.avgSpeed ?? 1.0, "swim")}/100m` : 
                        `${avgSpeedKmh} km/h`}
@@ -287,58 +282,72 @@ export default function ActivityDetailPage({ params }: Props) {
           </div>
 
           {/* Advanced scientific metrics grid - Compact & Visual badges */}
-          <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center", marginTop: "4px" }}>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:flex md:flex-wrap md:items-stretch gap-2 sm:gap-3 w-full xl:w-auto">
             {activity.sport === "cycling" && (
               <>
                 {/* Badge 1: Load & Compliance */}
-                <div style={{ display: "flex", alignItems: "center", gap: "6px", background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)", padding: "6px 12px", fontSize: "11px", boxShadow: "var(--shadow-sm)" }}>
-                  <Flame size={13} className="text-amber-500 animate-pulse" />
-                  <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>TSS</span>
-                  <span style={{ fontWeight: 700, color: "var(--color-accent)" }} className="font-mono text-xs">{loadTss}</span>
-                  <span style={{ color: "var(--text-muted)" }}>•</span>
-                  <span style={{ color: "var(--text-secondary)" }}>IF {intensityFactor}%</span>
-                  <span style={{ color: "var(--text-muted)" }}>•</span>
-                  <span style={{ color: "var(--color-success)", fontWeight: 700 }} className="bg-success-8 px-1 rounded text-[10px]">Coach 91%</span>
+                <div className="flex flex-col justify-between bg-bg-surface/50 backdrop-blur-md border border-border-subtle/60 border-l-2 border-l-amber-500 rounded-lg p-2.5 md:w-[125px] shadow-sm transition-all duration-150 hover:scale-[1.02]">
+                  <div className="flex items-center gap-1.5 text-[10px] text-text-muted font-bold uppercase">
+                    <Flame size={12} className="text-amber-500 animate-pulse" />
+                    <span>TSS</span>
+                  </div>
+                  <div className="flex items-baseline gap-1 mt-1">
+                    <span className="text-sm font-extrabold text-color-accent font-mono">{loadTss}</span>
+                    <span className="text-[10px] text-text-muted">IF {intensityFactor}%</span>
+                  </div>
+                  <div className="text-[9px] text-color-success font-semibold mt-0.5">Coach 91%</div>
                 </div>
 
                 {/* Badge 2: Power Profile */}
-                <div style={{ display: "flex", alignItems: "center", gap: "6px", background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)", padding: "6px 12px", fontSize: "11px", boxShadow: "var(--shadow-sm)" }}>
-                  <Zap size={13} className="text-blue-500" />
-                  <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>NP</span>
-                  <span style={{ fontWeight: 700, color: "var(--color-fitness)" }} className="font-mono text-xs">{normPower}w</span>
-                  <span style={{ color: "var(--text-muted)" }}>•</span>
-                  <span style={{ color: "var(--text-secondary)" }}>Avg {avgPower}w</span>
-                  <span style={{ color: "var(--text-muted)" }}>•</span>
-                  <span className="text-[10px] text-text-muted">VI 1.05</span>
+                <div className="flex flex-col justify-between bg-bg-surface/50 backdrop-blur-md border border-border-subtle/60 border-l-2 border-l-blue-500 rounded-lg p-2.5 md:w-[125px] shadow-sm transition-all duration-150 hover:scale-[1.02]">
+                  <div className="flex items-center gap-1.5 text-[10px] text-text-muted font-bold uppercase">
+                    <Zap size={12} className="text-blue-500" />
+                    <span>Power</span>
+                  </div>
+                  <div className="flex items-baseline gap-1 mt-1">
+                    <span className="text-sm font-extrabold text-color-fitness font-mono">{avgPower}w</span>
+                    <span className="text-[10px] text-text-muted">NP {normPower}w</span>
+                  </div>
+                  <div className="text-[9px] text-text-muted mt-0.5">VI 1.05</div>
                 </div>
 
                 {/* Badge 3: Cardio Profile */}
-                <div style={{ display: "flex", alignItems: "center", gap: "6px", background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)", padding: "6px 12px", fontSize: "11px", boxShadow: "var(--shadow-sm)" }}>
-                  <Heart size={13} className="text-red-500" />
-                  <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>HR</span>
-                  <span style={{ fontWeight: 700, color: "var(--color-danger)" }} className="font-mono text-xs">{avgHr} bpm</span>
-                  <span style={{ color: "var(--text-muted)" }}>•</span>
-                  <span style={{ color: "var(--text-secondary)" }}>Max {maxHr}</span>
-                  <span style={{ color: "var(--text-muted)" }}>•</span>
-                  <span className="text-[10px] text-text-muted">HRc 18</span>
+                <div className="flex flex-col justify-between bg-bg-surface/50 backdrop-blur-md border border-border-subtle/60 border-l-2 border-l-red-500 rounded-lg p-2.5 md:w-[125px] shadow-sm transition-all duration-150 hover:scale-[1.02]">
+                  <div className="flex items-center gap-1.5 text-[10px] text-text-muted font-bold uppercase">
+                    <Heart size={12} className="text-red-500" />
+                    <span>HR</span>
+                  </div>
+                  <div className="flex items-baseline gap-1 mt-1">
+                    <span className="text-sm font-extrabold text-color-danger font-mono">{avgHr}</span>
+                    <span className="text-[9px] text-text-muted">bpm</span>
+                  </div>
+                  <div className="text-[9px] text-text-muted mt-0.5">Max {maxHr} • HRc 18</div>
                 </div>
 
                 {/* Badge 4: Form & Efficiency */}
-                <div style={{ display: "flex", alignItems: "center", gap: "6px", background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)", padding: "6px 12px", fontSize: "11px", boxShadow: "var(--shadow-sm)" }}>
-                  <Gauge size={13} className="text-purple-500" />
-                  <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>CAD</span>
-                  <span style={{ fontWeight: 700, color: "var(--color-accent)" }} className="font-mono text-xs">{activity.avgCadence ?? 96} rpm</span>
-                  <span style={{ color: "var(--text-muted)" }}>•</span>
-                  <span style={{ color: "var(--text-secondary)" }}>Form -25</span>
+                <div className="flex flex-col justify-between bg-bg-surface/50 backdrop-blur-md border border-border-subtle/60 border-l-2 border-l-purple-500 rounded-lg p-2.5 md:w-[125px] shadow-sm transition-all duration-150 hover:scale-[1.02]">
+                  <div className="flex items-center gap-1.5 text-[10px] text-text-muted font-bold uppercase">
+                    <Gauge size={12} className="text-purple-500" />
+                    <span>Cadence</span>
+                  </div>
+                  <div className="flex items-baseline gap-1 mt-1">
+                    <span className="text-sm font-extrabold text-color-accent font-mono">{activity.avgCadence ?? 96}</span>
+                    <span className="text-[9px] text-text-muted">rpm</span>
+                  </div>
+                  <div className="text-[9px] text-text-muted mt-0.5">Form -25</div>
                 </div>
 
                 {/* Badge 5: Work & Energy */}
-                <div style={{ display: "flex", alignItems: "center", gap: "6px", background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)", padding: "6px 12px", fontSize: "11px", boxShadow: "var(--shadow-sm)" }}>
-                  <Award size={13} className="text-emerald-500" />
-                  <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>ENERGY</span>
-                  <span style={{ fontWeight: 700, color: "var(--color-form)" }} className="font-mono text-xs">{activity.calories ?? 371} kcal</span>
-                  <span style={{ color: "var(--text-muted)" }}>•</span>
-                  <span style={{ color: "var(--text-secondary)" }}>311 kJ</span>
+                <div className="flex flex-col justify-between bg-bg-surface/50 backdrop-blur-md border border-border-subtle/60 border-l-2 border-l-emerald-500 rounded-lg p-2.5 md:w-[125px] shadow-sm transition-all duration-150 hover:scale-[1.02]">
+                  <div className="flex items-center gap-1.5 text-[10px] text-text-muted font-bold uppercase">
+                    <Award size={12} className="text-emerald-500" />
+                    <span>Energy</span>
+                  </div>
+                  <div className="flex items-baseline gap-1 mt-1">
+                    <span className="text-sm font-extrabold text-color-form font-mono">{activity.calories ?? 371}</span>
+                    <span className="text-[9px] text-text-muted">kcal</span>
+                  </div>
+                  <div className="text-[9px] text-text-muted mt-0.5">311 kJ</div>
                 </div>
               </>
             )}
@@ -346,48 +355,68 @@ export default function ActivityDetailPage({ params }: Props) {
             {activity.sport === "running" && (
               <>
                 {/* Badge 1: Load & Compliance */}
-                <div style={{ display: "flex", alignItems: "center", gap: "6px", background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)", padding: "6px 12px", fontSize: "11px", boxShadow: "var(--shadow-sm)" }}>
-                  <Flame size={13} className="text-amber-500 animate-pulse" />
-                  <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>rTSS</span>
-                  <span style={{ fontWeight: 700, color: "var(--color-accent)" }} className="font-mono text-xs">{loadTss}</span>
-                  <span style={{ color: "var(--text-muted)" }}>•</span>
-                  <span style={{ color: "var(--text-secondary)" }}>IF {intensityFactor}%</span>
-                  <span style={{ color: "var(--text-muted)" }}>•</span>
-                  <span style={{ color: "var(--color-success)", fontWeight: 700 }} className="bg-success-8 px-1 rounded text-[10px]">Coach 94%</span>
+                <div className="flex flex-col justify-between bg-bg-surface/50 backdrop-blur-md border border-border-subtle/60 border-l-2 border-l-amber-500 rounded-lg p-2.5 md:w-[125px] shadow-sm transition-all duration-150 hover:scale-[1.02]">
+                  <div className="flex items-center gap-1.5 text-[10px] text-text-muted font-bold uppercase">
+                    <Flame size={12} className="text-amber-500 animate-pulse" />
+                    <span>rTSS</span>
+                  </div>
+                  <div className="flex items-baseline gap-1 mt-1">
+                    <span className="text-sm font-extrabold text-color-accent font-mono">{loadTss}</span>
+                    <span className="text-[10px] text-text-muted">IF {intensityFactor}%</span>
+                  </div>
+                  <div className="text-[9px] text-color-success font-semibold mt-0.5">Coach 94%</div>
                 </div>
 
                 {/* Badge 2: Pace Profile */}
-                <div style={{ display: "flex", alignItems: "center", gap: "6px", background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)", padding: "6px 12px", fontSize: "11px", boxShadow: "var(--shadow-sm)" }}>
-                  <Zap size={13} className="text-blue-500" />
-                  <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>Pace</span>
-                  <span style={{ fontWeight: 700, color: "var(--color-fitness)" }} className="font-mono text-xs">{formatSpeedToPace(activity.avgSpeed ?? 4.0, "run")}/km</span>
-                  <span style={{ color: "var(--text-muted)" }}>•</span>
-                  <span style={{ color: "var(--text-secondary)" }}>GAP {formatSpeedToPace(activity.avgSpeed ? activity.avgSpeed * 1.03 : 4.12, "run")}</span>
+                <div className="flex flex-col justify-between bg-bg-surface/50 backdrop-blur-md border border-border-subtle/60 border-l-2 border-l-blue-500 rounded-lg p-2.5 md:w-[125px] shadow-sm transition-all duration-150 hover:scale-[1.02]">
+                  <div className="flex items-center gap-1.5 text-[10px] text-text-muted font-bold uppercase">
+                    <Zap size={12} className="text-blue-500" />
+                    <span>Pace</span>
+                  </div>
+                  <div className="flex items-baseline gap-1 mt-1">
+                    <span className="text-sm font-extrabold text-color-fitness font-mono">{formatSpeedToPace(activity.avgSpeed ?? 4.0, "run")}</span>
+                    <span className="text-[9px] text-text-muted">/km</span>
+                  </div>
+                  <div className="text-[9px] text-text-muted mt-0.5">GAP {formatSpeedToPace(activity.avgSpeed ? activity.avgSpeed * 1.03 : 4.12, "run")}</div>
                 </div>
 
                 {/* Badge 3: Cardio Profile */}
-                <div style={{ display: "flex", alignItems: "center", gap: "6px", background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)", padding: "6px 12px", fontSize: "11px", boxShadow: "var(--shadow-sm)" }}>
-                  <Heart size={13} className="text-red-500" />
-                  <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>HR</span>
-                  <span style={{ fontWeight: 700, color: "var(--color-danger)" }} className="font-mono text-xs">{avgHr} bpm</span>
-                  <span style={{ color: "var(--text-muted)" }}>•</span>
-                  <span style={{ color: "var(--text-secondary)" }}>Max {maxHr}</span>
+                <div className="flex flex-col justify-between bg-bg-surface/50 backdrop-blur-md border border-border-subtle/60 border-l-2 border-l-red-500 rounded-lg p-2.5 md:w-[125px] shadow-sm transition-all duration-150 hover:scale-[1.02]">
+                  <div className="flex flex-col justify-between bg-bg-surface/50 backdrop-blur-md border border-border-subtle/60 border-l-2 border-l-red-500 rounded-lg p-2.5 md:w-[125px] shadow-sm transition-all duration-150 hover:scale-[1.02]">
+                    <Heart size={12} className="text-red-500" />
+                    <span>HR</span>
+                  </div>
+                  <div className="flex items-baseline gap-1 mt-1">
+                    <span className="text-sm font-extrabold text-color-danger font-mono">{avgHr}</span>
+                    <span className="text-[9px] text-text-muted">bpm</span>
+                  </div>
+                  <div className="text-[9px] text-text-muted mt-0.5">Max {maxHr}</div>
                 </div>
 
                 {/* Badge 4: Form & Cadence */}
-                <div style={{ display: "flex", alignItems: "center", gap: "6px", background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)", padding: "6px 12px", fontSize: "11px", boxShadow: "var(--shadow-sm)" }}>
-                  <Gauge size={13} className="text-purple-500" />
-                  <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>CADENCE</span>
-                  <span style={{ fontWeight: 700, color: "var(--color-accent)" }} className="font-mono text-xs">{activity.avgCadence ?? 174} spm</span>
-                  <span style={{ color: "var(--text-muted)" }}>•</span>
-                  <span style={{ color: "var(--text-secondary)" }}>Form -18</span>
+                <div className="flex flex-col justify-between bg-bg-surface/50 backdrop-blur-md border border-border-subtle/60 border-l-2 border-l-purple-500 rounded-lg p-2.5 md:w-[125px] shadow-sm transition-all duration-150 hover:scale-[1.02]">
+                  <div className="flex items-center gap-1.5 text-[10px] text-text-muted font-bold uppercase">
+                    <Gauge size={12} className="text-purple-500" />
+                    <span>Cadence</span>
+                  </div>
+                  <div className="flex items-baseline gap-1 mt-1">
+                    <span className="text-sm font-extrabold text-color-accent font-mono">{activity.avgCadence ?? 174}</span>
+                    <span className="text-[9px] text-text-muted">spm</span>
+                  </div>
+                  <div className="text-[9px] text-text-muted mt-0.5">Form -18</div>
                 </div>
 
                 {/* Badge 5: Energy */}
-                <div style={{ display: "flex", alignItems: "center", gap: "6px", background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)", padding: "6px 12px", fontSize: "11px", boxShadow: "var(--shadow-sm)" }}>
-                  <Award size={13} className="text-emerald-500" />
-                  <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>ENERGY</span>
-                  <span style={{ fontWeight: 700, color: "var(--color-form)" }} className="font-mono text-xs">{activity.calories ?? 620} kcal</span>
+                <div className="flex flex-col justify-between bg-bg-surface/50 backdrop-blur-md border border-border-subtle/60 border-l-2 border-l-emerald-500 rounded-lg p-2.5 md:w-[125px] shadow-sm transition-all duration-150 hover:scale-[1.02]">
+                  <div className="flex items-center gap-1.5 text-[10px] text-text-muted font-bold uppercase">
+                    <Award size={12} className="text-emerald-500" />
+                    <span>Energy</span>
+                  </div>
+                  <div className="flex items-baseline gap-1 mt-1">
+                    <span className="text-sm font-extrabold text-color-form font-mono">{activity.calories ?? 620}</span>
+                    <span className="text-[9px] text-text-muted">kcal</span>
+                  </div>
+                  <div className="text-[9px] text-text-muted mt-0.5">—</div>
                 </div>
               </>
             )}
@@ -395,46 +424,68 @@ export default function ActivityDetailPage({ params }: Props) {
             {activity.sport === "swimming" && (
               <>
                 {/* Badge 1: Swim Load */}
-                <div style={{ display: "flex", alignItems: "center", gap: "6px", background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)", padding: "6px 12px", fontSize: "11px", boxShadow: "var(--shadow-sm)" }}>
-                  <Flame size={13} className="text-amber-500 animate-pulse" />
-                  <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>sTSS</span>
-                  <span style={{ fontWeight: 700, color: "var(--color-accent)" }} className="font-mono text-xs">{loadTss}</span>
-                  <span style={{ color: "var(--text-muted)" }}>•</span>
-                  <span style={{ color: "var(--text-secondary)" }}>IF {intensityFactor}%</span>
-                  <span style={{ color: "var(--text-muted)" }}>•</span>
-                  <span style={{ color: "var(--color-success)", fontWeight: 700 }} className="bg-success-8 px-1 rounded text-[10px]">Coach 90%</span>
+                <div className="flex flex-col justify-between bg-bg-surface/50 backdrop-blur-md border border-border-subtle/60 border-l-2 border-l-amber-500 rounded-lg p-2.5 md:w-[125px] shadow-sm transition-all duration-150 hover:scale-[1.02]">
+                  <div className="flex items-center gap-1.5 text-[10px] text-text-muted font-bold uppercase">
+                    <Flame size={12} className="text-amber-500 animate-pulse" />
+                    <span>sTSS</span>
+                  </div>
+                  <div className="flex items-baseline gap-1 mt-1">
+                    <span className="text-sm font-extrabold text-color-accent font-mono">{loadTss}</span>
+                    <span className="text-[10px] text-text-muted">IF {intensityFactor}%</span>
+                  </div>
+                  <div className="text-[9px] text-color-success font-semibold mt-0.5">Coach 90%</div>
                 </div>
 
                 {/* Badge 2: Swim Pace */}
-                <div style={{ display: "flex", alignItems: "center", gap: "6px", background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)", padding: "6px 12px", fontSize: "11px", boxShadow: "var(--shadow-sm)" }}>
-                  <Zap size={13} className="text-blue-500" />
-                  <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>Pace</span>
-                  <span style={{ fontWeight: 700, color: "var(--color-fitness)" }} className="font-mono text-xs">{formatSpeedToPace(activity.avgSpeed ?? 1.0, "swim")}/100m</span>
-                  <span style={{ color: "var(--text-muted)" }}>•</span>
-                  <span style={{ color: "var(--text-secondary)" }}>CSS {formatSpeedToPace(1.0, "swim")}</span>
+                <div className="flex flex-col justify-between bg-bg-surface/50 backdrop-blur-md border border-border-subtle/60 border-l-2 border-l-blue-500 rounded-lg p-2.5 md:w-[125px] shadow-sm transition-all duration-150 hover:scale-[1.02]">
+                  <div className="flex items-center gap-1.5 text-[10px] text-text-muted font-bold uppercase">
+                    <Zap size={12} className="text-blue-500" />
+                    <span>Pace</span>
+                  </div>
+                  <div className="flex items-baseline gap-1 mt-1">
+                    <span className="text-sm font-extrabold text-color-fitness font-mono">{formatSpeedToPace(activity.avgSpeed ?? 1.0, "swim")}</span>
+                    <span className="text-[9px] text-text-muted">/100m</span>
+                  </div>
+                  <div className="text-[9px] text-text-muted mt-0.5">CSS {formatSpeedToPace(1.0, "swim")}</div>
                 </div>
 
                 {/* Badge 3: Stroke & SWOLF */}
-                <div style={{ display: "flex", alignItems: "center", gap: "6px", background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)", padding: "6px 12px", fontSize: "11px", boxShadow: "var(--shadow-sm)" }}>
-                  <Gauge size={13} className="text-purple-500" />
-                  <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>SWOLF</span>
-                  <span style={{ fontWeight: 700, color: "var(--color-accent)" }} className="font-mono text-xs">38</span>
-                  <span style={{ color: "var(--text-muted)" }}>•</span>
-                  <span style={{ color: "var(--text-secondary)" }}>{activity.avgCadence ?? 34} spm</span>
+                <div className="flex flex-col justify-between bg-bg-surface/50 backdrop-blur-md border border-border-subtle/60 border-l-2 border-l-purple-500 rounded-lg p-2.5 md:w-[125px] shadow-sm transition-all duration-150 hover:scale-[1.02]">
+                  <div className="flex items-center gap-1.5 text-[10px] text-text-muted font-bold uppercase">
+                    <Gauge size={12} className="text-purple-500" />
+                    <span>SWOLF</span>
+                  </div>
+                  <div className="flex items-baseline gap-1 mt-1">
+                    <span className="text-sm font-extrabold text-color-accent font-mono">38</span>
+                    <span className="text-[9px] text-text-muted">score</span>
+                  </div>
+                  <div className="text-[9px] text-text-muted mt-0.5">{activity.avgCadence ?? 34} spm</div>
                 </div>
 
-                {/* Badge 4: Cardio Profile (if HR exists) */}
-                <div style={{ display: "flex", alignItems: "center", gap: "6px", background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)", padding: "6px 12px", fontSize: "11px", boxShadow: "var(--shadow-sm)" }}>
-                  <Heart size={13} className="text-red-500" />
-                  <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>HR</span>
-                  <span style={{ fontWeight: 700, color: "var(--color-danger)" }} className="font-mono text-xs">{avgHr} bpm</span>
+                {/* Badge 4: Cardio Profile */}
+                <div className="flex flex-col justify-between bg-bg-surface/50 backdrop-blur-md border border-border-subtle/60 border-l-2 border-l-red-500 rounded-lg p-2.5 md:w-[125px] shadow-sm transition-all duration-150 hover:scale-[1.02]">
+                  <div className="flex items-center gap-1.5 text-[10px] text-text-muted font-bold uppercase">
+                    <Heart size={12} className="text-red-500" />
+                    <span>HR</span>
+                  </div>
+                  <div className="flex items-baseline gap-1 mt-1">
+                    <span className="text-sm font-extrabold text-color-danger font-mono">{avgHr}</span>
+                    <span className="text-[9px] text-text-muted">bpm</span>
+                  </div>
+                  <div className="text-[9px] text-text-muted mt-0.5">—</div>
                 </div>
 
                 {/* Badge 5: Energy */}
-                <div style={{ display: "flex", alignItems: "center", gap: "6px", background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)", padding: "6px 12px", fontSize: "11px", boxShadow: "var(--shadow-sm)" }}>
-                  <Award size={13} className="text-emerald-500" />
-                  <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>ENERGY</span>
-                  <span style={{ fontWeight: 700, color: "var(--color-form)" }} className="font-mono text-xs">{activity.calories ?? 410} kcal</span>
+                <div className="flex flex-col justify-between bg-bg-surface/50 backdrop-blur-md border border-border-subtle/60 border-l-2 border-l-emerald-500 rounded-lg p-2.5 md:w-[125px] shadow-sm transition-all duration-150 hover:scale-[1.02]">
+                  <div className="flex items-center gap-1.5 text-[10px] text-text-muted font-bold uppercase">
+                    <Award size={12} className="text-emerald-500" />
+                    <span>Energy</span>
+                  </div>
+                  <div className="flex items-baseline gap-1 mt-1">
+                    <span className="text-sm font-extrabold text-color-form font-mono">{activity.calories ?? 410}</span>
+                    <span className="text-[9px] text-text-muted">kcal</span>
+                  </div>
+                  <div className="text-[9px] text-text-muted mt-0.5">—</div>
                 </div>
               </>
             )}
@@ -442,26 +493,41 @@ export default function ActivityDetailPage({ params }: Props) {
             {activity.sport !== "cycling" && activity.sport !== "running" && activity.sport !== "swimming" && (
               <>
                 {/* Badge 1: Load */}
-                <div style={{ display: "flex", alignItems: "center", gap: "6px", background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)", padding: "6px 12px", fontSize: "11px", boxShadow: "var(--shadow-sm)" }}>
-                  <Flame size={13} className="text-amber-500 animate-pulse" />
-                  <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>hrTSS</span>
-                  <span style={{ fontWeight: 700, color: "var(--color-accent)" }} className="font-mono text-xs">{loadTss}</span>
+                <div className="flex flex-col justify-between bg-bg-surface/50 backdrop-blur-md border border-border-subtle/60 border-l-2 border-l-amber-500 rounded-lg p-2.5 md:w-[125px] shadow-sm transition-all duration-150 hover:scale-[1.02]">
+                  <div className="flex items-center gap-1.5 text-[10px] text-text-muted font-bold uppercase">
+                    <Flame size={12} className="text-amber-500 animate-pulse" />
+                    <span>hrTSS</span>
+                  </div>
+                  <div className="flex items-baseline mt-1">
+                    <span className="text-sm font-extrabold text-color-accent font-mono">{loadTss}</span>
+                  </div>
+                  <div className="text-[9px] text-text-muted mt-0.5">—</div>
                 </div>
 
                 {/* Badge 2: Cardio */}
-                <div style={{ display: "flex", alignItems: "center", gap: "6px", background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)", padding: "6px 12px", fontSize: "11px", boxShadow: "var(--shadow-sm)" }}>
-                  <Heart size={13} className="text-red-500" />
-                  <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>HR</span>
-                  <span style={{ fontWeight: 700, color: "var(--color-danger)" }} className="font-mono text-xs">{avgHr} bpm</span>
-                  <span style={{ color: "var(--text-muted)" }}>•</span>
-                  <span style={{ color: "var(--text-secondary)" }}>Max {maxHr}</span>
+                <div className="flex flex-col justify-between bg-bg-surface/50 backdrop-blur-md border border-border-subtle/60 border-l-2 border-l-red-500 rounded-lg p-2.5 md:w-[125px] shadow-sm transition-all duration-150 hover:scale-[1.02]">
+                  <div className="flex items-center gap-1.5 text-[10px] text-text-muted font-bold uppercase">
+                    <Heart size={12} className="text-red-500" />
+                    <span>HR</span>
+                  </div>
+                  <div className="flex items-baseline gap-1 mt-1">
+                    <span className="text-sm font-extrabold text-color-danger font-mono">{avgHr}</span>
+                    <span className="text-[9px] text-text-muted">bpm</span>
+                  </div>
+                  <div className="text-[9px] text-text-muted mt-0.5">Max {maxHr}</div>
                 </div>
 
                 {/* Badge 3: Energy */}
-                <div style={{ display: "flex", alignItems: "center", gap: "6px", background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)", padding: "6px 12px", fontSize: "11px", boxShadow: "var(--shadow-sm)" }}>
-                  <Award size={13} className="text-emerald-500" />
-                  <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>ENERGY</span>
-                  <span style={{ fontWeight: 700, color: "var(--color-form)" }} className="font-mono text-xs">{activity.calories ?? 300} kcal</span>
+                <div className="flex flex-col justify-between bg-bg-surface/50 backdrop-blur-md border border-border-subtle/60 border-l-2 border-l-emerald-500 rounded-lg p-2.5 md:w-[125px] shadow-sm transition-all duration-150 hover:scale-[1.02]">
+                  <div className="flex items-center gap-1.5 text-[10px] text-text-muted font-bold uppercase">
+                    <Award size={12} className="text-emerald-500" />
+                    <span>Energy</span>
+                  </div>
+                  <div className="flex items-baseline gap-1 mt-1">
+                    <span className="text-sm font-extrabold text-color-form font-mono">{activity.calories ?? 300}</span>
+                    <span className="text-[9px] text-text-muted">kcal</span>
+                  </div>
+                  <div className="text-[9px] text-text-muted mt-0.5">—</div>
                 </div>
               </>
             )}
@@ -470,17 +536,9 @@ export default function ActivityDetailPage({ params }: Props) {
       </div>
 
 
-      {/* ─── Tabs Navigation Bar ──────────────────────────────────────────────── */}
+      {/* ─── Tabs Navigation Bar (Premium Scrolling Pill List) ───────────────── */}
       <div
-        style={{
-          borderBottom: "1px solid var(--border-subtle)",
-          background: "var(--bg-elevated)",
-          padding: "0 20px",
-          display: "flex",
-          alignItems: "center",
-          gap: "24px",
-          height: "44px",
-        }}
+        className="bg-bg-elevated/40 border-b border-border-subtle px-3 sm:px-5 py-2 flex items-center gap-2 overflow-x-auto whitespace-nowrap scrollbar-none relative z-10 shrink-0"
       >
         {(["TIMELINE", "POWER", "HR", "ROUTE", "DATA"] as const).map((tab) => {
           const isActive = activeTab === tab;
@@ -489,18 +547,13 @@ export default function ActivityDetailPage({ params }: Props) {
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
+              className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all duration-200 border shrink-0 cursor-pointer select-none ${
+                isActive
+                  ? "bg-bg-surface text-color-accent shadow-sm border-border-default"
+                  : "bg-transparent text-text-secondary border-transparent hover:text-text-primary"
+              }`}
               style={{
-                border: "none",
-                background: "none",
-                fontSize: "12.5px",
-                fontWeight: 700,
-                color: isActive ? "var(--color-accent)" : "var(--text-secondary)",
-                cursor: "pointer",
-                height: "100%",
-                padding: "0 4px",
-                position: "relative",
-                borderBottom: isActive ? "2.5px solid var(--color-accent)" : "none",
-                transition: "color 150ms ease",
+                boxShadow: isActive ? "0 2px 8px rgba(0, 0, 0, 0.15)" : "none",
               }}
             >
               {displayLabel}
@@ -512,7 +565,7 @@ export default function ActivityDetailPage({ params }: Props) {
       {/* ─── Two-Column Layout (Left: tab content, Right: Notes panel) ─────────── */}
       <div className="flex flex-col lg:flex-row flex-1">
         {/* Left Column: Tab contents */}
-        <div className="flex-1 min-w-[320px] p-5 flex flex-col gap-5">
+        <div className="flex-1 min-w-0 p-3 sm:p-5 flex flex-col gap-3 sm:gap-5">
           {activeTab === "TIMELINE" && (
             <>
               {/* Subjective Feedback Panel */}

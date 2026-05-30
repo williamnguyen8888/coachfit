@@ -39,7 +39,7 @@ export function SubjectiveFeedbackCard({ sport }: SubjectiveFeedbackCardProps) {
 
   return (
     <div 
-      className="bg-bg-surface border border-border-subtle rounded-xl p-5 shadow-lg flex flex-col gap-4"
+      className="bg-bg-surface border border-border-subtle rounded-lg sm:rounded-xl p-3.5 sm:p-5 shadow-sm sm:shadow-lg flex flex-col gap-4"
       style={{
         background: "linear-gradient(135deg, var(--bg-surface) 0%, rgba(124, 58, 237, 0.03) 100%)"
       }}
@@ -62,31 +62,22 @@ export function SubjectiveFeedbackCard({ sport }: SubjectiveFeedbackCardProps) {
           {/* Athlete Feel */}
           <div className="flex flex-col gap-2">
             <span className="text-[11px] font-bold text-text-muted uppercase">Athlete Feeling:</span>
-            <div className="flex gap-2">
+            <div className="flex gap-1.5 sm:gap-2">
               {FEEL_EMOJIS.map((f) => {
                 const isActive = selectedFeel === f.value;
                 return (
                   <button
                     key={f.value}
                     onClick={() => setSelectedFeel(f.value)}
+                    className="flex flex-col items-center gap-1 flex-1 cursor-pointer transition-all duration-150 rounded-md py-1.5 px-0.5 sm:py-2.5 sm:px-3 text-base sm:text-lg"
                     style={{
                       background: isActive ? "var(--bg-elevated)" : "transparent",
                       border: isActive ? `1.5px solid ${f.color}` : "1px solid var(--border-default)",
-                      borderRadius: "var(--radius-md)",
-                      padding: "8px 12px",
-                      fontSize: "18px",
-                      cursor: "pointer",
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      gap: "4px",
-                      flex: 1,
-                      transition: "all 150ms ease",
                     }}
                     title={f.label}
                   >
                     <span>{f.emoji}</span>
-                    <span style={{ fontSize: "9px", fontWeight: 600, color: "var(--text-secondary)" }}>
+                    <span className="text-[8px] sm:text-[9px] font-semibold text-[var(--text-secondary)]">
                       {f.label}
                     </span>
                   </button>

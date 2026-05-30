@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   BarChart,
   Bar,
@@ -255,14 +255,27 @@ export function ActivityHrTab({
     });
   }, [points, maxHr, hasHR]);
 
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return (
+      <div className="h-[300px] bg-bg-surface border border-border-subtle rounded-lg flex items-center justify-center">
+        <span className="text-xs text-text-muted animate-pulse">Loading heart rate analytics...</span>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col gap-6 bg-bg-elevated border border-border-subtle rounded-xl p-5 shadow-lg select-none">
+    <div className="flex flex-col gap-4 sm:gap-6 bg-bg-elevated border border-border-subtle rounded-lg sm:rounded-xl p-3 sm:p-5 shadow-sm sm:shadow-lg select-none">
       
       {/* Grid containing heart rate tables and charts */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-12 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-12 gap-4 sm:gap-5">
         
         {/* Column 1: Zones Table */}
-        <div className="xl:col-span-4 bg-bg-surface border border-border-subtle rounded-lg p-4 flex flex-col gap-3">
+        <div className="xl:col-span-4 bg-bg-surface border border-border-subtle rounded-lg p-3 sm:p-4 flex flex-col gap-3">
           <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Heart Rate Training Zones</span>
           <div className="flex flex-col gap-2.5">
             {[1, 2, 3, 4, 5, 6, 7].map((zNum) => {
@@ -306,10 +319,10 @@ export function ActivityHrTab({
         </div>
 
         {/* Column 2: HR Histogram Chart */}
-        <div className="xl:col-span-4 bg-bg-surface border border-border-subtle rounded-lg p-4 flex flex-col gap-2 min-h-[250px]">
+        <div className="xl:col-span-4 bg-bg-surface border border-border-subtle rounded-lg p-3 sm:p-4 flex flex-col gap-2 min-h-[250px]">
           <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider">HR Distribution</span>
           <div className="flex-1 w-full min-h-[180px] mt-2">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
               <BarChart data={histogramBuckets} margin={{ top: 10, right: 5, left: -25, bottom: -5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" vertical={false} />
                 <XAxis dataKey="label" tick={{ fill: "var(--text-muted)", fontSize: 9.5 }} axisLine={{ stroke: "var(--border-subtle)" }} tickLine={false} />
@@ -325,10 +338,10 @@ export function ActivityHrTab({
         </div>
 
         {/* Column 3: HR Duration Curve */}
-        <div className="xl:col-span-4 bg-bg-surface border border-border-subtle rounded-lg p-4 flex flex-col gap-2 min-h-[250px]">
+        <div className="xl:col-span-4 bg-bg-surface border border-border-subtle rounded-lg p-3 sm:p-4 flex flex-col gap-2 min-h-[250px]">
           <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Peak HR Curves</span>
           <div className="flex-1 w-full min-h-[180px] mt-2">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
               <AreaChart data={hrCurve} margin={{ top: 10, right: 5, left: -25, bottom: -5 }}>
                 <defs>
                   <linearGradient id="hrCurveGrad" x1="0" y1="0" x2="0" y2="1">
@@ -351,13 +364,13 @@ export function ActivityHrTab({
       </div>
 
       {/* Row containing Cumulative Time and Training load info */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5">
         
         {/* Cumulative Time spent above specific Heart Rates */}
-        <div className="bg-bg-surface border border-border-subtle rounded-lg p-4 flex flex-col gap-2 min-h-[260px]">
+        <div className="bg-bg-surface border border-border-subtle rounded-lg p-3 sm:p-4 flex flex-col gap-2 min-h-[260px]">
           <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Cumulative Time</span>
           <div className="flex-1 w-full min-h-[180px] mt-2">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
               <AreaChart data={cumulativePoints} margin={{ top: 10, right: 5, left: -25, bottom: -5 }}>
                 <defs>
                   <linearGradient id="hrCumGrad" x1="0" y1="0" x2="0" y2="1">
@@ -389,7 +402,7 @@ export function ActivityHrTab({
         </div>
 
         {/* Training Load Estimates details card */}
-        <div className="bg-bg-surface border border-border-subtle rounded-lg p-5 flex flex-col justify-between gap-4">
+        <div className="bg-bg-surface border border-border-subtle rounded-lg p-3 sm:p-5 flex flex-col justify-between gap-4">
           <div className="flex flex-col gap-2">
             <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Training Load Estimates</span>
             <p className="text-xs text-text-secondary leading-relaxed mt-1">

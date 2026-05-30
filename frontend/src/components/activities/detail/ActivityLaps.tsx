@@ -71,13 +71,7 @@ export function ActivityLaps({ laps, sport, selectedRange, onSelectLapRange }: A
   return (
     <Card noPadding>
       <div
-        style={{
-          padding: "var(--space-5) var(--space-5) var(--space-4)",
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          borderBottom: "1px solid var(--border-subtle)",
-        }}
+        className="px-3 py-3 sm:px-5 sm:pt-5 sm:pb-4 flex items-center gap-2 border-b border-border-subtle"
       >
         <Flag size={16} style={{ color: "var(--color-accent)" }} />
         <h2 style={{ fontSize: "var(--text-lg)", fontWeight: 600, color: "var(--text-primary)", margin: 0 }}>
@@ -94,19 +88,14 @@ export function ActivityLaps({ laps, sport, selectedRange, onSelectLapRange }: A
           aria-label="Laps breakdown"
         >
           <thead>
-            <tr style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+            <tr className="border-b border-border-subtle">
               {["Lap", "Duration", "Dist", "Avg HR", "Avg Pwr", (sport === "running" || sport === "swimming") ? "Pace" : "Speed"].map((h) => (
                 <th
                   key={h}
+                  className="px-2.5 py-2 sm:px-4 sm:py-3 text-[10px] sm:text-xs font-medium uppercase tracking-wider white-space-nowrap"
                   style={{
-                    padding: "10px 16px",
                     textAlign: h === "Lap" ? "left" : "right",
                     color: "var(--text-muted)",
-                    fontSize: "var(--text-xs)",
-                    fontWeight: 500,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.06em",
-                    whiteSpace: "nowrap",
                   }}
                 >
                   {h}
@@ -146,7 +135,7 @@ export function ActivityLaps({ laps, sport, selectedRange, onSelectLapRange }: A
                     if (!isSelected) (e.currentTarget as HTMLTableRowElement).style.background = "transparent";
                   }}
                 >
-                  <td style={{ padding: "12px 16px", textAlign: "left" }}>
+                  <td className="px-2.5 py-2 sm:px-4 sm:py-3 text-left">
                     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                       <span className="font-metric tabular-nums" style={{ color: "var(--text-primary)", fontWeight: 600 }}>
                         {(lap.lapIndex ?? idx) + 1}
@@ -163,17 +152,17 @@ export function ActivityLaps({ laps, sport, selectedRange, onSelectLapRange }: A
                       </div>
                     </div>
                   </td>
-                  <td style={{ padding: "12px 16px", textAlign: "right" }}>
+                  <td className="px-2.5 py-2 sm:px-4 sm:py-3 text-right">
                     <span className="tabular-nums" style={{ color: "var(--text-primary)", fontWeight: 500 }}>
                       {formatDuration(lap.durationSeconds)}
                     </span>
                   </td>
-                  <td style={{ padding: "12px 16px", textAlign: "right" }}>
+                  <td className="px-2.5 py-2 sm:px-4 sm:py-3 text-right">
                     <span className="tabular-nums" style={{ color: "var(--text-primary)" }}>
                       {lap.distanceMeters ? formatDistance(lap.distanceMeters) : "—"}
                     </span>
                   </td>
-                  <td style={{ padding: "12px 16px", textAlign: "right" }}>
+                  <td className="px-2.5 py-2 sm:px-4 sm:py-3 text-right">
                     <span
                       className="tabular-nums"
                       style={{ color: lap.avgHeartRate ? "#F87171" : "var(--text-muted)", fontWeight: lap.avgHeartRate ? 500 : 400 }}
@@ -181,7 +170,7 @@ export function ActivityLaps({ laps, sport, selectedRange, onSelectLapRange }: A
                       {lap.avgHeartRate ? `${lap.avgHeartRate} bpm` : "—"}
                     </span>
                   </td>
-                  <td style={{ padding: "12px 16px", textAlign: "right" }}>
+                  <td className="px-2.5 py-2 sm:px-4 sm:py-3 text-right">
                     <span
                       className="tabular-nums"
                       style={{ color: lap.avgPower ? "var(--color-accent)" : "var(--text-muted)", fontWeight: lap.avgPower ? 500 : 400 }}
@@ -189,7 +178,7 @@ export function ActivityLaps({ laps, sport, selectedRange, onSelectLapRange }: A
                       {lap.avgPower ? `${lap.avgPower} W` : "—"}
                     </span>
                   </td>
-                  <td style={{ padding: "12px 16px", textAlign: "right" }}>
+                  <td className="px-2.5 py-2 sm:px-4 sm:py-3 text-right">
                     <span className="tabular-nums" style={{ color: "var(--text-secondary)" }}>
                       {sport === "running"
                         ? (lap.avgSpeed ? `${formatSpeedToPace(lap.avgSpeed, "run")} /km` : "—")

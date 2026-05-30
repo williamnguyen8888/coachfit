@@ -118,13 +118,7 @@ export function ActivityMetrics({ activity }: ActivityMetricsProps) {
   return (
     <Card noPadding>
       <div
-        style={{
-          padding: "var(--space-5) var(--space-5) var(--space-4)",
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          borderBottom: "1px solid var(--border-subtle)",
-        }}
+        className="px-3 py-3 sm:px-5 sm:pt-5 sm:pb-4 flex items-center gap-2 border-b border-border-subtle"
       >
         <BarChart2 size={16} style={{ color: "var(--color-accent)" }} />
         <h2 style={{ fontSize: "var(--text-lg)", fontWeight: 600, color: "var(--text-primary)", margin: 0 }}>
@@ -132,7 +126,7 @@ export function ActivityMetrics({ activity }: ActivityMetricsProps) {
         </h2>
       </div>
 
-      <div style={{ padding: "0 var(--space-5) var(--space-5)" }}>
+      <div className="px-3 pb-3 sm:px-5 sm:pb-5">
         <SectionLabel>Time</SectionLabel>
         <MetricRow label="Total Time" value={fmtSeconds(durationSeconds)} />
         <MetricRow
