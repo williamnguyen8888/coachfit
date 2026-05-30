@@ -61,4 +61,28 @@ export const calendarService = {
    */
   reorder: (eventIds: string[]): Promise<void> =>
     api.post<void>("/calendar/reorder", { eventIds }),
+
+  /**
+   * POST /calendar/{id}/sync-garmin
+   * Push a workout calendar event to the user's Garmin Connect calendar.
+   * Requires: event must have a workout, user must have Garmin connected.
+   * Returns garminWorkoutId + garminScheduledId from the Garmin Training API.
+   */
+  syncToGarmin: (id: string): Promise<GarminSyncResult> =>
+    api.post<GarminSyncResult>(`/calendar/${id}/sync-garmin`),
+
+  /**
+   * DELETE /calendar/{id}/sync-garmin
+   * Remove a previously synced workout from the user's Garmin Connect calendar.
+   * No-op if the event was never synced.
+   */
+  removeFromGarmin: (id: string): Promise<void> =>
+    api.delete<void>(`/calendar/${id}/sync-garmin`),
 };
+
+/** Response from POST /calendar/{id}/sync-garmin */
+export interface GarminSyncResult {
+  garminWorkoutId: string;
+  garminScheduledId: string;
+  scheduledDate: string; // ISO date: "YYYY-MM-DD"
+}

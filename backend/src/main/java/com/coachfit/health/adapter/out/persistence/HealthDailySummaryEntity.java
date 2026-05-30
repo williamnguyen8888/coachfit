@@ -72,22 +72,18 @@ class HealthDailySummaryEntity {
     @Column(name = "body_battery_low")
     Integer bodyBatteryLow;
 
-    @Column(name = "avg_spo2", precision = 4, scale = 1)
-    BigDecimal avgSpo2;
-
-    @Column(name = "avg_respiration", precision = 4, scale = 1)
-    BigDecimal avgRespiration;
-
-    @Column(name = "vo2max", precision = 4, scale = 1)
-    BigDecimal vo2max;
-
+    @Column(name = "avg_spo2")         BigDecimal avgSpo2;
+    @Column(name = "avg_respiration")  BigDecimal avgRespiration;
+    @Column(name = "vo2max")           BigDecimal vo2max;
+    @Column(name = "weight_kg")        BigDecimal weightKg;
+    @Column(name = "body_fat_pct")     BigDecimal bodyFatPct;
+    @Column(name = "muscle_mass_kg")   BigDecimal muscleMassKg;
+    @Column(name = "bone_mass_kg")     BigDecimal boneMassKg;
+    @Column(name = "bmi")              BigDecimal bmi;
     @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "extra", nullable = false, columnDefinition = "jsonb")
-    String extra;
-
+    @Column(name = "extra",            columnDefinition = "jsonb") String extra;
     @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "raw_payload", columnDefinition = "jsonb")
-    String rawPayload;
+    @Column(name = "raw_payload",      columnDefinition = "jsonb") String rawPayload;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     Instant createdAt;

@@ -117,6 +117,40 @@ public interface SyncGarminWebhookUseCase {
     void handleUserMetrics(GarminPushPayload<List<Map<String, Object>>> payload);
 
     /**
+     * Handles Garmin epoch (intraday 15-minute) summaries push.
+     *
+     * <p>Payload key: {@code epochs} — array of 15-minute summary objects.
+     * Processing: upsert into {@code health_epoch_summaries}. Useful for intraday
+     * activity timeline visualization and pattern analysis.
+     */
+    void handleEpochs(GarminPushPayload<List<Map<String, Object>>> payload);
+
+    /**
+     * Handles Garmin blood pressure push.
+     *
+     * <p>Payload key: {@code bloodPressures} — array of blood pressure readings.
+     * Processing: store systolic, diastolic, pulse into {@code health_daily_summaries.extra}.
+     * Only available on Garmin devices with blood pressure sensors.
+     */
+    void handleBloodPressure(GarminPushPayload<List<Map<String, Object>>> payload);
+
+    /**
+     * Handles Garmin menstrual cycle data push.
+     *
+     * <p>Payload key: {@code menstrualCycle} — menstrual cycle tracking data.
+     * Processing: store cycle phase, day, predictions in {@code health_daily_summaries.extra}.
+     */
+    void handleMenstrualCycle(GarminPushPayload<List<Map<String, Object>>> payload);
+
+    /**
+     * Handles Garmin pregnancy tracking data push.
+     *
+     * <p>Payload key: {@code pregnancy} — pregnancy tracking data.
+     * Processing: store weeks pregnant, due date in {@code health_daily_summaries.extra}.
+     */
+    void handlePregnancy(GarminPushPayload<List<Map<String, Object>>> payload);
+
+    /**
      * Handles Garmin deregistration callback — user unlinked CoachFit from Garmin Connect.
      *
      * <p>Processing: set {@code oauth_connections.sync_status = 'revoked'} for the user,

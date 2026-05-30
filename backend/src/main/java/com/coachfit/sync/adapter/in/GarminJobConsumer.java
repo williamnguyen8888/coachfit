@@ -206,14 +206,18 @@ public class GarminJobConsumer {
 
     private void dispatch(UUID userId, UUID logId, String type, String payload) {
         switch (type) {
-            case GarminWebhookService.JOB_DAILIES      -> healthService.processDailies(userId, logId, payload);
-            case GarminWebhookService.JOB_SLEEP        -> healthService.processSleep(userId, logId, payload);
-            case GarminWebhookService.JOB_BODY         -> healthService.processBodyComposition(userId, logId, payload);
-            case GarminWebhookService.JOB_STRESS       -> healthService.processStress(userId, logId, payload);
-            case GarminWebhookService.JOB_HRV          -> healthService.processHrv(userId, logId, payload);
-            case GarminWebhookService.JOB_PULSEOX      -> healthService.processPulseOx(userId, logId, payload);
-            case GarminWebhookService.JOB_RESPIRATION  -> healthService.processRespiration(userId, logId, payload);
-            case GarminWebhookService.JOB_USER_METRICS -> healthService.processUserMetrics(userId, logId, payload);
+            case GarminWebhookService.JOB_DAILIES          -> healthService.processDailies(userId, logId, payload);
+            case GarminWebhookService.JOB_SLEEP            -> healthService.processSleep(userId, logId, payload);
+            case GarminWebhookService.JOB_BODY             -> healthService.processBodyComposition(userId, logId, payload);
+            case GarminWebhookService.JOB_STRESS           -> healthService.processStress(userId, logId, payload);
+            case GarminWebhookService.JOB_HRV              -> healthService.processHrv(userId, logId, payload);
+            case GarminWebhookService.JOB_PULSEOX          -> healthService.processPulseOx(userId, logId, payload);
+            case GarminWebhookService.JOB_RESPIRATION      -> healthService.processRespiration(userId, logId, payload);
+            case GarminWebhookService.JOB_USER_METRICS     -> healthService.processUserMetrics(userId, logId, payload);
+            case GarminWebhookService.JOB_EPOCHS           -> healthService.processEpochs(userId, logId, payload);
+            case GarminWebhookService.JOB_BLOOD_PRESSURE   -> healthService.processBloodPressure(userId, logId, payload);
+            case GarminWebhookService.JOB_MENSTRUAL_CYCLE  -> healthService.processMenstrualCycle(userId, logId, payload);
+            case GarminWebhookService.JOB_PREGNANCY        -> healthService.processPregnancy(userId, logId, payload);
             case GarminWebhookService.JOB_ACTIVITY         -> activityService.processActivity(userId, logId, payload);
             case GarminWebhookService.JOB_ACTIVITY_DETAILS -> activityService.processActivityDetails(userId, logId, payload);
             default -> {

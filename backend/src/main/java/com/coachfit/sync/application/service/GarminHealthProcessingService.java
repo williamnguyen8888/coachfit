@@ -2,6 +2,7 @@ package com.coachfit.sync.application.service;
 
 import com.coachfit.health.application.port.out.HealthDailySummaryPersistencePort;
 import com.coachfit.health.application.port.out.HealthDailySummaryPersistencePort.DailySummaryData;
+import com.coachfit.health.application.port.out.HealthEpochSummaryPersistencePort;
 import com.coachfit.health.application.port.out.HealthSleepDataPersistencePort;
 import com.coachfit.health.application.port.out.HealthSleepDataPersistencePort.SleepData;
 import com.coachfit.sync.application.port.out.SyncLogPersistencePort;
@@ -12,6 +13,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -56,20 +58,26 @@ public class GarminHealthProcessingService {
 
     private final HealthDailySummaryPersistencePort dailySummaryPort;
     private final HealthSleepDataPersistencePort    sleepDataPort;
+    private final HealthEpochSummaryPersistencePort epochSummaryPort;
     private final WellnessLogPersistencePort        wellnessPort;
     private final SyncLogPersistencePort            syncLogPort;
     private final ObjectMapper                      objectMapper;
+    private final JdbcClient                        jdbcClient;
 
     public GarminHealthProcessingService(HealthDailySummaryPersistencePort dailySummaryPort,
                                          HealthSleepDataPersistencePort sleepDataPort,
+                                         HealthEpochSummaryPersistencePort epochSummaryPort,
                                          WellnessLogPersistencePort wellnessPort,
                                          SyncLogPersistencePort syncLogPort,
-                                         ObjectMapper objectMapper) {
+                                         ObjectMapper objectMapper,
+                                         JdbcClient jdbcClient) {
         this.dailySummaryPort = dailySummaryPort;
         this.sleepDataPort    = sleepDataPort;
+        this.epochSummaryPort = epochSummaryPort;
         this.wellnessPort     = wellnessPort;
         this.syncLogPort      = syncLogPort;
         this.objectMapper     = objectMapper;
+        this.jdbcClient       = jdbcClient;
     }
 
     // ── Daily summary (dailies push) ──────────────────────────────────────────
@@ -304,18 +312,28 @@ public class GarminHealthProcessingService {
             Integer weightGrams = getInt(d, "weightInGrams");
             BigDecimal weightKg = weightGrams != null
                     ? BigDecimal.valueOf(weightGrams / 1000.0).setScale(2, RoundingMode.HALF_UP) : null;
-            Double bmi  = getDouble(d, "bodyMassIndex");
-            Double fat  = getDouble(d, "bodyFatPercentage");
 
-            // Body composition extra JSONB includes weight_kg, bmi, body_fat_pct
-            String extraJson = buildBodyExtra(weightKg, bmi, fat, d);
+            Double bmiRaw      = getDouble(d, "bodyMassIndex");
+            Double fatRaw      = getDouble(d, "bodyFatPercentage");
+            Double muscleMassRaw = getDouble(d, "muscleMassInGrams");
+            Double boneMassRaw   = getDouble(d, "boneMassInGrams");
 
-            // Upsert daily summary — body comp fields go into extra + raw_payload
-            // (no dedicated column for weight/bmi/fat in health_daily_summaries)
+            BigDecimal bmi        = bmiRaw       != null ? BigDecimal.valueOf(bmiRaw).setScale(1, RoundingMode.HALF_UP) : null;
+            BigDecimal bodyFatPct = fatRaw        != null ? BigDecimal.valueOf(fatRaw).setScale(1, RoundingMode.HALF_UP) : null;
+            BigDecimal muscleKg   = muscleMassRaw != null ? BigDecimal.valueOf(muscleMassRaw / 1000.0).setScale(2, RoundingMode.HALF_UP) : null;
+            BigDecimal boneKg     = boneMassRaw   != null ? BigDecimal.valueOf(boneMassRaw / 1000.0).setScale(2, RoundingMode.HALF_UP) : null;
+
+            // Extra: any remaining provider-specific fields
+            String extraJson = buildExtra(d, "userAccessToken", "measurementTimeInSeconds",
+                    "weightInGrams", "bodyMassIndex", "bodyFatPercentage",
+                    "muscleMassInGrams", "boneMassInGrams");
+
+            // Upsert daily summary — now uses dedicated body composition columns
             dailySummaryPort.upsert(userId, date, PROVIDER, new DailySummaryData(
                     null, null, null, null, null, null, null,
                     null, null, null, null, null, null, null,
                     null, null, null,
+                    weightKg, bodyFatPct, muscleKg, boneKg, bmi,
                     extraJson, payload
             ));
 
@@ -329,7 +347,8 @@ public class GarminHealthProcessingService {
             }
 
             syncLogPort.complete(logId, "success", null, null);
-            log.info("Garmin body composition processed: userId={} date={} weightKg={}", userId, date, weightKg);
+            log.info("Garmin body composition processed: userId={} date={} weightKg={} fat={}% bmi={}",
+                    userId, date, weightKg, bodyFatPct, bmi);
 
         } catch (Exception e) {
             log.error("Garmin body composition failed: userId={} logId={} error={}", userId, logId, e.getMessage(), e);
@@ -337,6 +356,7 @@ public class GarminHealthProcessingService {
             throw e;
         }
     }
+
 
     // ── Stress ────────────────────────────────────────────────────────────────
 
@@ -816,6 +836,246 @@ public class GarminHealthProcessingService {
     /** Converts a nullable seconds value to whole minutes (floor). Returns null if input is null. */
     private static Integer toMinutes(Integer seconds) {
         return seconds != null ? seconds / 60 : null;
+    }
+
+    // ── Epoch (intraday 15-min) processing ────────────────────────────────────
+
+    /**
+     * Processes a {@code garmin_epochs} job.
+     *
+     * <p>Garmin epoch payload fields:
+     * <ul>
+     *   <li>{@code startTimeInSeconds} — epoch start (UTC unix seconds)</li>
+     *   <li>{@code durationInSeconds}  — typically 900</li>
+     *   <li>{@code steps}              — step count in this epoch</li>
+     *   <li>{@code activeKilocalories} — kcal burned</li>
+     *   <li>{@code met}                — metabolic equivalent</li>
+     *   <li>{@code intensity}          — SEDENTARY / ACTIVE / HIGHLY_ACTIVE / etc.</li>
+     *   <li>{@code movingDurationInSeconds} — seconds actively moving</li>
+     *   <li>{@code distance}           — meters</li>
+     * </ul>
+     */
+    @Transactional
+    public void processEpochs(UUID userId, UUID logId, String payloadJson) {
+        Map<String, Object> data = parsePayload(payloadJson);
+        if (data == null) { syncLogPort.complete(logId, "skipped", null, "null payload"); return; }
+
+        try {
+            long epochStartSecs = getLong(data, "startTimeInSeconds");
+            Instant epochStart  = Instant.ofEpochSecond(epochStartSecs);
+            LocalDate date      = epochStart.atOffset(ZoneOffset.UTC).toLocalDate();
+
+            // Normalise Garmin intensity string to lowercase
+            String garminIntensity = getString(data, "intensity");
+            String intensity = garminIntensity != null ? garminIntensity.toLowerCase() : null;
+
+            // Collect extra fields not in common columns
+            Map<String, Object> extra = new java.util.LinkedHashMap<>();
+            Object speedMetersPerSec = data.get("speedMetersPerSecond");
+            if (speedMetersPerSec != null) extra.put("speed_m_s", speedMetersPerSec);
+            Object strenuousActivityMinutes = data.get("strenuousActivityMinutes");
+            if (strenuousActivityMinutes != null) extra.put("strenuous_activity_min", strenuousActivityMinutes);
+
+            var epochData = new com.coachfit.health.application.port.out.HealthEpochSummaryPersistencePort.EpochData(
+                    getInteger(data, "durationInSeconds"),
+                    getInteger(data, "steps"),
+                    getInteger(data, "activeKilocalories"),
+                    getBigDecimal(data, "met"),
+                    intensity,
+                    getInteger(data, "movingDurationInSeconds"),
+                    getBigDecimal(data, "distance"),
+                    extra.isEmpty() ? null : toJson(extra),
+                    payloadJson
+            );
+
+            epochSummaryPort.upsert(userId, date, epochStart, PROVIDER, epochData);
+            syncLogPort.complete(logId, "completed", null, null);
+            log.debug("Garmin epoch upserted: userId={} epochStart={}", userId, epochStart);
+        } catch (Exception e) {
+            syncLogPort.complete(logId, "failed", null, e.getMessage());
+            throw new RuntimeException("processEpochs failed: " + e.getMessage(), e);
+        }
+    }
+
+    // ── Blood Pressure processing ─────────────────────────────────────────────
+
+    /**
+     * Processes a {@code garmin_blood_pressure} job.
+     *
+     * <p>Stores readings in {@code health_daily_summaries.extra} under key
+     * {@code blood_pressure_readings}. Only devices with BP sensors push this type.
+     *
+     * <p>Garmin payload fields:
+     * <ul>
+     *   <li>{@code startTimeInSeconds} — reading timestamp</li>
+     *   <li>{@code systolic}           — systolic mmHg</li>
+     *   <li>{@code diastolic}          — diastolic mmHg</li>
+     *   <li>{@code pulse}              — pulse bpm at time of reading</li>
+     * </ul>
+     */
+    @Transactional
+    public void processBloodPressure(UUID userId, UUID logId, String payloadJson) {
+        Map<String, Object> data = parsePayload(payloadJson);
+        if (data == null) { syncLogPort.complete(logId, "skipped", null, "null payload"); return; }
+
+        try {
+            long startSecs = getLong(data, "startTimeInSeconds");
+            LocalDate date = Instant.ofEpochSecond(startSecs).atOffset(ZoneOffset.UTC).toLocalDate();
+
+            // Build a structured reading for storage in extra JSONB
+            Map<String, Object> reading = new java.util.LinkedHashMap<>();
+            reading.put("timestamp_epoch", startSecs);
+            reading.put("systolic",  getInteger(data, "systolic"));
+            reading.put("diastolic", getInteger(data, "diastolic"));
+            reading.put("pulse",     getInteger(data, "pulse"));
+            reading.put("measurement_time_local", getString(data, "measurementTimeLocal"));
+
+            // Merge into health_daily_summaries.extra using a JSON array
+            // Strategy: append to existing array or create new one
+            String extraJson = toJson(Map.of("blood_pressure_readings", List.of(reading)));
+
+            // Upsert daily summary with partial extra — merge via jsonb concat in SQL
+            jdbcClient.sql("""
+                    INSERT INTO health_daily_summaries
+                        (id, user_id, date, source, extra, raw_payload, created_at)
+                    VALUES
+                        (gen_random_uuid(), :userId, :date, 'garmin',
+                         :extra::jsonb, :raw::jsonb, now())
+                    ON CONFLICT (user_id, source, date) DO UPDATE SET
+                        extra       = health_daily_summaries.extra || EXCLUDED.extra,
+                        raw_payload = EXCLUDED.raw_payload
+                    """)
+                    .param("userId", userId)
+                    .param("date",   date)
+                    .param("extra",  extraJson)
+                    .param("raw",    payloadJson)
+                    .update();
+
+            syncLogPort.complete(logId, "completed", null, null);
+            log.debug("Garmin blood pressure stored: userId={} date={}", userId, date);
+        } catch (Exception e) {
+            syncLogPort.complete(logId, "failed", null, e.getMessage());
+            throw new RuntimeException("processBloodPressure failed: " + e.getMessage(), e);
+        }
+    }
+
+    // ── Women's Health processing ──────────────────────────────────────────────
+
+    /**
+     * Processes a {@code garmin_menstrual_cycle} job.
+     *
+     * <p>Stores cycle phase data in {@code health_daily_summaries.extra} under key
+     * {@code menstrual_cycle}. Used for cycle-aware training plan adjustments.
+     *
+     * <p>Garmin payload fields:
+     * <ul>
+     *   <li>{@code calendarDate}    — date string (YYYY-MM-DD)</li>
+     *   <li>{@code cycleDay}        — day within current cycle</li>
+     *   <li>{@code phase}           — current phase (MENSTRUAL/FOLLICULAR/OVULATORY/LUTEAL)</li>
+     *   <li>{@code predictedPhase}  — predicted phase if actual unknown</li>
+     * </ul>
+     */
+    @Transactional
+    public void processMenstrualCycle(UUID userId, UUID logId, String payloadJson) {
+        Map<String, Object> data = parsePayload(payloadJson);
+        if (data == null) { syncLogPort.complete(logId, "skipped", null, "null payload"); return; }
+
+        try {
+            String calendarDateStr = getString(data, "calendarDate");
+            LocalDate date = calendarDateStr != null
+                    ? LocalDate.parse(calendarDateStr)
+                    : LocalDate.now(ZoneOffset.UTC);
+
+            Map<String, Object> cycleData = new java.util.LinkedHashMap<>();
+            cycleData.put("cycle_day",       getInteger(data, "cycleDay"));
+            cycleData.put("phase",           normalizeToLower(getString(data, "phase")));
+            cycleData.put("predicted_phase", normalizeToLower(getString(data, "predictedPhase")));
+
+            String extraJson = toJson(Map.of("menstrual_cycle", cycleData));
+
+            jdbcClient.sql("""
+                    INSERT INTO health_daily_summaries
+                        (id, user_id, date, source, extra, raw_payload, created_at)
+                    VALUES
+                        (gen_random_uuid(), :userId, :date, 'garmin',
+                         :extra::jsonb, :raw::jsonb, now())
+                    ON CONFLICT (user_id, source, date) DO UPDATE SET
+                        extra       = health_daily_summaries.extra || EXCLUDED.extra,
+                        raw_payload = EXCLUDED.raw_payload
+                    """)
+                    .param("userId", userId)
+                    .param("date",   date)
+                    .param("extra",  extraJson)
+                    .param("raw",    payloadJson)
+                    .update();
+
+            syncLogPort.complete(logId, "completed", null, null);
+            log.debug("Garmin menstrual cycle stored: userId={} date={}", userId, date);
+        } catch (Exception e) {
+            syncLogPort.complete(logId, "failed", null, e.getMessage());
+            throw new RuntimeException("processMenstrualCycle failed: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Processes a {@code garmin_pregnancy} job.
+     *
+     * <p>Stores pregnancy data in {@code health_daily_summaries.extra} under key
+     * {@code pregnancy}.
+     *
+     * <p>Garmin payload fields:
+     * <ul>
+     *   <li>{@code weeksPregnant} — weeks of gestation</li>
+     *   <li>{@code dueDate}       — expected due date (YYYY-MM-DD)</li>
+     * </ul>
+     */
+    @Transactional
+    public void processPregnancy(UUID userId, UUID logId, String payloadJson) {
+        Map<String, Object> data = parsePayload(payloadJson);
+        if (data == null) { syncLogPort.complete(logId, "skipped", null, "null payload"); return; }
+
+        try {
+            LocalDate date = LocalDate.now(ZoneOffset.UTC);
+
+            Map<String, Object> pregnancyData = new java.util.LinkedHashMap<>();
+            pregnancyData.put("weeks_pregnant", getInteger(data, "weeksPregnant"));
+            pregnancyData.put("due_date",       getString(data, "dueDate"));
+
+            String extraJson = toJson(Map.of("pregnancy", pregnancyData));
+
+            jdbcClient.sql("""
+                    INSERT INTO health_daily_summaries
+                        (id, user_id, date, source, extra, raw_payload, created_at)
+                    VALUES
+                        (gen_random_uuid(), :userId, :date, 'garmin',
+                         :extra::jsonb, :raw::jsonb, now())
+                    ON CONFLICT (user_id, source, date) DO UPDATE SET
+                        extra       = health_daily_summaries.extra || EXCLUDED.extra,
+                        raw_payload = EXCLUDED.raw_payload
+                    """)
+                    .param("userId", userId)
+                    .param("date",   date)
+                    .param("extra",  extraJson)
+                    .param("raw",    payloadJson)
+                    .update();
+
+            syncLogPort.complete(logId, "completed", null, null);
+            log.debug("Garmin pregnancy data stored: userId={}", userId);
+        } catch (Exception e) {
+            syncLogPort.complete(logId, "failed", null, e.getMessage());
+            throw new RuntimeException("processPregnancy failed: " + e.getMessage(), e);
+        }
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    private static String normalizeToLower(String value) {
+        return value != null ? value.toLowerCase() : null;
+    }
+
+    private String toJson(Object obj) {
+        try { return objectMapper.writeValueAsString(obj); }
+        catch (JsonProcessingException e) { return "{}"; }
     }
 }
 

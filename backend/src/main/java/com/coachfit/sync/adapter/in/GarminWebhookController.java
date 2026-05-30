@@ -6,6 +6,7 @@ import com.coachfit.sync.application.port.in.SyncGarminWebhookUseCase.GarminPush
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -51,10 +52,13 @@ class GarminWebhookController {
 
     private static final Logger log = LoggerFactory.getLogger(GarminWebhookController.class);
 
-    private final SyncGarminWebhookUseCase webhookUseCase;
+    private final SyncGarminWebhookUseCase  webhookUseCase;
+    private final GarminSignatureVerifier   signatureVerifier;
 
-    GarminWebhookController(SyncGarminWebhookUseCase webhookUseCase) {
-        this.webhookUseCase = webhookUseCase;
+    GarminWebhookController(SyncGarminWebhookUseCase webhookUseCase,
+                             GarminSignatureVerifier signatureVerifier) {
+        this.webhookUseCase     = webhookUseCase;
+        this.signatureVerifier  = signatureVerifier;
     }
 
     // ── POST /webhooks/garmin/dailies ─────────────────────────────────────────
@@ -299,6 +303,101 @@ class GarminWebhookController {
         return ResponseEntity.ok().build();
     }
 
+    // ── POST /webhooks/garmin/epochs ──────────────────────────────────────────
+
+    /**
+     * Receives Garmin epoch (intraday 15-minute) summaries push.
+     *
+     * <p>Garmin payload shape:
+     * {@code { "epochs": [{ "userAccessToken": "...", "startTimeInSeconds": ...,
+     *   "durationInSeconds": 900, "steps": 312, "activeKilocalories": 28,
+     *   "met": 2.5, "intensity": "ACTIVE", ... }] }}
+     */
+    @PostMapping("/epochs")
+    ResponseEntity<Void> receiveEpochs(@RequestBody(required = false) EpochsDto body) {
+        if (body == null || body.epochs() == null) {
+            log.warn("Garmin /epochs received empty or null payload");
+            return ResponseEntity.ok().build();
+        }
+        for (Map<String, Object> epoch : body.epochs()) {
+            String userAccessToken = extractUserAccessToken(epoch);
+            webhookUseCase.handleEpochs(new GarminPushPayload<>(
+                    null, userAccessToken, List.of(epoch)));
+        }
+        return ResponseEntity.ok().build();
+    }
+
+    // ── POST /webhooks/garmin/blood-pressures ─────────────────────────────────
+
+    /**
+     * Receives Garmin blood pressure push.
+     *
+     * <p>Garmin payload shape:
+     * {@code { "bloodPressures": [{ "userAccessToken": "...", "startTimeInSeconds": ...,
+     *   "systolic": 120, "diastolic": 78, "pulse": 65 }] }}
+     *
+     * <p>Only available on Garmin devices with dedicated blood pressure sensors.
+     */
+    @PostMapping("/blood-pressures")
+    ResponseEntity<Void> receiveBloodPressure(@RequestBody(required = false) BloodPressureDto body) {
+        if (body == null || body.bloodPressures() == null) {
+            log.warn("Garmin /blood-pressures received empty or null payload");
+            return ResponseEntity.ok().build();
+        }
+        for (Map<String, Object> reading : body.bloodPressures()) {
+            String userAccessToken = extractUserAccessToken(reading);
+            webhookUseCase.handleBloodPressure(new GarminPushPayload<>(
+                    null, userAccessToken, List.of(reading)));
+        }
+        return ResponseEntity.ok().build();
+    }
+
+    // ── POST /webhooks/garmin/menstrual-cycles ────────────────────────────────
+
+    /**
+     * Receives Garmin menstrual cycle tracking data push.
+     *
+     * <p>Garmin payload shape:
+     * {@code { "menstrualCycles": [{ "userAccessToken": "...", "calendarDate": "...",
+     *   "cycleDay": 5, "phase": "MENSTRUAL", "predictedPhase": "FOLLICULAR" }] }}
+     */
+    @PostMapping("/menstrual-cycles")
+    ResponseEntity<Void> receiveMenstrualCycles(@RequestBody(required = false) MenstrualCycleDto body) {
+        if (body == null || body.menstrualCycles() == null) {
+            log.warn("Garmin /menstrual-cycles received empty or null payload");
+            return ResponseEntity.ok().build();
+        }
+        for (Map<String, Object> cycle : body.menstrualCycles()) {
+            String userAccessToken = extractUserAccessToken(cycle);
+            webhookUseCase.handleMenstrualCycle(new GarminPushPayload<>(
+                    null, userAccessToken, List.of(cycle)));
+        }
+        return ResponseEntity.ok().build();
+    }
+
+    // ── POST /webhooks/garmin/pregnancy ───────────────────────────────────────
+
+    /**
+     * Receives Garmin pregnancy tracking data push.
+     *
+     * <p>Garmin payload shape:
+     * {@code { "pregnancies": [{ "userAccessToken": "...",
+     *   "weeksPregnant": 12, "dueDate": "2025-09-01" }] }}
+     */
+    @PostMapping("/pregnancy")
+    ResponseEntity<Void> receivePregnancy(@RequestBody(required = false) PregnancyDto body) {
+        if (body == null || body.pregnancies() == null) {
+            log.warn("Garmin /pregnancy received empty or null payload");
+            return ResponseEntity.ok().build();
+        }
+        for (Map<String, Object> pregnancy : body.pregnancies()) {
+            String userAccessToken = extractUserAccessToken(pregnancy);
+            webhookUseCase.handlePregnancy(new GarminPushPayload<>(
+                    null, userAccessToken, List.of(pregnancy)));
+        }
+        return ResponseEntity.ok().build();
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     /**
@@ -354,6 +453,22 @@ class GarminWebhookController {
 
     record UserMetricsDto(
             List<Map<String, Object>> userMetrics
+    ) {}
+
+    record EpochsDto(
+            List<Map<String, Object>> epochs
+    ) {}
+
+    record BloodPressureDto(
+            List<Map<String, Object>> bloodPressures
+    ) {}
+
+    record MenstrualCycleDto(
+            List<Map<String, Object>> menstrualCycles
+    ) {}
+
+    record PregnancyDto(
+            List<Map<String, Object>> pregnancies
     ) {}
 
     record DeregistrationDto(

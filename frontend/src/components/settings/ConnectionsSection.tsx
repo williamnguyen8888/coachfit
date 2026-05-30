@@ -66,7 +66,7 @@ const PROVIDER_CONFIGS: ProviderConfig[] = [
   {
     provider: "garmin",
     label: "Garmin Connect",
-    description: "Sync activities, health metrics, HRV, sleep, and daily data.",
+    description: "Sync health metrics, HRV, sleep, and daily data. Push planned workouts directly to your Garmin device.",
     icon: <GarminIcon />,
     color: "#009CDE",
     available: true,

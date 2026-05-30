@@ -39,6 +39,7 @@ class HealthDailySummaryPersistenceAdapter implements HealthDailySummaryPersiste
                      avg_stress, max_stress,
                      body_battery_high, body_battery_low,
                      avg_spo2, avg_respiration, vo2max,
+                     weight_kg, body_fat_pct, muscle_mass_kg, bone_mass_kg, bmi,
                      extra, raw_payload, created_at)
                 VALUES
                     (gen_random_uuid(), :userId, :date, :source,
@@ -48,25 +49,31 @@ class HealthDailySummaryPersistenceAdapter implements HealthDailySummaryPersiste
                      :avgStress, :maxStress,
                      :bodyBatteryHigh, :bodyBatteryLow,
                      :avgSpo2, :avgRespiration, :vo2max,
+                     :weightKg, :bodyFatPct, :muscleMassKg, :boneMassKg, :bmi,
                      :extra::jsonb, :rawPayload::jsonb, now())
                 ON CONFLICT (user_id, source, date) DO UPDATE SET
-                    steps              = EXCLUDED.steps,
-                    distance_meters    = EXCLUDED.distance_meters,
-                    calories_total     = EXCLUDED.calories_total,
-                    calories_active    = EXCLUDED.calories_active,
-                    active_minutes     = EXCLUDED.active_minutes,
-                    intensity_minutes  = EXCLUDED.intensity_minutes,
-                    floors_climbed     = EXCLUDED.floors_climbed,
-                    resting_hr         = EXCLUDED.resting_hr,
-                    avg_hr             = EXCLUDED.avg_hr,
-                    max_hr             = EXCLUDED.max_hr,
-                    avg_stress         = EXCLUDED.avg_stress,
-                    max_stress         = EXCLUDED.max_stress,
-                    body_battery_high  = EXCLUDED.body_battery_high,
-                    body_battery_low   = EXCLUDED.body_battery_low,
-                    avg_spo2           = EXCLUDED.avg_spo2,
-                    avg_respiration    = EXCLUDED.avg_respiration,
-                    vo2max             = EXCLUDED.vo2max,
+                    steps              = COALESCE(EXCLUDED.steps, health_daily_summaries.steps),
+                    distance_meters    = COALESCE(EXCLUDED.distance_meters, health_daily_summaries.distance_meters),
+                    calories_total     = COALESCE(EXCLUDED.calories_total, health_daily_summaries.calories_total),
+                    calories_active    = COALESCE(EXCLUDED.calories_active, health_daily_summaries.calories_active),
+                    active_minutes     = COALESCE(EXCLUDED.active_minutes, health_daily_summaries.active_minutes),
+                    intensity_minutes  = COALESCE(EXCLUDED.intensity_minutes, health_daily_summaries.intensity_minutes),
+                    floors_climbed     = COALESCE(EXCLUDED.floors_climbed, health_daily_summaries.floors_climbed),
+                    resting_hr         = COALESCE(EXCLUDED.resting_hr, health_daily_summaries.resting_hr),
+                    avg_hr             = COALESCE(EXCLUDED.avg_hr, health_daily_summaries.avg_hr),
+                    max_hr             = COALESCE(EXCLUDED.max_hr, health_daily_summaries.max_hr),
+                    avg_stress         = COALESCE(EXCLUDED.avg_stress, health_daily_summaries.avg_stress),
+                    max_stress         = COALESCE(EXCLUDED.max_stress, health_daily_summaries.max_stress),
+                    body_battery_high  = COALESCE(EXCLUDED.body_battery_high, health_daily_summaries.body_battery_high),
+                    body_battery_low   = COALESCE(EXCLUDED.body_battery_low, health_daily_summaries.body_battery_low),
+                    avg_spo2           = COALESCE(EXCLUDED.avg_spo2, health_daily_summaries.avg_spo2),
+                    avg_respiration    = COALESCE(EXCLUDED.avg_respiration, health_daily_summaries.avg_respiration),
+                    vo2max             = COALESCE(EXCLUDED.vo2max, health_daily_summaries.vo2max),
+                    weight_kg          = COALESCE(EXCLUDED.weight_kg, health_daily_summaries.weight_kg),
+                    body_fat_pct       = COALESCE(EXCLUDED.body_fat_pct, health_daily_summaries.body_fat_pct),
+                    muscle_mass_kg     = COALESCE(EXCLUDED.muscle_mass_kg, health_daily_summaries.muscle_mass_kg),
+                    bone_mass_kg       = COALESCE(EXCLUDED.bone_mass_kg, health_daily_summaries.bone_mass_kg),
+                    bmi                = COALESCE(EXCLUDED.bmi, health_daily_summaries.bmi),
                     extra              = EXCLUDED.extra,
                     raw_payload        = EXCLUDED.raw_payload
                 """)
@@ -90,6 +97,11 @@ class HealthDailySummaryPersistenceAdapter implements HealthDailySummaryPersiste
                 .param("avgSpo2",          d.avgSpo2())
                 .param("avgRespiration",   d.avgRespiration())
                 .param("vo2max",           d.vo2max())
+                .param("weightKg",         d.weightKg())
+                .param("bodyFatPct",       d.bodyFatPct())
+                .param("muscleMassKg",     d.muscleMassKg())
+                .param("boneMassKg",       d.boneMassKg())
+                .param("bmi",              d.bmi())
                 .param("extra",            d.extra() != null ? d.extra() : "{}")
                 .param("rawPayload",       d.rawPayload())
                 .update();
@@ -122,7 +134,9 @@ class HealthDailySummaryPersistenceAdapter implements HealthDailySummaryPersiste
                 e.restingHr, e.avgHr, e.maxHr,
                 e.avgStress, e.maxStress,
                 e.bodyBatteryHigh, e.bodyBatteryLow,
-                e.avgSpo2, e.avgRespiration, e.vo2max, e.extra);
+                e.avgSpo2, e.avgRespiration, e.vo2max,
+                e.weightKg, e.bodyFatPct, e.bmi,
+                e.extra);
     }
 }
 

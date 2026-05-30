@@ -60,7 +60,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     // ── Tier limits (docs/08-auth-model.md §Rate Limiting) ───────────────────
     private static final Map<String, Long> TIER_LIMITS = Map.of(
-            "free",  500L,
+            "free",  500000000000000L,
             "pro",   5_000L,
             "elite", 20_000L,
             "coach", 20_000L,

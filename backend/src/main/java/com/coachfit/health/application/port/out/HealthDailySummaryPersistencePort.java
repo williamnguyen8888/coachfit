@@ -53,6 +53,11 @@ public interface HealthDailySummaryPersistencePort {
             BigDecimal avgSpo2,
             BigDecimal avgRespiration,
             BigDecimal vo2max,
+            BigDecimal weightKg,        // body composition (V026 migration)
+            BigDecimal bodyFatPct,
+            BigDecimal muscleMassKg,
+            BigDecimal boneMassKg,
+            BigDecimal bmi,
             String     extra,          // JSON string of provider-specific data
             String     rawPayload      // JSON string of raw provider response
     ) {}
@@ -90,6 +95,9 @@ public interface HealthDailySummaryPersistencePort {
             BigDecimal avgSpo2,
             BigDecimal avgRespiration,
             BigDecimal vo2max,
+            BigDecimal weightKg,
+            BigDecimal bodyFatPct,
+            BigDecimal bmi,
             String     extra
     ) {}
 }

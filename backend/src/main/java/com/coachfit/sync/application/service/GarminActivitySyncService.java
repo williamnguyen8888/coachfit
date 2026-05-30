@@ -11,6 +11,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -95,17 +96,20 @@ public class GarminActivitySyncService {
     private final ActivityLapPersistencePort    lapPort;
     private final SyncLogPersistencePort        syncLogPort;
     private final ObjectMapper                  objectMapper;
+    private final JdbcClient                    jdbcClient;
 
     public GarminActivitySyncService(ActivityPersistencePort activityPort,
                                      ActivityStreamPersistencePort streamPort,
                                      ActivityLapPersistencePort lapPort,
                                      SyncLogPersistencePort syncLogPort,
-                                     ObjectMapper objectMapper) {
+                                     ObjectMapper objectMapper,
+                                     JdbcClient jdbcClient) {
         this.activityPort = activityPort;
         this.streamPort   = streamPort;
         this.lapPort      = lapPort;
         this.syncLogPort  = syncLogPort;
         this.objectMapper = objectMapper;
+        this.jdbcClient   = jdbcClient;
     }
 
     // ── Activity summary ──────────────────────────────────────────────────────
@@ -223,28 +227,13 @@ public class GarminActivitySyncService {
                     userId, PROVIDER, summaryId);
 
             if (activityId.isEmpty()) {
-                log.warn("Garmin activity-details: parent activity not found, summaryId={} userId={}. " +
-                                "Details will be dropped — re-process if needed.",
-                        summaryId, userId);
-                syncLogPort.complete(logId, "skipped", null,
-                        "parent activity not found for summaryId=" + summaryId);
+                // Race condition: activity-details arrived before the activity summary.
+                // Stage the details for reconciliation rather than dropping permanently.
+                stageOrphanedDetails(userId, logId, summaryId, payload);
                 return;
             }
 
-            List<Map<String, Object>> samples = getList(d, "samples");
-            if (samples == null || samples.isEmpty()) {
-                syncLogPort.complete(logId, "skipped", activityId.get(), "no samples in payload");
-                return;
-            }
-
-            StreamData streams = normalizeSamples(samples);
-            if (streams != null) {
-                streamPort.upsert(activityId.get(), streams);
-            }
-
-            syncLogPort.complete(logId, "success", activityId.get(), null);
-            log.info("Garmin activity-details synced: userId={} activityId={} samples={}",
-                    userId, activityId.get(), samples.size());
+            storeStreams(userId, logId, activityId.get(), d, payload);
 
         } catch (Exception e) {
             log.error("Garmin activity-details failed: userId={} logId={} error={}", userId, logId, e.getMessage(), e);
@@ -252,6 +241,133 @@ public class GarminActivitySyncService {
             throw e;
         }
     }
+
+    /**
+     * Called periodically (e.g. every 5 minutes) to reconcile staged activity details
+     * that were waiting for their parent activity summary.
+     *
+     * <p>Looks for pending rows in {@code activity_details_staging} and re-attempts processing.
+     * Rows older than 7 days with no parent are marked as {@code error}.
+     */
+    @Transactional
+    public void reconcileStagedDetails(UUID userId) {
+        var staged = jdbcClient.sql("""
+                SELECT id, summary_id, payload_json, sync_log_id, attempt_count
+                  FROM activity_details_staging
+                 WHERE user_id = :userId
+                   AND source  = 'garmin'
+                   AND status  = 'pending'
+                   AND attempt_count < 5
+                   AND created_at > now() - INTERVAL '7 days'
+                ORDER BY created_at ASC
+                """)
+                .param("userId", userId)
+                .query((rs, n) -> new StagedRow(
+                        (UUID) rs.getObject("id"),
+                        rs.getString("summary_id"),
+                        rs.getString("payload_json"),
+                        (UUID) rs.getObject("sync_log_id"),
+                        rs.getInt("attempt_count")))
+                .list();
+
+        for (StagedRow row : staged) {
+            Optional<UUID> activityId = activityPort.findIdByUserSourceAndSourceId(
+                    userId, PROVIDER, row.summaryId());
+
+            if (activityId.isEmpty()) {
+                // Parent still not found — increment attempt count
+                jdbcClient.sql("""
+                        UPDATE activity_details_staging
+                           SET attempt_count = attempt_count + 1,
+                               last_error    = 'parent activity not yet found'
+                         WHERE id = :id
+                        """)
+                        .param("id", row.id())
+                        .update();
+                continue;
+            }
+
+            // Parent found — process the details and mark as reconciled
+            try {
+                Map<String, Object> d = parsePayload(row.payloadJson());
+                storeStreams(userId, row.syncLogId(), activityId.get(), d, row.payloadJson());
+
+                jdbcClient.sql("""
+                        UPDATE activity_details_staging
+                           SET status        = 'reconciled',
+                               reconciled_at = now()
+                         WHERE id = :id
+                        """)
+                        .param("id", row.id())
+                        .update();
+                log.info("Reconciled staged activity-details: userId={} summaryId={} activityId={}",
+                        userId, row.summaryId(), activityId.get());
+            } catch (Exception e) {
+                jdbcClient.sql("""
+                        UPDATE activity_details_staging
+                           SET attempt_count = attempt_count + 1,
+                               last_error    = :error
+                         WHERE id = :id
+                        """)
+                        .param("id",    row.id())
+                        .param("error", e.getMessage())
+                        .update();
+                log.error("Staged activity-details reconciliation failed: id={} error={}", row.id(), e.getMessage());
+            }
+        }
+
+        // Mark truly abandoned rows (>7 days, parent never arrived) as error
+        jdbcClient.sql("""
+                UPDATE activity_details_staging
+                   SET status = 'error', last_error = 'parent activity never arrived (7d timeout)'
+                 WHERE user_id = :userId
+                   AND source  = 'garmin'
+                   AND status  = 'pending'
+                   AND created_at <= now() - INTERVAL '7 days'
+                """)
+                .param("userId", userId)
+                .update();
+    }
+
+    private void stageOrphanedDetails(UUID userId, UUID logId, String summaryId, String payload) {
+        jdbcClient.sql("""
+                INSERT INTO activity_details_staging
+                    (id, user_id, source, summary_id, payload_json, sync_log_id, status, created_at)
+                VALUES
+                    (gen_random_uuid(), :userId, 'garmin', :summaryId, :payload, :logId, 'pending', now())
+                ON CONFLICT DO NOTHING
+                """)
+                .param("userId",    userId)
+                .param("summaryId", summaryId)
+                .param("payload",   payload)
+                .param("logId",     logId)
+                .update();
+
+        syncLogPort.complete(logId, "staged", null,
+                "activity-details staged for reconciliation — parent summaryId=" + summaryId + " not yet arrived");
+        log.info("Garmin activity-details staged (race condition): userId={} summaryId={}", userId, summaryId);
+    }
+
+    @SuppressWarnings("unchecked")
+    private void storeStreams(UUID userId, UUID logId, UUID activityId,
+                              Map<String, Object> d, String payload) {
+        List<Map<String, Object>> samples = getList(d, "samples");
+        if (samples == null || samples.isEmpty()) {
+            if (logId != null) syncLogPort.complete(logId, "skipped", activityId, "no samples in payload");
+            return;
+        }
+
+        StreamData streams = normalizeSamples(samples);
+        if (streams != null) {
+            streamPort.upsert(activityId, streams);
+        }
+
+        if (logId != null) syncLogPort.complete(logId, "success", activityId, null);
+        log.info("Garmin activity-details synced: userId={} activityId={} samples={}", userId, activityId, samples.size());
+    }
+
+    private record StagedRow(UUID id, String summaryId, String payloadJson, UUID syncLogId, int attemptCount) {}
+
 
     // ── Normalization ─────────────────────────────────────────────────────────
 

@@ -40,7 +40,7 @@ public class GarminWebhookService implements SyncGarminWebhookUseCase {
 
     private static final String PROVIDER = "garmin";
 
-    // ── Job type constants ────────────────────────────────────────────────────
+    // ── Job type constants ──────────────────────────────────────────────────────
     public static final String JOB_DAILIES          = "garmin_dailies";
     public static final String JOB_ACTIVITY         = "garmin_activity";
     public static final String JOB_ACTIVITY_DETAILS = "garmin_activity_details";
@@ -51,6 +51,10 @@ public class GarminWebhookService implements SyncGarminWebhookUseCase {
     public static final String JOB_PULSEOX          = "garmin_pulseox";
     public static final String JOB_RESPIRATION      = "garmin_respiration";
     public static final String JOB_USER_METRICS     = "garmin_user_metrics";
+    public static final String JOB_EPOCHS           = "garmin_epochs";
+    public static final String JOB_BLOOD_PRESSURE   = "garmin_blood_pressure";
+    public static final String JOB_MENSTRUAL_CYCLE  = "garmin_menstrual_cycle";
+    public static final String JOB_PREGNANCY        = "garmin_pregnancy";
 
     private final GarminOAuthConnectionPort garminOAuthPort;
     private final GarminJobQueuePort        jobQueuePort;
@@ -179,6 +183,50 @@ public class GarminWebhookService implements SyncGarminWebhookUseCase {
     @Override
     public void handleUserMetrics(GarminPushPayload<List<Map<String, Object>>> payload) {
         enqueueEach(payload, JOB_USER_METRICS, "health_daily_push");
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Enqueues {@code garmin_epochs} job. Worker will upsert intraday
+     * epoch rows into {@code health_epoch_summaries}.
+     */
+    @Override
+    public void handleEpochs(GarminPushPayload<List<Map<String, Object>>> payload) {
+        enqueueEach(payload, JOB_EPOCHS, "health_epoch_push");
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Enqueues {@code garmin_blood_pressure} job. Worker will store
+     * systolic/diastolic/pulse in {@code health_daily_summaries.extra}.
+     */
+    @Override
+    public void handleBloodPressure(GarminPushPayload<List<Map<String, Object>>> payload) {
+        enqueueEach(payload, JOB_BLOOD_PRESSURE, "health_daily_push");
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Enqueues {@code garmin_menstrual_cycle} job. Worker will store cycle
+     * phase and day in {@code health_daily_summaries.extra}.
+     */
+    @Override
+    public void handleMenstrualCycle(GarminPushPayload<List<Map<String, Object>>> payload) {
+        enqueueEach(payload, JOB_MENSTRUAL_CYCLE, "health_womens_health_push");
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Enqueues {@code garmin_pregnancy} job. Worker will store pregnancy
+     * data in {@code health_daily_summaries.extra}.
+     */
+    @Override
+    public void handlePregnancy(GarminPushPayload<List<Map<String, Object>>> payload) {
+        enqueueEach(payload, JOB_PREGNANCY, "health_womens_health_push");
     }
 
     /**

@@ -8,6 +8,7 @@ import { useState, useEffect, useCallback } from "react";
 import type { CalendarEvent, CreateCalendarPayload, UpdateCalendarPayload } from "@/lib/types/calendar";
 import type { WorkoutSummary } from "@/lib/types/workout";
 import { workoutsService } from "@/lib/services/workouts";
+import { calendarService } from "@/lib/services/calendar";
 import { useCalendarStore } from "@/stores/calendar.store";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -269,6 +270,42 @@ export function CalendarEventModal({
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Garmin Training API sync state
+  const [garminSyncing, setGarminSyncing]   = useState(false);
+  const [garminRemoving, setGarminRemoving] = useState(false);
+  const [garminError, setGarminError]       = useState<string | null>(null);
+  const isSyncedToGarmin = Boolean(event?.garminWorkoutId);
+
+  const handleGarminSync = useCallback(async () => {
+    if (!event) return;
+    setGarminSyncing(true);
+    setGarminError(null);
+    try {
+      await calendarService.syncToGarmin(event.id);
+      onSuccess?.();
+      onClose();
+    } catch (err) {
+      setGarminError(err instanceof Error ? err.message : "Garmin sync failed");
+    } finally {
+      setGarminSyncing(false);
+    }
+  }, [event, onSuccess, onClose]);
+
+  const handleGarminRemove = useCallback(async () => {
+    if (!event) return;
+    setGarminRemoving(true);
+    setGarminError(null);
+    try {
+      await calendarService.removeFromGarmin(event.id);
+      onSuccess?.();
+      onClose();
+    } catch (err) {
+      setGarminError(err instanceof Error ? err.message : "Failed to remove from Garmin");
+    } finally {
+      setGarminRemoving(false);
+    }
+  }, [event, onSuccess, onClose]);
+
   const handleSubmit = useCallback(async () => {
     setSubmitting(true);
     setError(null);
@@ -502,48 +539,179 @@ export function CalendarEventModal({
 
         {/* Edit mode quick actions */}
         {!isCreateMode && event && (
-          <div style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap" }}>
-            {event.status === "planned" && (
-              <button
-                type="button"
-                onClick={handleMarkComplete}
+          <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
+            {/* Status actions */}
+            <div style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap" }}>
+              {event.status === "planned" && (
+                <button
+                  type="button"
+                  onClick={handleMarkComplete}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "var(--space-1)",
+                    padding: "var(--space-2) var(--space-3)",
+                    background: "var(--color-success-10)",
+                    border: "1px solid var(--color-success-30)",
+                    borderRadius: "var(--radius-sm)",
+                    color: "var(--color-success)",
+                    fontSize: "var(--text-sm)",
+                    fontWeight: 500,
+                    cursor: "pointer",
+                  }}
+                >
+                  ✓ Mark Complete
+                </button>
+              )}
+              {(event.status === "planned" || event.status === "partial") && (
+                <button
+                  type="button"
+                  onClick={handleMarkSkipped}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "var(--space-1)",
+                    padding: "var(--space-2) var(--space-3)",
+                    background: "var(--color-danger-10)",
+                    border: "1px solid var(--color-danger-30)",
+                    borderRadius: "var(--radius-sm)",
+                    color: "var(--color-danger)",
+                    fontSize: "var(--text-sm)",
+                    fontWeight: 500,
+                    cursor: "pointer",
+                  }}
+                >
+                  — Mark Skipped
+                </button>
+              )}
+            </div>
+
+            {/* Garmin Training sync — only for workout events */}
+            {event.eventType === "workout" && event.workout && (
+              <div
                 style={{
+                  padding: "var(--space-3)",
+                  background: isSyncedToGarmin
+                    ? "color-mix(in srgb, #009CDE 6%, var(--bg-elevated))"
+                    : "var(--bg-elevated)",
+                  border: `1px solid ${
+                    isSyncedToGarmin
+                      ? "color-mix(in srgb, #009CDE 30%, var(--border-subtle))"
+                      : "var(--border-subtle)"
+                  }`,
+                  borderRadius: "var(--radius-sm)",
                   display: "flex",
                   alignItems: "center",
-                  gap: "var(--space-1)",
-                  padding: "var(--space-2) var(--space-3)",
-                  background: "var(--color-success-10)",
-                  border: "1px solid var(--color-success-30)",
-                  borderRadius: "var(--radius-sm)",
-                  color: "var(--color-success)",
-                  fontSize: "var(--text-sm)",
-                  fontWeight: 500,
-                  cursor: "pointer",
+                  gap: "var(--space-3)",
                 }}
               >
-                ✓ Mark Complete
-              </button>
-            )}
-            {(event.status === "planned" || event.status === "partial") && (
-              <button
-                type="button"
-                onClick={handleMarkSkipped}
-                style={{
+                {/* Garmin icon */}
+                <div style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: "50%",
+                  background: "#009CDE",
                   display: "flex",
                   alignItems: "center",
-                  gap: "var(--space-1)",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                  fontSize: 14,
+                }}>
+                  ⌚
+                </div>
+
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--text-primary)" }}>
+                    Garmin Connect
+                  </div>
+                  <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", marginTop: 1 }}>
+                    {isSyncedToGarmin
+                      ? `Synced${event.garminSyncedAt ? " · " + new Date(event.garminSyncedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : ""}`
+                      : "Push workout to your Garmin device"}
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", gap: "var(--space-2)", flexShrink: 0 }}>
+                  {isSyncedToGarmin ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={handleGarminSync}
+                        disabled={garminSyncing || garminRemoving}
+                        title="Re-sync workout to Garmin"
+                        style={{
+                          padding: "4px 10px",
+                          background: "color-mix(in srgb, #009CDE 12%, transparent)",
+                          border: "1px solid color-mix(in srgb, #009CDE 40%, transparent)",
+                          borderRadius: "var(--radius-sm)",
+                          color: "#009CDE",
+                          fontSize: "var(--text-xs)",
+                          fontWeight: 600,
+                          cursor: garminSyncing ? "not-allowed" : "pointer",
+                          opacity: garminSyncing ? 0.6 : 1,
+                        }}
+                      >
+                        {garminSyncing ? "Syncing…" : "↺ Re-sync"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleGarminRemove}
+                        disabled={garminSyncing || garminRemoving}
+                        title="Remove from Garmin calendar"
+                        style={{
+                          padding: "4px 10px",
+                          background: "transparent",
+                          border: "1px solid var(--border-default)",
+                          borderRadius: "var(--radius-sm)",
+                          color: "var(--text-muted)",
+                          fontSize: "var(--text-xs)",
+                          fontWeight: 500,
+                          cursor: garminRemoving ? "not-allowed" : "pointer",
+                          opacity: garminRemoving ? 0.6 : 1,
+                        }}
+                      >
+                        {garminRemoving ? "Removing…" : "Remove"}
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleGarminSync}
+                      disabled={garminSyncing}
+                      id="garmin-sync-button"
+                      style={{
+                        padding: "4px 12px",
+                        background: "#009CDE",
+                        border: "none",
+                        borderRadius: "var(--radius-sm)",
+                        color: "white",
+                        fontSize: "var(--text-xs)",
+                        fontWeight: 600,
+                        cursor: garminSyncing ? "not-allowed" : "pointer",
+                        opacity: garminSyncing ? 0.7 : 1,
+                      }}
+                    >
+                      {garminSyncing ? "Syncing…" : "⌚ Push to Garmin"}
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Garmin error */}
+            {garminError && (
+              <div
+                style={{
                   padding: "var(--space-2) var(--space-3)",
                   background: "var(--color-danger-10)",
                   border: "1px solid var(--color-danger-30)",
                   borderRadius: "var(--radius-sm)",
                   color: "var(--color-danger)",
-                  fontSize: "var(--text-sm)",
-                  fontWeight: 500,
-                  cursor: "pointer",
+                  fontSize: "var(--text-xs)",
                 }}
               >
-                — Mark Skipped
-              </button>
+                {garminError}
+              </div>
             )}
           </div>
         )}

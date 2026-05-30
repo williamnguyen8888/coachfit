@@ -53,6 +53,19 @@ export interface CalendarEvent {
   assignedBy: "coach" | null;
   /** Optional notes from coach or athlete */
   notes: string | null;
+  /**
+   * Garmin Training API workout definition ID.
+   * Populated after POST /api/v1/calendar/{id}/sync-garmin succeeds.
+   * null = not yet synced to Garmin.
+   */
+  garminWorkoutId: string | null;
+  /**
+   * Garmin Training API schedule ID (links workout to a calendar date on Garmin Connect).
+   * null = not yet synced to Garmin.
+   */
+  garminScheduledId: string | null;
+  /** Timestamp of last successful Garmin sync (ISO 8601). */
+  garminSyncedAt: string | null;
 }
 
 // ─── Request payloads ─────────────────────────────────────────────────────────
