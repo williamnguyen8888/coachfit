@@ -56,7 +56,7 @@ class UserPersistenceAdapter implements UserPersistencePort {
     @Transactional
     public AuthUser createUser(String email, String fullName, String passwordHash) {
         UserEntity entity = new UserEntity(email, fullName, passwordHash);
-        entity = userRepo.save(entity);
+        entity = userRepo.saveAndFlush(entity);
 
         // Create free subscription — JDBC to avoid importing subscription module JPA entity.
         jdbcClient.sql("""

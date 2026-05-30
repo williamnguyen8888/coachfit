@@ -91,6 +91,9 @@ public class AuthService
     @Override
     @Transactional
     public RefreshResult refresh(String rawRefreshToken) {
+        if (rawRefreshToken == null || rawRefreshToken.isBlank()) {
+            throw new TokenExpiredException();
+        }
         String hash = hashToken(rawRefreshToken);
 
         RefreshToken token = tokenPort.findByTokenHash(hash)

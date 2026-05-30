@@ -25,9 +25,6 @@ import {
   type ImportStatus,
 } from "@/stores/onboarding.store";
 
-// ─── Meta ─────────────────────────────────────────────────────────────────────
-
-export const metadata = undefined; // suppress — title set in layout
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 

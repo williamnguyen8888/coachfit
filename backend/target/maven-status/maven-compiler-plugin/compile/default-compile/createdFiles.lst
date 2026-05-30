@@ -4,6 +4,7 @@ com/coachfit/gear/adapter/in/package-info.class
 com/coachfit/dashboard/adapter/in/package-info.class
 com/coachfit/athlete/package-info.class
 com/coachfit/auth/domain/exception/TokenExpiredException.class
+com/coachfit/sync/adapter/out/package-info.class
 com/coachfit/activity/application/service/parser/FitParser$1.class
 com/coachfit/workout/domain/package-info.class
 com/coachfit/wellness/package-info.class
@@ -27,6 +28,7 @@ com/coachfit/auth/application/port/in/LoginUseCase$AuthResult.class
 com/coachfit/gear/adapter/out/package-info.class
 com/coachfit/auth/adapter/out/persistence/RefreshTokenPersistenceAdapter.class
 com/coachfit/shared/adapter/in/security/SecurityConfig.class
+com/coachfit/sync/adapter/out/queue/package-info.class
 com/coachfit/auth/application/port/in/LoginUseCase.class
 com/coachfit/activity/application/port/in/package-info.class
 com/coachfit/dashboard/adapter/out/package-info.class
@@ -35,6 +37,7 @@ com/coachfit/auth/application/port/in/RegisterUseCase$RegisterCommand.class
 com/coachfit/wellness/application/service/package-info.class
 com/coachfit/auth/application/service/AuthService.class
 com/coachfit/auth/adapter/out/persistence/UserEntity.class
+com/coachfit/sync/application/service/package-info.class
 com/coachfit/wellness/adapter/out/package-info.class
 com/coachfit/wellness/application/port/out/package-info.class
 com/coachfit/auth/application/service/GoogleOAuthService$GoogleUserInfo.class
@@ -59,12 +62,15 @@ com/coachfit/health/adapter/out/package-info.class
 com/coachfit/shared/adapter/in/security/ratelimit/RateLimitFilter.class
 com/coachfit/auth/application/port/out/RefreshTokenPersistencePort.class
 com/coachfit/health/application/service/package-info.class
+com/coachfit/sync/domain/package-info.class
+com/coachfit/workout/adapter/out/storage/package-info.class
 com/coachfit/auth/adapter/in/dto/LoginRequest.class
 com/coachfit/auth/application/service/GoogleOAuthService.class
 com/coachfit/athlete/adapter/out/package-info.class
 com/coachfit/shared/adapter/out/package-info.class
 com/coachfit/auth/package-info.class
 com/coachfit/auth/domain/exception/EmailAlreadyExistsException.class
+com/coachfit/apikey/package-info.class
 com/coachfit/health/domain/package-info.class
 com/coachfit/activity/domain/package-info.class
 com/coachfit/shared/adapter/in/security/jwt/UserPrincipal.class
@@ -108,6 +114,7 @@ com/coachfit/dashboard/application/port/in/package-info.class
 com/coachfit/workout/adapter/out/package-info.class
 com/coachfit/health/application/port/in/package-info.class
 com/coachfit/auth/adapter/in/dto/RegisterRequest.class
+com/coachfit/sync/application/port/out/package-info.class
 com/coachfit/auth/adapter/in/dto/AuthResponse.class
 com/coachfit/auth/adapter/out/persistence/UserJpaRepository.class
 com/coachfit/auth/application/port/in/package-info.class
@@ -133,3 +140,4 @@ com/coachfit/shared/adapter/in/security/jwt/JwtProperties.class
 com/coachfit/calendar/application/service/package-info.class
 com/coachfit/shared/adapter/in/security/featuregate/TierHierarchy.class
 com/coachfit/workout/application/port/out/package-info.class
+com/coachfit/sync/adapter/in/package-info.class

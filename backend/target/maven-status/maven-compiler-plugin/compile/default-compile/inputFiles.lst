@@ -132,9 +132,6 @@
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/auth/adapter/in/package-info.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/auth/adapter/out/package-info.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/auth/adapter/out/persistence/AesTokenEncryptionUtil.java
-/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/auth/adapter/out/persistence/ApiKeyEntity.java
-/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/auth/adapter/out/persistence/ApiKeyJpaRepository.java
-/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/auth/adapter/out/persistence/ApiKeyPersistenceAdapter.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/auth/adapter/out/persistence/OAuthConnectionPersistenceAdapter.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/auth/adapter/out/persistence/RefreshTokenEntity.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/auth/adapter/out/persistence/RefreshTokenJpaRepository.java
@@ -151,7 +148,6 @@
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/auth/application/port/in/RegisterUseCase.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/auth/application/port/in/StravaOAuthUseCase.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/auth/application/port/in/package-info.java
-/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/auth/application/port/out/ApiKeyPersistencePort.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/auth/application/port/out/OAuthConnectionPersistencePort.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/auth/application/port/out/RefreshTokenPersistencePort.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/auth/application/port/out/UserPersistencePort.java
