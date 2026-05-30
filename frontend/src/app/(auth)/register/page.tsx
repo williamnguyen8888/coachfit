@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { setAccessToken } from "@/lib/auth";
 import { useAuthStore } from "@/stores/auth.store";
+import { useOnboardingStore } from "@/stores/onboarding.store";
 import { isApiError } from "@/lib/errors";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -136,6 +137,7 @@ export default function RegisterPage() {
       setAccessToken(res.token);
       hydrateFromToken(res.token);
       useAuthStore.setState({ status: "authenticated" });
+      useOnboardingStore.getState().reset();
       // New users enter the onboarding wizard (sports → experience → connect)
       router.replace("/onboarding");
     } catch (err) {

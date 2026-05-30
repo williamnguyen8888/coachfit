@@ -12,8 +12,10 @@ import {
   ChevronLeft,
   ChevronRight,
   Zap,
+  LogOut,
 } from "lucide-react";
 import { useUIStore } from "@/stores/ui.store";
+import { useAuthStore } from "@/stores/auth.store";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
@@ -28,6 +30,8 @@ const NAV_ITEMS = [
 export function Sidebar() {
   const pathname = usePathname();
   const { sidebarExpanded, toggleSidebar } = useUIStore();
+  const user = useAuthStore((s) => s.user);
+  const logout = useAuthStore((s) => s.logout);
 
   return (
     <aside
@@ -142,6 +146,70 @@ export function Sidebar() {
           );
         })}
       </nav>
+
+      {/* User profile & Logout */}
+      <div
+        className="px-2 pb-2 mt-auto shrink-0"
+        style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: 12 }}
+      >
+        <div
+          className={cn(
+            "flex items-center gap-3 w-full rounded-lg px-3 py-2 transition-all duration-150",
+            !sidebarExpanded && "justify-center",
+          )}
+        >
+          {/* Avatar / Initials */}
+          <div
+            className="flex items-center justify-center rounded-full shrink-0 font-bold"
+            style={{
+              width: 32,
+              height: 32,
+              background: "rgba(139, 92, 246, 0.2)",
+              color: "var(--color-accent)",
+              fontSize: "var(--text-xs)",
+            }}
+          >
+            {user?.fullName ? user.fullName.substring(0, 2).toUpperCase() : (user?.email ? user.email.substring(0, 2).toUpperCase() : "U")}
+          </div>
+
+          {sidebarExpanded && (
+            <div className="flex-1 min-w-0 flex flex-col">
+              <span
+                className="text-sm font-semibold truncate"
+                style={{ color: "var(--text-primary)" }}
+              >
+                {user?.fullName || "Athlete"}
+              </span>
+              <span
+                className="text-xs truncate"
+                style={{ color: "var(--text-muted)", fontSize: "11px" }}
+              >
+                {user?.email}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Logout button */}
+        <button
+          onClick={logout}
+          aria-label="Log out"
+          className={cn(
+            "flex items-center gap-3 w-full rounded-lg px-3 py-2 mt-1 transition-all duration-150",
+            !sidebarExpanded && "justify-center",
+          )}
+          style={{ color: "var(--color-danger)" }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = "rgba(239, 68, 68, 0.08)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = "transparent";
+          }}
+        >
+          <LogOut size={16} className="shrink-0" />
+          {sidebarExpanded && <span className="text-sm font-medium">Log out</span>}
+        </button>
+      </div>
 
       {/* Collapse toggle */}
       <div
