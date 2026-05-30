@@ -136,8 +136,8 @@ export default function RegisterPage() {
       setAccessToken(res.token);
       hydrateFromToken(res.token);
       useAuthStore.setState({ status: "authenticated" });
-      // New users will go to onboarding once built; fall back to dashboard for now
-      router.replace("/");
+      // New users enter the onboarding wizard (sports → experience → connect)
+      router.replace("/onboarding");
     } catch (err) {
       if (isApiError(err)) {
         if (err.status === 409) {
