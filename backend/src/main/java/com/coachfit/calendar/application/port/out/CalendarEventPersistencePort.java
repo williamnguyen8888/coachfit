@@ -73,7 +73,11 @@ public interface CalendarEventPersistencePort {
             String       description,
             String       status,
             short        orderIndex,
-            BigDecimal   complianceScore
+            BigDecimal   complianceScore,
+            String       workoutSport,
+            Integer      workoutDuration,
+            BigDecimal   activityTss,
+            Integer      activityDuration
     ) {}
 
     record ReorderEntry(UUID eventId, short newOrderIndex) {}

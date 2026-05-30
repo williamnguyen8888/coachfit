@@ -201,6 +201,13 @@ public class CalendarEventService
      * (currently passed as null — enrichment deferred to a future cross-module join).
      */
     private CalendarEventView toView(CalendarEventSummary s) {
+        WorkoutSummary workout = s.workoutId() != null
+                ? new WorkoutSummary(s.workoutId(), s.workoutSport(), s.workoutDuration())
+                : null;
+        ActivitySummary activity = s.activityId() != null
+                ? new ActivitySummary(s.activityId(), s.activityTss() != null ? s.activityTss().doubleValue() : null, s.activityDuration())
+                : null;
+
         return new CalendarEventView(
                 s.id(),
                 s.date(),
@@ -210,8 +217,8 @@ public class CalendarEventService
                 s.status(),
                 s.orderIndex(),
                 s.complianceScore(),
-                null,   // WorkoutSummary — enriched at controller layer if needed
-                null    // ActivitySummary — enriched at controller layer if needed
+                workout,
+                activity
         );
     }
 }

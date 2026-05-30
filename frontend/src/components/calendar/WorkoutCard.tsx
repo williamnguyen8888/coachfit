@@ -45,11 +45,7 @@ function SportIcon({
       width={size}
       height={size}
       viewBox={icon.viewBox}
-      fill="none"
-      stroke={color}
-      strokeWidth={1.8}
-      strokeLinecap="round"
-      strokeLinejoin="round"
+      fill={color}
       style={{ flexShrink: 0 }}
     >
       <path d={icon.path} />

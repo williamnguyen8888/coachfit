@@ -162,8 +162,41 @@ class CalendarEventPersistenceAdapter implements CalendarEventPersistencePort {
 
     @Override
     public List<CalendarEventSummary> findByUserAndDateRange(UUID userId, LocalDate from, LocalDate to) {
-        return repo.findByUserIdAndDateBetweenAndDeletedAtIsNullOrderByDateAscOrderIndexAsc(userId, from, to)
-                .stream().map(this::toSummary).toList();
+        return jdbcClient.sql("""
+                SELECT c.id, c.user_id, c.date, c.event_type, c.workout_id, c.activity_id,
+                       c.title, c.description, c.status, c.order_index, c.compliance_score,
+                       w.sport AS workout_sport, w.estimated_duration_seconds AS workout_duration,
+                       a.tss AS activity_tss, a.duration_seconds AS activity_duration
+                  FROM calendar_events c
+                  LEFT JOIN workouts w ON w.id = c.workout_id AND w.deleted_at IS NULL
+                  LEFT JOIN activities a ON a.id = c.activity_id AND a.deleted_at IS NULL
+                 WHERE c.user_id = :userId
+                   AND c.date >= :from
+                   AND c.date <= :to
+                   AND c.deleted_at IS NULL
+                 ORDER BY c.date ASC, c.order_index ASC
+                """)
+                .param("userId", userId)
+                .param("from",   from)
+                .param("to",     to)
+                .query((rs, rowNum) -> new CalendarEventSummary(
+                        rs.getObject("id", UUID.class),
+                        rs.getObject("user_id", UUID.class),
+                        rs.getObject("date", LocalDate.class),
+                        rs.getString("event_type"),
+                        rs.getObject("workout_id", UUID.class),
+                        rs.getObject("activity_id", UUID.class),
+                        rs.getString("title"),
+                        rs.getString("description"),
+                        rs.getString("status"),
+                        rs.getShort("order_index"),
+                        rs.getBigDecimal("compliance_score"),
+                        rs.getString("workout_sport"),
+                        nullableInt(rs, "workout_duration"),
+                        rs.getBigDecimal("activity_tss"),
+                        nullableInt(rs, "activity_duration")
+                ))
+                .list();
     }
 
     // ── autoSkipPastPlanned ───────────────────────────────────────────────────
@@ -189,7 +222,13 @@ class CalendarEventPersistenceAdapter implements CalendarEventPersistencePort {
                 e.id, e.userId, e.date, e.eventType,
                 e.workoutId, e.activityId,
                 e.title, e.description,
-                e.status, e.orderIndex, e.complianceScore
+                e.status, e.orderIndex, e.complianceScore,
+                null, null, null, null
         );
+    }
+
+    private static Integer nullableInt(java.sql.ResultSet rs, String col) throws java.sql.SQLException {
+        int v = rs.getInt(col);
+        return rs.wasNull() ? null : v;
     }
 }
