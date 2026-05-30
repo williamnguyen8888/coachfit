@@ -278,24 +278,24 @@ export default function ActivityDetailPage({ params }: Props) {
         </div>
 
         {/* Bottom Row: Flat, Card-Free High-Density Telemetry Metrics Bar */}
-        <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 sm:flex sm:flex-wrap sm:items-center sm:gap-x-4 sm:gap-y-1.5 text-xs text-text-secondary border-t border-border-subtle/30 pt-3">
+        <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 sm:flex sm:flex-wrap sm:items-center sm:gap-x-6 sm:gap-y-2 text-xs sm:text-[14px] text-text-secondary border-t border-border-subtle/30 pt-3">
           {/* Main metrics */}
           <div className="flex items-center gap-1.5">
-            <Compass size={13} className="text-text-muted shrink-0" />
+            <Compass size={14} className="text-text-muted shrink-0" />
             <span className="text-text-muted">Dist:</span>
             <span className="font-bold text-text-primary">{activity.sport === "swimming" ? `${activity.distanceMeters ?? 1500} m` : `${distanceKm} km`}</span>
           </div>
           <span className="hidden sm:inline text-text-muted/40 select-none">·</span>
           
           <div className="flex items-center gap-1.5">
-            <Timer size={13} className="text-text-muted shrink-0" />
+            <Timer size={14} className="text-text-muted shrink-0" />
             <span className="text-text-muted">Time:</span>
             <span className="font-bold text-text-primary">{durationStr}</span>
           </div>
           <span className="hidden sm:inline text-text-muted/40 select-none">·</span>
 
           <div className="flex items-center gap-1.5">
-            <Activity size={13} className="text-text-muted shrink-0" />
+            <Activity size={14} className="text-text-muted shrink-0" />
             <span className="text-text-muted">Speed:</span>
             <span className="font-bold text-text-primary">
               {activity.sport === "running" ? `${formatSpeedToPace(activity.avgSpeed ?? 4.0, "run")}/km` : 
@@ -311,34 +311,34 @@ export default function ActivityDetailPage({ params }: Props) {
             <>
               {/* TSS */}
               <div className="flex items-center gap-1.5">
-                <Flame size={13} className="text-accent shrink-0 animate-pulse" />
+                <Flame size={14} className="text-accent shrink-0 animate-pulse" />
                 <span className="text-text-muted">TSS:</span>
                 <span className="font-bold text-text-primary">{loadTss}</span>
-                <span className="text-text-muted text-[10px]">({intensityFactor}% IF)</span>
+                <span className="text-text-muted text-[10px] sm:text-xs">({intensityFactor}% IF)</span>
               </div>
               <span className="hidden sm:inline text-text-muted/40 select-none">·</span>
 
               {/* Power */}
               <div className="flex items-center gap-1.5">
-                <Zap size={13} className="text-fitness shrink-0" />
+                <Zap size={14} className="text-fitness shrink-0" />
                 <span className="text-text-muted">PWR:</span>
                 <span className="font-bold text-text-primary">{avgPower}W</span>
-                <span className="text-text-muted text-[10px]">({normPower}W NP)</span>
+                <span className="text-text-muted text-[10px] sm:text-xs">({normPower}W NP)</span>
               </div>
               <span className="hidden sm:inline text-text-muted/40 select-none">·</span>
 
               {/* HR */}
               <div className="flex items-center gap-1.5">
-                <Heart size={13} className="text-danger shrink-0" />
+                <Heart size={14} className="text-danger shrink-0" />
                 <span className="text-text-muted">HR:</span>
                 <span className="font-bold text-text-primary">{avgHr} bpm</span>
-                <span className="text-text-muted text-[10px]">(Max {maxHr})</span>
+                <span className="text-text-muted text-[10px] sm:text-xs">(Max {maxHr})</span>
               </div>
               <span className="hidden sm:inline text-text-muted/40 select-none">·</span>
 
               {/* Cadence */}
               <div className="flex items-center gap-1.5">
-                <Gauge size={13} className="text-warning shrink-0" />
+                <Gauge size={14} className="text-warning shrink-0" />
                 <span className="text-text-muted">CAD:</span>
                 <span className="font-bold text-text-primary">{activity.avgCadence ?? 96} rpm</span>
               </div>
@@ -346,10 +346,10 @@ export default function ActivityDetailPage({ params }: Props) {
 
               {/* Energy */}
               <div className="flex items-center gap-1.5">
-                <Award size={13} className="text-form shrink-0" />
+                <Award size={14} className="text-form shrink-0" />
                 <span className="text-text-muted">CAL:</span>
                 <span className="font-bold text-text-primary">{activity.calories ?? 371} kcal</span>
-                <span className="text-text-muted text-[10px]">({activity.calories ? Math.round(activity.calories * 0.84) : 311} kJ)</span>
+                <span className="text-text-muted text-[10px] sm:text-xs">({activity.calories ? Math.round(activity.calories * 0.84) : 311} kJ)</span>
               </div>
             </>
           )}
@@ -358,34 +358,34 @@ export default function ActivityDetailPage({ params }: Props) {
             <>
               {/* rTSS */}
               <div className="flex items-center gap-1.5">
-                <Flame size={13} className="text-accent shrink-0 animate-pulse" />
+                <Flame size={14} className="text-accent shrink-0 animate-pulse" />
                 <span className="text-text-muted">rTSS:</span>
                 <span className="font-bold text-text-primary">{loadTss}</span>
-                <span className="text-text-muted text-[10px]">({intensityFactor}% IF)</span>
+                <span className="text-text-muted text-[10px] sm:text-xs">({intensityFactor}% IF)</span>
               </div>
               <span className="hidden sm:inline text-text-muted/40 select-none">·</span>
 
               {/* Pace */}
               <div className="flex items-center gap-1.5">
-                <Zap size={13} className="text-fitness shrink-0" />
+                <Zap size={14} className="text-fitness shrink-0" />
                 <span className="text-text-muted">Pace:</span>
                 <span className="font-bold text-text-primary">{formatSpeedToPace(activity.avgSpeed ?? 4.0, "run")}/km</span>
-                <span className="text-text-muted text-[10px]">(GAP {formatSpeedToPace(activity.avgSpeed ? activity.avgSpeed * 1.03 : 4.12, "run")})</span>
+                <span className="text-text-muted text-[10px] sm:text-xs">(GAP {formatSpeedToPace(activity.avgSpeed ? activity.avgSpeed * 1.03 : 4.12, "run")})</span>
               </div>
               <span className="hidden sm:inline text-text-muted/40 select-none">·</span>
 
               {/* HR */}
               <div className="flex items-center gap-1.5">
-                <Heart size={13} className="text-danger shrink-0" />
+                <Heart size={14} className="text-danger shrink-0" />
                 <span className="text-text-muted">HR:</span>
                 <span className="font-bold text-text-primary">{avgHr} bpm</span>
-                <span className="text-text-muted text-[10px]">(Max {maxHr})</span>
+                <span className="text-text-muted text-[10px] sm:text-xs">(Max {maxHr})</span>
               </div>
               <span className="hidden sm:inline text-text-muted/40 select-none">·</span>
 
               {/* Cadence */}
               <div className="flex items-center gap-1.5">
-                <Gauge size={13} className="text-warning shrink-0" />
+                <Gauge size={14} className="text-warning shrink-0" />
                 <span className="text-text-muted">CAD:</span>
                 <span className="font-bold text-text-primary">{activity.avgCadence ?? 174} spm</span>
               </div>
@@ -393,7 +393,7 @@ export default function ActivityDetailPage({ params }: Props) {
 
               {/* Energy */}
               <div className="flex items-center gap-1.5">
-                <Award size={13} className="text-form shrink-0" />
+                <Award size={14} className="text-form shrink-0" />
                 <span className="text-text-muted">CAL:</span>
                 <span className="font-bold text-text-primary">{activity.calories ?? 620} kcal</span>
               </div>
@@ -404,16 +404,16 @@ export default function ActivityDetailPage({ params }: Props) {
             <>
               {/* sTSS */}
               <div className="flex items-center gap-1.5">
-                <Flame size={13} className="text-accent shrink-0 animate-pulse" />
+                <Flame size={14} className="text-accent shrink-0 animate-pulse" />
                 <span className="text-text-muted">sTSS:</span>
                 <span className="font-bold text-text-primary">{loadTss}</span>
-                <span className="text-text-muted text-[10px]">({intensityFactor}% IF)</span>
+                <span className="text-text-muted text-[10px] sm:text-xs">({intensityFactor}% IF)</span>
               </div>
               <span className="hidden sm:inline text-text-muted/40 select-none">·</span>
 
               {/* Swim Pace */}
               <div className="flex items-center gap-1.5">
-                <Zap size={13} className="text-fitness shrink-0" />
+                <Zap size={14} className="text-fitness shrink-0" />
                 <span className="text-text-muted">Pace:</span>
                 <span className="font-bold text-text-primary">{formatSpeedToPace(activity.avgSpeed ?? 1.0, "swim")}/100m</span>
               </div>
@@ -421,16 +421,16 @@ export default function ActivityDetailPage({ params }: Props) {
 
               {/* SWOLF */}
               <div className="flex items-center gap-1.5">
-                <Gauge size={13} className="text-warning shrink-0" />
+                <Gauge size={14} className="text-warning shrink-0" />
                 <span className="text-text-muted">SWOLF:</span>
                 <span className="font-bold text-text-primary">38</span>
-                <span className="text-text-muted text-[10px]">({activity.avgCadence ?? 34} spm)</span>
+                <span className="text-text-muted text-[10px] sm:text-xs">({activity.avgCadence ?? 34} spm)</span>
               </div>
               <span className="hidden sm:inline text-text-muted/40 select-none">·</span>
 
               {/* HR */}
               <div className="flex items-center gap-1.5">
-                <Heart size={13} className="text-danger shrink-0" />
+                <Heart size={14} className="text-danger shrink-0" />
                 <span className="text-text-muted">HR:</span>
                 <span className="font-bold text-text-primary">{avgHr} bpm</span>
               </div>
@@ -438,7 +438,7 @@ export default function ActivityDetailPage({ params }: Props) {
 
               {/* Energy */}
               <div className="flex items-center gap-1.5">
-                <Award size={13} className="text-form shrink-0" />
+                <Award size={14} className="text-form shrink-0" />
                 <span className="text-text-muted">CAL:</span>
                 <span className="font-bold text-text-primary">{activity.calories ?? 410} kcal</span>
               </div>
@@ -449,7 +449,7 @@ export default function ActivityDetailPage({ params }: Props) {
             <>
               {/* hrTSS */}
               <div className="flex items-center gap-1.5">
-                <Flame size={13} className="text-accent shrink-0 animate-pulse" />
+                <Flame size={14} className="text-accent shrink-0 animate-pulse" />
                 <span className="text-text-muted">hrTSS:</span>
                 <span className="font-bold text-text-primary">{loadTss}</span>
               </div>
@@ -457,16 +457,16 @@ export default function ActivityDetailPage({ params }: Props) {
 
               {/* HR */}
               <div className="flex items-center gap-1.5">
-                <Heart size={13} className="text-danger shrink-0" />
+                <Heart size={14} className="text-danger shrink-0" />
                 <span className="text-text-muted">HR:</span>
                 <span className="font-bold text-text-primary">{avgHr} bpm</span>
-                <span className="text-text-muted text-[10px]">(Max {maxHr})</span>
+                <span className="text-text-muted text-[10px] sm:text-xs">(Max {maxHr})</span>
               </div>
               <span className="hidden sm:inline text-text-muted/40 select-none">·</span>
 
               {/* Energy */}
               <div className="flex items-center gap-1.5">
-                <Award size={13} className="text-form shrink-0" />
+                <Award size={14} className="text-form shrink-0" />
                 <span className="text-text-muted">CAL:</span>
                 <span className="font-bold text-text-primary">{activity.calories ?? 300} kcal</span>
               </div>
