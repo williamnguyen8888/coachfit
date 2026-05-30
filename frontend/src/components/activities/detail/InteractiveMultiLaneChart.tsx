@@ -113,13 +113,9 @@ export function InteractiveMultiLaneChart({
 
   const [visibleLanes, setVisibleLanes] = useState<string[]>([]);
 
-  // Sync visible lanes depending on sport and screen size
+  // Sync visible lanes: default all lanes to show on both mobile and PC
   useEffect(() => {
-    const isMobileViewport = window.innerWidth < 640;
-    if (isMobileViewport && laneDefinitions.length > 0) {
-      // Default to only first lane on mobile to prevent clutter
-      setVisibleLanes([laneDefinitions[0].key]);
-    } else {
+    if (laneDefinitions.length > 0) {
       setVisibleLanes(laneDefinitions.map((l) => l.key));
     }
   }, [laneDefinitions]);
@@ -405,35 +401,43 @@ export function InteractiveMultiLaneChart({
     <div className="flex flex-col gap-3 sm:gap-4 select-none">
       
       {/* Toggles and Zoom Controls */}
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border-subtle pb-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-semibold text-text-muted uppercase tracking-wider mr-2">Telemetry Lanes:</span>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-border-subtle pb-3.5">
+        <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap scrollbar-none w-full sm:w-auto -mx-2.5 px-2.5 sm:mx-0 sm:px-0">
           {laneDefinitions.map((lane) => {
             const isActive = visibleLanes.includes(lane.key);
             return (
               <button
                 key={lane.key}
                 onClick={() => toggleLane(lane.key)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold cursor-pointer transition-all duration-150 ${
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-bold cursor-pointer transition-all duration-200 select-none shrink-0 ${
                   isActive
-                    ? "bg-bg-elevated text-text-primary shadow-sm"
-                    : "bg-transparent text-text-muted border-transparent hover:text-text-secondary"
+                    ? "bg-bg-surface text-text-primary shadow-sm"
+                    : "bg-transparent text-text-muted border-border-default/40 hover:text-text-secondary"
                 }`}
                 style={{
-                  borderColor: isActive ? lane.color + "77" : "transparent",
-                  boxShadow: isActive ? `0 0 10px ${lane.color}15` : "none",
+                  borderColor: isActive ? lane.color : "var(--border-default)",
+                  borderWidth: "1px",
+                  boxShadow: isActive ? `0 2px 6px ${lane.color}18` : "none",
+                  color: isActive ? "var(--text-primary)" : "var(--text-secondary)",
                 }}
               >
-                <span style={{ color: isActive ? lane.color : "inherit" }}>
-                  {isActive ? lane.icon : <EyeOff size={12} />}
+                {/* Visual active indicator (colored indicator dot) or Icon */}
+                <span className="flex items-center justify-center w-4 h-4 rounded-full" style={{ backgroundColor: isActive ? `${lane.color}15` : "transparent" }}>
+                  <span style={{ color: isActive ? lane.color : "var(--text-muted)", fontSize: "10px" }} className="flex items-center justify-center shrink-0">
+                    {lane.icon}
+                  </span>
                 </span>
+                
                 <span>{lane.label}</span>
+                
+                {/* Subtle active checkmark or dot */}
+                <span className="w-1.5 h-1.5 rounded-full transition-all duration-200" style={{ backgroundColor: isActive ? lane.color : "transparent" }} />
               </button>
             );
           })}
         </div>
 
-        <div className="flex items-center gap-3 text-xs font-semibold">
+        <div className="flex items-center gap-3 text-xs font-semibold self-end sm:self-auto">
           {/* Time Offset / Duration Indicator */}
           <div className="flex items-center gap-1.5 bg-bg-elevated px-2.5 py-1.5 rounded-lg border border-border-subtle shadow-sm text-text-secondary font-mono text-[11px]">
             {hoverData ? (

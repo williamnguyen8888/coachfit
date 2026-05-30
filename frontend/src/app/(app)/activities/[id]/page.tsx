@@ -508,9 +508,6 @@ export default function ActivityDetailPage({ params }: Props) {
         <div className="flex-1 min-w-0 p-3 sm:p-5 flex flex-col gap-3 sm:gap-5">
           {activeTab === "TIMELINE" && (
             <>
-              {/* Subjective Feedback Panel */}
-              <SubjectiveFeedbackCard sport={activity.sport} />
-
               {/* Streams Interactive Charts */}
               {streams && (
                 <InteractiveMultiLaneChart 
@@ -611,28 +608,33 @@ export default function ActivityDetailPage({ params }: Props) {
           )}
         </div>
 
-        {/* Right Column: Notes / Comments sidebar panel (20% width) */}
+        {/* Right Column: Sidebar (Feedback + Notes) */}
         <div
-          className="w-full lg:w-[260px] border-t lg:border-t-0 lg:border-l border-border-subtle bg-bg-elevated flex flex-col overflow-hidden h-auto lg:h-full"
+          className="w-full lg:w-[320px] lg:min-w-[320px] border-t lg:border-t-0 lg:border-l border-border-subtle bg-bg-elevated flex flex-col overflow-hidden h-auto lg:h-full"
         >
-          {/* Sidebar Header */}
-          <div
-            style={{
-              padding: "12px 16px",
-              borderBottom: "1px solid var(--border-subtle)",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
-            <div style={{ display: "flex", gap: "8px", alignItems: "center", fontSize: "13px", fontWeight: 700 }}>
-              <span style={{ fontSize: "15px" }}>📝</span>
-              <span>Notes</span>
-            </div>
-            <div style={{ display: "flex", gap: "10px", color: "var(--text-secondary)" }}>
-              <button style={{ border: "none", background: "none", cursor: "pointer", color: "inherit" }} title="Attach File">
-                <Paperclip size={16} />
-              </button>
+          {/* Athlete Perceived Feeling & Coach Feedback */}
+          <SubjectiveFeedbackCard sport={activity.sport} />
+
+          {/* Notes Log (occupies remaining height of sidebar) */}
+          <div className="flex-1 flex flex-col overflow-hidden min-h-[300px]">
+            {/* Sidebar Header */}
+            <div
+              style={{
+                padding: "12px 16px",
+                borderBottom: "1px solid var(--border-subtle)",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-text-primary">
+                <span>📝</span>
+                <span>Notes & Comments</span>
+              </div>
+              <div style={{ display: "flex", gap: "10px", color: "var(--text-secondary)" }}>
+                <button style={{ border: "none", background: "none", cursor: "pointer", color: "inherit" }} title="Attach File">
+                  <Paperclip size={16} />
+                </button>
               <button style={{ border: "none", background: "none", cursor: "pointer", color: "inherit" }} title="Share notes">
                 <Share2 size={16} />
               </button>
@@ -708,6 +710,7 @@ export default function ActivityDetailPage({ params }: Props) {
           </div>
         </div>
       </div>
-    </main>
+    </div>
+  </main>
   );
 }
