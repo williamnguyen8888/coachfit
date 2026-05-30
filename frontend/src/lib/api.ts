@@ -50,8 +50,8 @@ async function refreshAccessToken(): Promise<string | null> {
       credentials: "include", // send httpOnly cookie
     });
     if (!res.ok) return null;
-    const body = (await res.json()) as { token?: string };
-    return body.token ?? null;
+    const body = (await res.json()) as { accessToken?: string; token?: string };
+    return body.accessToken ?? body.token ?? null;
   } catch {
     return null;
   }

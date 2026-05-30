@@ -54,22 +54,26 @@ export interface AthleteProfileUpdateRequest {
 export interface ZoneDefinition {
   zone: number; // 1–7
   name: string;
-  minBpm?: number | null;
-  maxBpm?: number | null;
-  minWatts?: number | null;
-  maxWatts?: number | null;
-  minPace?: string | null; // "mm:ss/km"
-  maxPace?: string | null;
-  description?: string;
+  /** Generic min value (bpm for HR zones, watts for power zones) */
+  min?: number | null;
+  /** Generic max value */
+  max?: number | null;
 }
 
 export interface SportZones {
+  id?: string;
   sport: Sport;
-  ftpWatts?: number | null;       // cycling FTP
-  thresholdPace?: string | null;  // running threshold pace mm:ss/km
-  lthrBpm?: number | null;        // lactate threshold HR
-  maxHrBpm?: number | null;
+  zoneType?: string;
+  /** FTP in watts (cycling) — backend field: `ftp` */
+  ftp?: number | null;
+  /** Lactate threshold HR in bpm — backend field: `lthr` */
+  lthr?: number | null;
+  /** Max heart rate in bpm — backend field: `maxHr` */
+  maxHr?: number | null;
+  /** Threshold pace as mm:ss string (running) */
+  thresholdPace?: string | null;
   zones: ZoneDefinition[];
+  effectiveDate?: string | null; // YYYY-MM-DD
 }
 
 export type ZonesResponse = SportZones[];
@@ -93,7 +97,9 @@ export type ConnectionsResponse = ConnectedAccount[];
 export interface ApiKey {
   id: string;
   name: string;
-  prefix: string; // e.g. "cfk_abc1..." — last 4 chars visible
+  /** Prefix shown for identification — backend field: `keyPrefix` */
+  keyPrefix: string;
+  isActive: boolean;
   createdAt: string;
   lastUsedAt: string | null;
   expiresAt: string | null;
@@ -101,12 +107,13 @@ export interface ApiKey {
 
 export interface ApiKeyCreateRequest {
   name: string;
-  expiresInDays?: number | null;
+  /** ISO-8601 timestamp or null for non-expiring — backend field: `expiresAt` */
+  expiresAt?: string | null;
 }
 
 export interface ApiKeyCreateResponse extends ApiKey {
-  /** Full key — only returned once at creation time */
-  key: string;
+  /** Full key — only returned once at creation time — backend field: `rawKey` */
+  rawKey: string;
 }
 
 /* ─── Subscription ─────────────────────────────────────────────────────────── */

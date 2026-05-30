@@ -16,7 +16,7 @@ import {
   Cell,
 } from "recharts";
 import { Skeleton } from "@/components/ui/Skeleton";
-import type { WeeklySummary as WeeklySummaryType } from "@/lib/types/dashboard";
+import type { WeeklySummary as WeeklySummaryType, SportVolume } from "@/lib/types/dashboard";
 
 /* ─── helpers ──────────────────────────────────────────────────────────── */
 
@@ -140,9 +140,19 @@ export function WeeklySummary({ data, className }: Props) {
           This Week
         </h2>
         <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
-          {data.weekLabel ?? ''}
+          {(() => {
+            try {
+              const s = new Date(data.weekStart + "T00:00:00");
+              const e = new Date(data.weekEnd + "T00:00:00");
+              const fmt = (d: Date) => d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+              return `${fmt(s)} – ${fmt(e)}`;
+            } catch {
+              return data.weekStart ?? "";
+            }
+          })()}
         </span>
       </div>
+
 
       {/* Summary stats row */}
       <div
@@ -151,12 +161,12 @@ export function WeeklySummary({ data, className }: Props) {
       >
         <StatPill
           label="Done"
-          value={`${(data.totalCompletedHours ?? 0).toFixed(1)}h`}
+          value={`${(data.completedHours ?? 0).toFixed(1)}h`}
           color="var(--color-fitness)"
         />
         <StatPill
           label="Target"
-          value={`${(data.totalPlannedHours ?? 0).toFixed(1)}h`}
+          value={`${(data.plannedHours ?? 0).toFixed(1)}h`}
           color="var(--text-secondary)"
         />
         <div className="flex flex-col items-center gap-0.5 flex-1">
@@ -164,10 +174,10 @@ export function WeeklySummary({ data, className }: Props) {
             className="font-metric tabular-nums font-bold"
             style={{
               fontSize: "var(--text-xl)",
-              color: complianceColor(data.compliance ?? 0),
+              color: complianceColor(data.percentage ?? 0),
             }}
           >
-            {Math.round(data.compliance ?? 0)}%
+            {Math.round(data.percentage ?? 0)}%
           </span>
           <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
             Compliance
@@ -175,79 +185,78 @@ export function WeeklySummary({ data, className }: Props) {
         </div>
       </div>
 
-      {/* Bar chart — planned vs actual */}
-      <div style={{ height: 140 }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart
-            data={data.days ?? []}
-            margin={{ top: 4, right: 0, bottom: 0, left: -24 }}
-            barCategoryGap="30%"
-            barGap={2}
-          >
-            <CartesianGrid
-              vertical={false}
-              stroke="var(--border-subtle)"
-              strokeDasharray="2 4"
-            />
-            <XAxis
-              dataKey="dayLabel"
-              tick={{ fontSize: 11, fill: "var(--text-muted)" }}
-              axisLine={false}
-              tickLine={false}
-            />
-            <YAxis
-              tick={{ fontSize: 10, fill: "var(--text-muted)" }}
-              axisLine={false}
-              tickLine={false}
-              tickFormatter={(v) => `${v}h`}
-            />
-            <Tooltip
-              content={<CustomTooltip />}
-              cursor={{ fill: "var(--bg-elevated)", radius: 4 }}
-            />
-            {/* Planned — subtle outline bars */}
-            <Bar dataKey="planned" name="Planned" radius={[3, 3, 0, 0]} fill="var(--border-default)">
-              {(data.days ?? []).map((_day, i) => (
-                <Cell key={i} fill="var(--border-default)" />
-              ))}
-            </Bar>
-            {/* Completed — colored bars */}
-            <Bar dataKey="completed" name="Completed" radius={[3, 3, 0, 0]}>
-              {(data.days ?? []).map((day, i) => (
-                <Cell
-                  key={i}
-                  fill={
-                    day.completed > 0
-                      ? "var(--color-fitness)"
-                      : "transparent"
-                  }
-                />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
+      {/* Bar chart — hours by sport */}
+      {(data.bySport?.length ?? 0) > 0 ? (
+        <div style={{ height: 140 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={(data.bySport ?? []).map((s) => ({ sport: s.sport, hours: s.hours }))}
+              margin={{ top: 4, right: 0, bottom: 0, left: -24 }}
+              barCategoryGap="35%"
+            >
+              <CartesianGrid
+                vertical={false}
+                stroke="var(--border-subtle)"
+                strokeDasharray="2 4"
+              />
+              <XAxis
+                dataKey="sport"
+                tick={{ fontSize: 11, fill: "var(--text-muted)" }}
+                axisLine={false}
+                tickLine={false}
+                tickFormatter={(v) => {
+                  const s = String(v ?? "");
+                  return s.length > 0 ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+                }}
+              />
+              <YAxis
+                tick={{ fontSize: 10, fill: "var(--text-muted)" }}
+                axisLine={false}
+                tickLine={false}
+                tickFormatter={(v) => `${v}h`}
+              />
+              <Tooltip
+                content={<CustomTooltip />}
+                cursor={{ fill: "var(--bg-elevated)", radius: 4 }}
+              />
+              <Bar dataKey="hours" name="Hours" radius={[3, 3, 0, 0]}>
+                {(data.bySport ?? []).map((_s, i) => (
+                  <Cell key={i} fill="var(--color-fitness)" />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      ) : (
+        <div
+          className="flex items-center justify-center rounded-[var(--radius-md)]"
+          style={{
+            height: 100,
+            background: "var(--bg-elevated)",
+            color: "var(--text-muted)",
+            fontSize: "var(--text-xs)",
+          }}
+        >
+          No sessions logged this week yet
+        </div>
+      )}
 
       {/* Legend */}
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-1.5">
           <span
             className="inline-block rounded-sm"
-            style={{ width: 10, height: 10, background: "var(--border-default)" }}
-          />
-          <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
-            Planned
-          </span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span
-            className="inline-block rounded-sm"
             style={{ width: 10, height: 10, background: "var(--color-fitness)" }}
           />
           <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
-            Completed
+            Hours completed
           </span>
         </div>
+        {data.completedSessions > 0 && (
+          <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
+            {data.completedSessions} session{data.completedSessions !== 1 ? "s" : ""}
+          </span>
+        )}
       </div>
     </div>
   );

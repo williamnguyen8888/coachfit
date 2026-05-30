@@ -91,7 +91,7 @@ interface CalendarState {
 
   // CRUD
   createEvent: (payload: CreateCalendarPayload) => Promise<CalendarEvent>;
-  updateEvent: (id: string, payload: UpdateCalendarPayload) => Promise<CalendarEvent>;
+  updateEvent: (id: string, payload: UpdateCalendarPayload) => Promise<void>;
   deleteEvent: (id: string) => Promise<void>;
   markComplete: (id: string) => Promise<void>;
   markSkipped: (id: string) => Promise<void>;
@@ -209,9 +209,15 @@ export const useCalendarStore = create<CalendarState>()(
       },
 
       updateEvent: async (id, payload) => {
-        const event = await calendarService.update(id, payload);
-        get()._upsertEvent(event);
-        return event;
+        // Backend returns void — optimistically update from local state + payload
+        await calendarService.update(id, payload);
+        set((state) => {
+          const existing = state.events.find((e) => e.id === id);
+          if (!existing) return {};
+          const updated = { ...existing, ...payload };
+          const next = state.events.map((e) => e.id === id ? updated : e);
+          return { events: next, eventsByDate: groupByDate(next) };
+        });
       },
 
       deleteEvent: async (id) => {
@@ -220,13 +226,25 @@ export const useCalendarStore = create<CalendarState>()(
       },
 
       markComplete: async (id) => {
-        const event = await calendarService.markComplete(id);
-        get()._upsertEvent(event);
+        // Backend returns void — optimistically patch status in local state
+        await calendarService.markComplete(id);
+        set((state) => {
+          const next = state.events.map((e) =>
+            e.id === id ? { ...e, status: "completed" as const } : e,
+          );
+          return { events: next, eventsByDate: groupByDate(next) };
+        });
       },
 
       markSkipped: async (id) => {
-        const event = await calendarService.markSkipped(id);
-        get()._upsertEvent(event);
+        // Backend returns void — optimistically patch status in local state
+        await calendarService.markSkipped(id);
+        set((state) => {
+          const next = state.events.map((e) =>
+            e.id === id ? { ...e, status: "skipped" as const } : e,
+          );
+          return { events: next, eventsByDate: groupByDate(next) };
+        });
       },
 
       reorderEvents: async (date, orderedIds) => {
@@ -280,8 +298,9 @@ export const useCalendarStore = create<CalendarState>()(
         });
 
         try {
-          const updated = await calendarService.update(eventId, { date: toDate });
-          get()._upsertEvent(updated);
+          // Backend returns void — we already applied the optimistic update
+          await calendarService.update(eventId, { date: toDate });
+          // No need to upsert — optimistic state is already correct
         } catch {
           // Rollback
           set({ events: previousEvents, eventsByDate: previousById });

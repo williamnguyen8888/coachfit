@@ -116,7 +116,7 @@ export default function ActivityDetailPage({ params }: Props) {
 
     try {
       // Critical: activity detail — failure shows error page
-      const detail = await activitiesService.getDetail(id);
+      const detail = await activitiesService.get(id);
       setActivity(detail);
 
       // Non-critical: streams + laps — failure shows empty state in each section
@@ -130,7 +130,9 @@ export default function ActivityDetailPage({ params }: Props) {
       }
 
       if (lapsResult.status === "fulfilled") {
-        setLaps(lapsResult.value);
+        // Backend returns { laps: ActivityLap[] } envelope
+        const lapsData = lapsResult.value;
+        setLaps(Array.isArray(lapsData) ? lapsData : (lapsData.laps ?? []));
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "An unexpected error occurred.";

@@ -334,7 +334,7 @@ export function WorkoutBuilderPage({ initialWorkout }: WorkoutBuilderPageProps) 
     }
     setExporting(true);
     try {
-      const { url } = await workoutsService.exportFit(savedId);
+      const { downloadUrl: url } = await workoutsService.exportFit(savedId);
       const a = document.createElement("a");
       a.href = url;
       a.download = `${state.name.replace(/[^a-z0-9]/gi, "_")}.fit`;

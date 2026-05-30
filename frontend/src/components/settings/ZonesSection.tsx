@@ -55,11 +55,11 @@ function ZoneRow({
   const name = ZONE_NAMES[zone];
   const z = sportData?.zones?.find((z) => z.zone === zone);
 
-  const hasPower = sport === "cycling" && (sportData?.ftpWatts ?? 0) > 0;
+  const hasPower = sport === "cycling" && (sportData?.ftp ?? 0) > 0;
   const hasPace = sport === "running" && sportData?.thresholdPace;
 
   function pctRange(lo: number, hi: number) {
-    const ftp = sportData?.ftpWatts ?? 0;
+    const ftp = sportData?.ftp ?? 0;
     if (!ftp) return null;
     return `${Math.round(lo * ftp)}–${Math.round(hi * ftp)}W`;
   }
@@ -111,13 +111,13 @@ function ZoneRow({
       </div>
 
       {/* HR range */}
-      {(z?.minBpm || z?.maxBpm) && (
+      {(z?.min || z?.max) && (
         <div
           className="hidden sm:flex items-center gap-1"
           style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}
         >
           <HeartPulse size={11} />
-          {z.minBpm ?? "–"}–{z.maxBpm ?? "∞"} bpm
+          {z.min ?? "–"}–{z.max ?? "∞"} bpm
         </div>
       )}
 
@@ -132,16 +132,7 @@ function ZoneRow({
         </div>
       )}
 
-      {/* Pace range (running) */}
-      {hasPace && (z?.minPace || z?.maxPace) && (
-        <div
-          className="hidden sm:flex items-center gap-1"
-          style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}
-        >
-          <Timer size={11} />
-          {z?.minPace ?? "–"} – {z?.maxPace ?? "–"}/km
-        </div>
-      )}
+      {/* Pace range — not supported by backend yet */}
 
       {/* Color bar */}
       <div
@@ -163,9 +154,9 @@ function SportZonesEditor({
   data: SportZones | null;
   onSaved: () => void;
 }) {
-  const [ftp, setFtp] = useState(data?.ftpWatts ? String(data.ftpWatts) : "");
-  const [lthr, setLthr] = useState(data?.lthrBpm ? String(data.lthrBpm) : "");
-  const [maxHr, setMaxHr] = useState(data?.maxHrBpm ? String(data.maxHrBpm) : "");
+  const [ftp, setFtp] = useState(data?.ftp ? String(data.ftp) : "");
+  const [lthr, setLthr] = useState(data?.lthr ? String(data.lthr) : "");
+  const [maxHr, setMaxHr] = useState(data?.maxHr ? String(data.maxHr) : "");
   const [pace, setPace] = useState(data?.thresholdPace ?? "");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -176,9 +167,9 @@ function SportZonesEditor({
     setErr(null);
     try {
       await zonesService.update(sport, {
-        ftpWatts: ftp ? parseInt(ftp) : null,
-        lthrBpm: lthr ? parseInt(lthr) : null,
-        maxHrBpm: maxHr ? parseInt(maxHr) : null,
+        ftp: ftp ? parseInt(ftp) : null,
+        lthr: lthr ? parseInt(lthr) : null,
+        maxHr: maxHr ? parseInt(maxHr) : null,
         thresholdPace: pace || null,
       });
       setSaved(true);

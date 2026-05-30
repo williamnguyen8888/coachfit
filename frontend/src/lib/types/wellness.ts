@@ -1,5 +1,6 @@
 // src/lib/types/wellness.ts
-// Type definitions for wellness & health data — aligned to docs/05-api-design.md § Wellness & Health Data
+// Type definitions for wellness & health data — aligned to actual backend DTOs.
+// Backend: WellnessResponse.java, WellnessRequest.java, WellnessController.java
 
 // ─── Wellness Entry ────────────────────────────────────────────────────────────
 
@@ -16,42 +17,53 @@ export type FatigueScore = 1 | 2 | 3 | 4 | 5;
 export type SleepQuality = 1 | 2 | 3 | 4 | 5;
 
 /**
- * A single wellness log entry.
- * `source` is "manual" for entries logged via this form.
- * Auto-populated health data (Garmin, etc.) appears in /health/* endpoints.
+ * A single wellness log entry — maps to backend WellnessResponse record.
+ * Field names match backend exactly.
  */
 export interface WellnessEntry {
-  date: string;             // YYYY-MM-DD
-  mood: MoodScore | null;
-  rpe: RpeScore | null;     // yesterday's perceived exertion
-  fatigue: FatigueScore | null;
-  sleepQuality: SleepQuality | null;
-  sleepHours: number | null; // decimal hours
-  muscleSoreness: FatigueScore | null; // 1=very sore, 5=none
-  motivation: MoodScore | null; // 1=very low, 5=very high
-  notes: string | null;
+  date: string;                  // YYYY-MM-DD
   source: "manual" | "garmin" | "polar" | "coros";
-  createdAt: string;        // ISO timestamp
-  updatedAt: string;        // ISO timestamp
+  mood: MoodScore | null;
+  rpe: RpeScore | null;          // yesterday's perceived exertion
+  sleepQuality: SleepQuality | null;
+  sleepHours: number | null;     // decimal hours
+  fatigue: FatigueScore | null;
+  /** Backend field name is `soreness` (not `muscleSoreness`) */
+  soreness: FatigueScore | null; // 1=very sore, 5=none
+  stressLevel: number | null;    // 1–10, not yet surfaced in UI
+  restingHr: number | null;      // bpm
+  hrv: number | null;
+  weightKg: number | null;
+  notes: string | null;
+  fieldSources?: Record<string, string> | null;
 }
 
-// ─── POST /wellness request body ────────────────────────────────────────────
+// ─── POST /wellness / PUT /wellness/{date} request body ──────────────────────
 
+/**
+ * Request body — maps to backend WellnessRequest record.
+ * All fields optional; only non-null values are merged.
+ * Note: `date` is passed as a URL path param for PUT, not in the body.
+ */
 export interface WellnessLogRequest {
-  date: string;             // YYYY-MM-DD (defaults to today if omitted)
   mood?: MoodScore;
   rpe?: RpeScore;
-  fatigue?: FatigueScore;
   sleepQuality?: SleepQuality;
   sleepHours?: number;
-  muscleSoreness?: FatigueScore;
-  motivation?: MoodScore;
+  fatigue?: FatigueScore;
+  /** Backend field name is `soreness` */
+  soreness?: FatigueScore;
+  stressLevel?: number;
+  restingHr?: number;
+  hrv?: number;
+  weightKg?: number;
   notes?: string;
 }
 
 // ─── GET /wellness response ──────────────────────────────────────────────────
 
-export interface WellnessListResponse {
-  content: WellnessEntry[];
-  // backend uses date-range filter, no pagination cursor needed
-}
+/**
+ * Backend returns a raw array (not a paginated envelope) for GET /wellness.
+ * Components must handle Array.isArray(data) directly.
+ */
+export type WellnessListResponse = WellnessEntry[];

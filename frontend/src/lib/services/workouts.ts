@@ -12,8 +12,10 @@ import type {
 } from "@/lib/types/workout";
 
 export interface FitExportResult {
-  /** Pre-signed download URL (24 h expiry) */
-  url: string;
+  /** Pre-signed download URL (24 h expiry) — backend field: `downloadUrl` */
+  downloadUrl: string;
+  /** Suggested filename e.g. "Tempo_Intervals.fit" — backend field: `filename` */
+  filename: string;
 }
 
 export interface SchedulePayload {
@@ -47,9 +49,9 @@ export const workoutsService = {
     return api.get<PaginatedWorkouts>(`/workouts${buildQuery(merged)}`);
   },
 
-  /** GET /workouts/templates — CoachFit system templates */
-  listTemplates: (): Promise<WorkoutSummary[]> =>
-    api.get<WorkoutSummary[]>("/workouts/templates"),
+  /** GET /workouts/templates — CoachFit system templates (paginated) */
+  listTemplates: (): Promise<PaginatedWorkouts> =>
+    api.get<PaginatedWorkouts>("/workouts/templates"),
 
   /** GET /workouts/{id} — full detail with steps */
   get: (id: string): Promise<WorkoutDetail> =>

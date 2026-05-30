@@ -49,7 +49,7 @@ function NewKeyReveal({
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(keyData.key);
+    await navigator.clipboard.writeText(keyData.rawKey);
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
   };
@@ -88,7 +88,7 @@ function NewKeyReveal({
           wordBreak: "break-all",
         }}
       >
-        <span className="flex-1">{keyData.key}</span>
+        <span className="flex-1">{keyData.rawKey}</span>
         <button
           type="button"
           id="copy-new-api-key"
@@ -121,7 +121,7 @@ function KeyRow({
   const [copied, setCopied] = useState(false);
 
   const handleCopyPrefix = async () => {
-    await navigator.clipboard.writeText(apiKey.prefix);
+    await navigator.clipboard.writeText(apiKey.keyPrefix);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   };
@@ -187,7 +187,7 @@ function KeyRow({
               padding: 0,
             }}
           >
-            {apiKey.prefix}…
+            {apiKey.keyPrefix}…
             {copied ? <Check size={10} style={{ color: "var(--color-success)" }} /> : <ClipboardCopy size={10} />}
           </button>
           <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
@@ -247,9 +247,12 @@ function CreateKeyForm({
     setCreating(true);
     setErr(null);
     try {
+      const expiresAt = expiry && expiry !== "0"
+        ? new Date(Date.now() + parseInt(expiry) * 86400000).toISOString()
+        : null;
       const key = await apiKeysService.create({
         name: name.trim(),
-        expiresInDays: expiry && expiry !== "0" ? parseInt(expiry) : null,
+        expiresAt,
       });
       setName("");
       setExpiry("90");

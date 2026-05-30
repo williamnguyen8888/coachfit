@@ -1,15 +1,42 @@
 // src/lib/services/activities.ts
 // API service layer for activities — wraps api.ts with typed helpers.
 
-import { api } from "@/lib/api";
+import { api, apiUpload } from "@/lib/api";
 import type {
-  ActivitySummary,
   ActivityDetail,
   ActivityLap,
   ActivityStreams,
   ActivitiesFilter,
   PaginatedActivities,
 } from "@/lib/types/activity";
+
+/** Response from POST /activities/upload */
+export interface ActivityUploadResponse {
+  id: string;
+  name: string;
+  sport: string;
+  startedAt: string;
+  durationSeconds: number;
+  distanceMeters: number | null;
+  source: string;
+  rawFileFormat: string;
+}
+
+/** Response from GET /activities/{id}/download */
+export interface ActivityDownloadResponse {
+  /** Pre-signed URL valid for `expiresInSeconds` */
+  url: string;
+  /** File format, e.g. "FIT", "TCX", "GPX" */
+  format: string;
+  expiresInSeconds: number;
+}
+
+/** Request body for PUT /activities/{id} */
+export interface ActivityUpdateRequest {
+  name?: string;
+  description?: string;
+  gearId?: string;
+}
 
 function buildQuery(filter: ActivitiesFilter): string {
   const params = new URLSearchParams();
@@ -31,12 +58,8 @@ export const activitiesService = {
     return api.get<PaginatedActivities>(`/activities${buildQuery(merged)}`);
   },
 
-  /** GET /activities/{id} — summary (used on list cards) */
-  get: (id: string): Promise<ActivitySummary> =>
-    api.get<ActivitySummary>(`/activities/${id}`),
-
   /** GET /activities/{id} — full detail with all metrics */
-  getDetail: (id: string): Promise<ActivityDetail> =>
+  get: (id: string): Promise<ActivityDetail> =>
     api.get<ActivityDetail>(`/activities/${id}`),
 
   /** GET /activities/{id}/streams — time-series data */
@@ -44,8 +67,34 @@ export const activitiesService = {
     api.get<ActivityStreams>(`/activities/${id}/streams`),
 
   /** GET /activities/{id}/laps — laps breakdown */
-  getLaps: (id: string): Promise<ActivityLap[]> =>
-    api.get<ActivityLap[]>(`/activities/${id}/laps`),
+  getLaps: (id: string): Promise<{ laps: ActivityLap[] }> =>
+    api.get<{ laps: ActivityLap[] }>(`/activities/${id}/laps`),
+
+  /**
+   * POST /activities/upload
+   * Upload a FIT/TCX/GPX file for processing.
+   * Returns 201 on success, 409 DUPLICATE if activity already exists.
+   */
+  upload: (file: File): Promise<ActivityUploadResponse> => {
+    const fd = new FormData();
+    fd.append("file", file);
+    return apiUpload<ActivityUploadResponse>("/activities/upload", fd);
+  },
+
+  /**
+   * GET /activities/{id}/download
+   * Returns a pre-signed URL to download the raw file.
+   */
+  getDownloadUrl: (id: string): Promise<ActivityDownloadResponse> =>
+    api.get<ActivityDownloadResponse>(`/activities/${id}/download`),
+
+  /**
+   * PUT /activities/{id}
+   * Update editable fields: name, description, gearId.
+   * Sport, start time, and power data are read-only (set by ingestion pipeline).
+   */
+  update: (id: string, body: ActivityUpdateRequest): Promise<ActivityDetail> =>
+    api.put<ActivityDetail>(`/activities/${id}`, body),
 
   /** DELETE /activities/{id} */
   delete: (id: string): Promise<void> =>

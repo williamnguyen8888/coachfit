@@ -457,7 +457,7 @@ export default function WorkoutDetailPage({ params }: Props) {
   const handleExportFit = useCallback(async () => {
     setExporting(true);
     try {
-      const { url } = await workoutsService.exportFit(id);
+      const { downloadUrl: url } = await workoutsService.exportFit(id);
       const a = document.createElement("a");
       a.href = url;
       a.download = `${workout?.name?.replace(/[^a-z0-9]/gi, "_") ?? "workout"}.fit`;

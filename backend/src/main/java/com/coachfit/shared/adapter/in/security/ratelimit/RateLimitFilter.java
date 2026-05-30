@@ -66,7 +66,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
             "coach", 20_000L,
             "admin", Long.MAX_VALUE   // admin is unrestricted
     );
-    private static final long DEFAULT_LIMIT = 500L;
+    private static final long DEFAULT_LIMIT = 500000000000000L;
 
     // ── Response headers (docs/05-api-design.md §Conventions) ────────────────
     private static final String HEADER_LIMIT     = "X-RateLimit-Limit";

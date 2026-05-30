@@ -89,12 +89,26 @@ export interface DayVolume {
 }
 
 export interface WeeklySummary {
-  weekLabel: string;       // e.g. "May 26 – Jun 1"
-  totalPlannedHours: number;
-  totalCompletedHours: number;
+  /** ISO date of the Monday starting this week: "YYYY-MM-DD" */
+  weekStart: string;
+  /** ISO date of the Sunday ending this week: "YYYY-MM-DD" */
+  weekEnd: string;
+  plannedHours: number;
+  completedHours: number;
+  completedSessions: number;
+  /** 0–100 */
+  percentage: number;
   totalTss: number | null;
-  compliance: number;       // percentage 0-100
-  days: DayVolume[];
+  totalDistanceMeters: number | null;
+  bySport: SportVolume[];
+}
+
+export interface SportVolume {
+  sport: string;
+  hours: number;
+  sessions: number;
+  distanceMeters: number | null;
+  tss: number | null;
 }
 
 // ─── Fitness Trend ────────────────────────────────────────────────────────────
@@ -107,8 +121,9 @@ export interface FitnessTrendPoint {
 }
 
 export interface FitnessTrendResponse {
+  /** The sport these values were computed for (e.g. "cycling") */
+  sport?: string;
   points: FitnessTrendPoint[];
-  currentCtl: number;
-  currentAtl: number;
-  currentTsb: number;
+  // Note: currentCtl / currentAtl / currentTsb are NOT returned by the backend.
+  // Derive them from the last entry in points[] in the component.
 }

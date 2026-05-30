@@ -27,9 +27,10 @@ export const calendarService = {
   /**
    * PUT /calendar/{id}
    * Update an existing calendar event (reschedule date, change notes, etc.)
+   * Returns void — backend responds 200 with no body.
    */
-  update: (id: string, payload: UpdateCalendarPayload): Promise<CalendarEvent> =>
-    api.put<CalendarEvent>(`/calendar/${id}`, payload),
+  update: (id: string, payload: UpdateCalendarPayload): Promise<void> =>
+    api.put<void>(`/calendar/${id}`, payload),
 
   /**
    * DELETE /calendar/{id}
@@ -41,16 +42,18 @@ export const calendarService = {
   /**
    * PUT /calendar/{id}/complete
    * Manually mark a planned event as completed.
+   * Returns void — backend responds 200 with no body.
    */
-  markComplete: (id: string): Promise<CalendarEvent> =>
-    api.put<CalendarEvent>(`/calendar/${id}/complete`),
+  markComplete: (id: string): Promise<void> =>
+    api.put<void>(`/calendar/${id}/complete`),
 
   /**
    * PUT /calendar/{id}/skip
    * Mark an event as skipped (user chose not to do it).
+   * Returns void — backend responds 200 with no body.
    */
-  markSkipped: (id: string): Promise<CalendarEvent> =>
-    api.put<CalendarEvent>(`/calendar/${id}/skip`),
+  markSkipped: (id: string): Promise<void> =>
+    api.put<void>(`/calendar/${id}/skip`),
 
   /**
    * POST /calendar/reorder

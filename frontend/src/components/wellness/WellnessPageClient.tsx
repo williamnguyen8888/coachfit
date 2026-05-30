@@ -5,7 +5,7 @@ import React, { useState, useCallback } from "react";
 import { useQuery } from "@/hooks/useQuery";
 import { WellnessCheckIn } from "./WellnessCheckIn";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { SmilePlus, Moon, Zap, Flame, Dumbbell, Target, TrendingUp } from "lucide-react";
+import { SmilePlus, Moon, Zap, Flame, Dumbbell, TrendingUp } from "lucide-react";
 import type { WellnessEntry } from "@/lib/types/wellness";
 
 /* ─── Color helpers ─────────────────────────────────────────────────────── */
@@ -79,8 +79,7 @@ function HistoryRow({ entry, isLast }: { entry: WellnessEntry; isLast: boolean }
         {entry.fatigue    && <StatPill icon={<Zap size={10} />}       label="Energy"   value={`${entry.fatigue}/5`}         color={fatigueColor(entry.fatigue)} />}
         {entry.rpe        && <StatPill icon={<Flame size={10} />}     label="RPE"      value={`${entry.rpe}/10`}            color={rpeColor(entry.rpe)} />}
         {entry.sleepHours && <StatPill icon={<Moon size={10} />}      label="Sleep"    value={`${entry.sleepHours}h`}       color="var(--color-fitness)" />}
-        {entry.muscleSoreness && <StatPill icon={<Dumbbell size={10} />} label="Sore" value={`${entry.muscleSoreness}/5`} color={fatigueColor(entry.muscleSoreness)} />}
-        {entry.motivation && <StatPill icon={<Target size={10} />}    label="Motiv."   value={`${entry.motivation}/5`}     color={moodColor(entry.motivation)} />}
+        {entry.soreness   && <StatPill icon={<Dumbbell size={10} />}  label="Sore"     value={`${entry.soreness}/5`}        color={fatigueColor(entry.soreness)} />}
       </div>
     </div>
   );
@@ -100,11 +99,12 @@ export function WellnessPage() {
   const { from, to } = getDateRange();
   const [refreshKey, setRefreshKey] = useState(0);
 
-  const wellnessQuery = useQuery<{ content: WellnessEntry[] }>(
+  const wellnessQuery = useQuery<WellnessEntry[]>(
     `/wellness?from=${from}&to=${to}&_k=${refreshKey}`,
   );
 
-  const entries     = wellnessQuery.data?.content ?? [];
+  // Backend returns a raw array, not a paginated { content: [] } envelope
+  const entries     = Array.isArray(wellnessQuery.data) ? wellnessQuery.data : [];
   const today       = new Date().toISOString().split("T")[0];
   const todayEntry  = entries.find((e) => e.date === today) ?? null;
   const lastKnown   = entries.find((e) => e.date !== today) ?? null;

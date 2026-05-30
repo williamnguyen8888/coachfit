@@ -164,7 +164,7 @@ function WeekProgressBar({ weekProgress }: { weekProgress: DashboardToday["weekP
             fontFamily: "var(--font-mono)",
           }}
         >
-          {weekProgress.completedHours.toFixed(1)}h / {weekProgress.plannedHours.toFixed(1)}h
+          {(weekProgress.completedHours ?? 0).toFixed(1)}h / {(weekProgress.plannedHours ?? 0).toFixed(1)}h
         </span>
       </div>
       <div
@@ -215,7 +215,9 @@ interface Props {
 
 export function MorningBriefing({ data, className }: Props) {
   const tod = getTimeOfDay();
-  const firstName = (data.greeting ?? "").split(",")[1]?.trim().replace("!", "") ?? "";
+  // Backend greeting is "Hello, FirstName!" — extract first name defensively
+  const parts = (data.greeting ?? "").split(",");
+  const firstName = parts.length > 1 ? (parts[1]?.trim().replace("!", "") ?? "") : "";
   const greeting = `Good ${tod}${firstName ? `, ${firstName}` : ""}`;
 
   return (

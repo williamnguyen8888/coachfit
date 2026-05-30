@@ -270,8 +270,8 @@ export function WellnessCheckIn({ lastEntry, onSuccess, date }: WellnessCheckInP
   const [fatigue, setFatigue]       = useState<FatigueScore | null>(isTodaysEntry ? (lastEntry?.fatigue ?? null) : null);
   const [sleepQuality, setSleepQ]   = useState<SleepQuality | null>(isTodaysEntry ? (lastEntry?.sleepQuality ?? null) : null);
   const [sleepHours, setSleepHours] = useState<number | null>(isTodaysEntry ? (lastEntry?.sleepHours ?? null) : null);
-  const [soreness, setSoreness]     = useState<FatigueScore | null>(isTodaysEntry ? (lastEntry?.muscleSoreness ?? null) : null);
-  const [motivation, setMotivation] = useState<MoodScore | null>(isTodaysEntry ? (lastEntry?.motivation ?? null) : null);
+  const [soreness, setSoreness]     = useState<FatigueScore | null>(isTodaysEntry ? (lastEntry?.soreness ?? null) : null);
+  const [motivation, setMotivation] = useState<number | null>(isTodaysEntry ? null : null); // UI-only field (not sent to backend)
   const [notes, setNotes]           = useState(isTodaysEntry ? (lastEntry?.notes ?? "") : "");
   const [saving, setSaving]         = useState(false);
   const [saved, setSaved]           = useState(false);
@@ -292,18 +292,18 @@ export function WellnessCheckIn({ lastEntry, onSuccess, date }: WellnessCheckInP
     setSaving(true);
     setError(null);
     const body: WellnessLogRequest = {
-      date: today,
       ...(mood         && { mood }),
       ...(rpe          && { rpe }),
       ...(fatigue      && { fatigue }),
       ...(sleepQuality && { sleepQuality }),
       ...(sleepHours   && { sleepHours }),
-      ...(soreness     && { muscleSoreness: soreness }),
-      ...(motivation   && { motivation }),
+      ...(soreness     && { soreness }),
+      // Note: `motivation` is a UI-only concept; the backend has `stressLevel` instead.
+      // We intentionally omit it from the request body.
       ...(notes.trim() && { notes: notes.trim() }),
     };
     try {
-      const entry = await wellnessService.upsert(body);
+      const entry = await wellnessService.upsert(body, today);
       setSaved(true);
       onSuccess?.(entry);
     } catch (e: unknown) {
@@ -417,7 +417,7 @@ export function WellnessCheckIn({ lastEntry, onSuccess, date }: WellnessCheckInP
               def={SORENESS_DEF}
               value={soreness}
               onChange={(v) => setSoreness(v as FatigueScore)}
-              lastKnown={last?.muscleSoreness}
+              lastKnown={last?.soreness}
             />
             <SliderField
               id="motivation-slider"
@@ -426,7 +426,7 @@ export function WellnessCheckIn({ lastEntry, onSuccess, date }: WellnessCheckInP
               def={MOTIVATION_DEF}
               value={motivation}
               onChange={(v) => setMotivation(v as MoodScore)}
-              lastKnown={last?.motivation}
+              lastKnown={undefined}
             />
           </div>
         </div>
