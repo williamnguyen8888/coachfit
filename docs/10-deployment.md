@@ -220,23 +220,28 @@ coachfit/
 │       │       ├── application.yml
 │       │       ├── application-dev.yml
 │       │       ├── application-prod.yml
+│       │       ├── application-api.yml     # api profile: web=servlet
+│       │       ├── application-worker.yml  # worker profile: web=none, pool=8
 │       │       └── db/migration/   # Flyway migrations
 │       │           ├── V001__create_users.sql
 │       │           └── ...
 │       └── test/
-│           └── java/com/coachfit/
-│               ├── ApplicationModulesTest.java      # ApplicationModules.of(...).verify()
-│               ├── auth/
-│               ├── athlete/
-│               ├── activity/
-│               ├── workout/
-│               ├── calendar/
-│               ├── dashboard/
-│               ├── wellness/
-│               ├── health/
-│               ├── gear/
-│               ├── subscription/
-│               └── sync/
+            └── java/com/coachfit/
+                ├── ApplicationModulesTest.java      # ApplicationModules.of(...).verify()
+                ├── auth/
+                ├── athlete/
+                ├── activity/
+                ├── workout/
+                ├── calendar/
+                ├── dashboard/
+                ├── wellness/
+                ├── health/
+                ├── gear/
+                ├── subscription/
+                ├── sync/
+                ├── account/
+                ├── consent/
+                └── apikey/
 └── docs/                           # Tài liệu (thư mục này)
 ```
 
@@ -254,6 +259,9 @@ coachfit/
   - `gear`
   - `subscription`
   - `sync`
+  - `account`   ← GDPR user-rights surface (export, delete, restrict)
+  - `consent`   ← consent logging (GDPR §5)
+  - `apikey`    ← API key management (create / list / revoke)
 - Mỗi module phải theo `hexagonal architecture`:
   - `domain/`
   - `application/port/in`
