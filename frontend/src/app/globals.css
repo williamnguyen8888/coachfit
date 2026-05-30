@@ -278,6 +278,66 @@ body {
   }
 }
 
+/* ---------- Calendar animations ---------- */
+@keyframes calDropPulse {
+  0%   { opacity: 0.5; box-shadow: 0 0 0 0 var(--color-accent-30); }
+  50%  { opacity: 1;   box-shadow: 0 0 0 3px var(--color-accent-15); }
+  100% { opacity: 0.5; box-shadow: 0 0 0 0 var(--color-accent-30); }
+}
+
+@keyframes chipGlowIn {
+  from { box-shadow: none; }
+  to   { box-shadow: 0 0 0 1px var(--chip-sport-color, var(--color-accent-30)), 0 2px 8px var(--chip-sport-glow, var(--color-accent-8)); }
+}
+
+@keyframes tooltipFadeIn {
+  from { opacity: 0; transform: scale(0.94) translateY(4px); }
+  to   { opacity: 1; transform: scale(1)    translateY(0); }
+}
+
+@keyframes weekSlideLeft {
+  from { opacity: 0; transform: translateX(24px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes weekSlideRight {
+  from { opacity: 0; transform: translateX(-24px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes todayGlow {
+  0%   { box-shadow: 0 0 0 0   rgba(139, 92, 246, 0); }
+  50%  { box-shadow: 0 0 12px 2px rgba(139, 92, 246, 0.18); }
+  100% { box-shadow: 0 0 0 0   rgba(139, 92, 246, 0); }
+}
+
+@keyframes loadBarFill {
+  from { width: 0; }
+}
+
+/* ---------- Calendar CSS variables ---------- */
+:root {
+  /* Zone colors (training intensity) */
+  --zone-1-color: #60a5fa;   /* Recovery — blue */
+  --zone-2-color: #34d399;   /* Aerobic — green */
+  --zone-3-color: #fbbf24;   /* Tempo — yellow */
+  --zone-4-color: #fb923c;   /* Threshold — orange */
+  --zone-5-color: #f87171;   /* VO2max — red */
+
+  /* Sport glow colors */
+  --sport-cycling-glow: rgba(59, 130, 246, 0.15);
+  --sport-running-glow: rgba(34, 197, 94, 0.15);
+  --sport-swimming-glow: rgba(6, 182, 212, 0.15);
+  --sport-strength-glow: rgba(249, 115, 22, 0.15);
+  --sport-other-glow: rgba(107, 114, 128, 0.1);
+
+  /* Calendar layout */
+  --cal-weekly-sidebar-w: 72px;
+  --cal-chip-height-normal: 54px;
+  --cal-chip-height-compact: 36px;
+  --cal-day-header-h: 52px;
+}
+
 /* ---------- Scrollbar (dark) ---------- */
 ::-webkit-scrollbar {
   width: 6px;

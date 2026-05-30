@@ -1,14 +1,15 @@
 "use client";
 
 // src/components/calendar/MonthView.tsx
-// Full calendar month grid (7×5 or 7×6 rows).
-// Now supports:
-//   - HTML5 drag-and-drop between day cells (move only; no reorder in compact cells)
+// Full calendar month grid (7×5 or 7×6 rows) — intervals.icu polished.
+// Supports:
+//   - HTML5 drag-and-drop between day cells (move; no same-cell reorder in compact)
 //   - Touch long-press drag (mobile)
 //   - Inline quick actions on chips
 //   - Out-of-month cells reject drops
-//
-// Design spec: docs/09-design-system.md § Calendar
+//   - Today cell with glow ring
+//   - Drag-over cell with pulsing animation
+//   - Overflow "+N more" badge in accent style
 
 import { useState, useCallback } from "react";
 import type { CalendarEvent } from "@/lib/types/calendar";
@@ -33,22 +34,18 @@ function isCurrentMonth(dateStr: string, anchorDate: string): boolean {
   return dateStr.slice(0, 7) === anchorDate.slice(0, 7);
 }
 
-/**
- * Build the grid of dates for the month view.
- * Always starts on Monday and ends on Sunday.
- */
 function buildMonthGrid(anchorDate: string): string[] {
-  const anchor = new Date(anchorDate + "T00:00:00");
+  const anchor      = new Date(anchorDate + "T00:00:00");
   const firstOfMonth = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
-  const lastOfMonth = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0);
+  const lastOfMonth  = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0);
 
-  const startDay = firstOfMonth.getDay();
+  const startDay  = firstOfMonth.getDay();
   const gridStart = new Date(firstOfMonth);
-  const daysBack = startDay === 0 ? 6 : startDay - 1;
+  const daysBack  = startDay === 0 ? 6 : startDay - 1;
   gridStart.setDate(gridStart.getDate() - daysBack);
 
-  const endDay = lastOfMonth.getDay();
-  const gridEnd = new Date(lastOfMonth);
+  const endDay     = lastOfMonth.getDay();
+  const gridEnd    = new Date(lastOfMonth);
   const daysForward = endDay === 0 ? 0 : 7 - endDay;
   gridEnd.setDate(gridEnd.getDate() + daysForward);
 
@@ -96,10 +93,7 @@ function DayCellOverflowPopover({ extraEvents, onEventClick, onClose }: DayCellO
           key={event.id}
           event={event}
           compact
-          onClick={(e) => {
-            onEventClick(e);
-            onClose();
-          }}
+          onClick={(e) => { onEventClick(e); onClose(); }}
         />
       ))}
       <button
@@ -130,7 +124,6 @@ interface DayCellProps {
   inMonth: boolean;
   onEventClick: (event: CalendarEvent) => void;
   onAddClick: (date: string) => void;
-  // DnD
   isDragOver: boolean;
   draggingId: string | null;
   dropZoneProps: ReturnType<ReturnType<typeof useDragDrop>["getDropZoneProps"]>;
@@ -160,13 +153,13 @@ function DayCell({
 
   const visibleEvents = events.slice(0, MAX_VISIBLE);
   const overflowCount = events.length - MAX_VISIBLE;
-  const hasOverflow = overflowCount > 0;
+  const hasOverflow   = overflowCount > 0;
 
-  // Base background
+  // Background
   let baseBg = "transparent";
-  if (!inMonth) baseBg = "color-mix(in srgb, black 15%, var(--bg-primary))";
-  if (today) baseBg = "var(--color-accent-4)";
-  if (isDragOver && inMonth) baseBg = "var(--color-accent-8)";
+  if (!inMonth) baseBg = "color-mix(in srgb, black 20%, var(--bg-primary))";
+  if (today)    baseBg = "var(--color-accent-6)";
+  if (isDragOver && inMonth) baseBg = "var(--color-accent-10)";
 
   return (
     <div
@@ -181,14 +174,20 @@ function DayCell({
         display: "flex",
         flexDirection: "column",
         background: baseBg,
-        outline: isDragOver && inMonth ? `1px dashed var(--color-accent-50)` : "none",
+        outline: isDragOver && inMonth
+          ? "1.5px dashed var(--color-accent-50)"
+          : today
+          ? "1px solid var(--color-accent-20)"
+          : "none",
         outlineOffset: -1,
-        transition: "background var(--duration-micro) ease-out",
+        transition: "background 150ms ease-out",
+        boxShadow: today ? "inset 0 0 0 1px var(--color-accent-15)" : "none",
+        animation: isDragOver && inMonth ? "calDropPulse 1.5s ease-in-out infinite" : "none",
       }}
       onMouseEnter={(e) => {
         if (inMonth && !isDragOver) {
           (e.currentTarget as HTMLDivElement).style.background = today
-            ? "var(--color-accent-8)"
+            ? "var(--color-accent-10)"
             : "var(--bg-elevated)";
         }
       }}
@@ -196,19 +195,35 @@ function DayCell({
         (e.currentTarget as HTMLDivElement).style.background = baseBg;
       }}
     >
-      {/* Day number row */}
       <div
+        role="button"
+        tabIndex={0}
+        aria-label={`Add event on ${date}`}
+        onClick={(e) => {
+          // Don't fire if clicking a chip
+          if ((e.target as HTMLElement).closest(".cal-chip-wrapper")) return;
+          if (inMonth) onAddClick(date);
+        }}
+        onKeyDown={(e) => {
+          if ((e.key === "Enter" || e.key === " ") && inMonth) {
+            e.preventDefault();
+            onAddClick(date);
+          }
+        }}
         style={{
           padding: "var(--space-1) var(--space-2)",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
+          cursor: inMonth ? "pointer" : "default",
+          outline: "none",
+          userSelect: "none",
         }}
       >
         <span
           style={{
-            width: 24,
-            height: 24,
+            width: 26,
+            height: 26,
             borderRadius: "var(--radius-full)",
             background: today ? "var(--color-accent)" : "transparent",
             color: today ? "white" : inMonth ? "var(--text-primary)" : "var(--text-muted)",
@@ -217,45 +232,35 @@ function DayCell({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
+            boxShadow: today ? "0 0 0 3px var(--color-accent-20)" : "none",
+            flexShrink: 0,
+            transition: "background 150ms ease, color 150ms ease, box-shadow 150ms ease",
           }}
+          className="month-day-num"
         >
           {dayNum}
         </span>
 
-        {/* Add button (in-month only) */}
+        {/* '+' icon appears on hover */}
         {inMonth && (
-          <button
-            type="button"
-            onClick={() => onAddClick(date)}
-            aria-label={`Add event on ${date}`}
-            title="Add event"
-            style={{
-              width: 20,
-              height: 20,
-              background: "transparent",
-              border: "none",
-              borderRadius: "var(--radius-full)",
-              color: "var(--text-muted)",
-              fontSize: 16,
-              lineHeight: 1,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              opacity: 0,
-              padding: 0,
-              transition: "opacity var(--duration-micro) ease-out",
-            }}
+          <span
             className="month-add-btn"
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.color = "var(--color-accent)";
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.color = "var(--text-muted)";
+            aria-hidden
+            style={{
+              width: 20, height: 20,
+              borderRadius: "50%",
+              background: "var(--color-accent-12)",
+              border: "1px solid var(--color-accent-25)",
+              color: "var(--color-accent)",
+              fontSize: 14, lineHeight: 1, fontWeight: 500,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              flexShrink: 0,
+              opacity: 0,
+              transition: "opacity 150ms ease",
             }}
           >
             +
-          </button>
+          </span>
         )}
       </div>
 
@@ -271,7 +276,7 @@ function DayCell({
       >
         {visibleEvents.map((event) => {
           const chipDragProps = getChipDragProps(event.id, date);
-          const touchProps = getTouchDragProps(event.id, date);
+          const touchProps    = getTouchDragProps(event.id, date);
           return (
             <CalendarEventChip
               key={event.id}
@@ -297,16 +302,19 @@ function DayCell({
             type="button"
             onClick={() => setShowOverflow((v) => !v)}
             style={{
-              background: "var(--bg-input)",
-              border: "none",
+              background: "var(--color-accent-10)",
+              border: "1px solid var(--color-accent-20)",
               borderRadius: "var(--radius-sm)",
-              color: "var(--text-secondary)",
+              color: "var(--color-accent)",
               fontSize: "var(--text-xs)",
               fontWeight: 600,
               padding: "2px var(--space-2)",
               cursor: "pointer",
               textAlign: "left",
+              transition: "background 120ms ease",
             }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "var(--color-accent-20)"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "var(--color-accent-10)"; }}
           >
             +{overflowCount} more
           </button>
@@ -349,9 +357,9 @@ function MonthSkeleton() {
             gap: "var(--space-1)",
           }}
         >
-          <div style={{ height: 20, width: 20, borderRadius: "50%", background: "var(--bg-elevated)" }} />
-          {i % 3 === 0 && <div style={{ height: 20, borderRadius: 4, background: "var(--bg-elevated)" }} />}
-          {i % 5 === 0 && <div style={{ height: 20, borderRadius: 4, background: "var(--bg-elevated)" }} />}
+          <div style={{ height: 22, width: 22, borderRadius: "50%", background: "var(--bg-elevated)" }} />
+          {i % 3 === 0 && <div style={{ height: 36, borderRadius: 4, background: "var(--bg-elevated)" }} />}
+          {i % 5 === 0 && <div style={{ height: 36, borderRadius: 4, background: "var(--bg-elevated)" }} />}
         </div>
       ))}
     </div>
@@ -378,28 +386,23 @@ export function MonthView() {
   >(null);
   const closeModal = useCallback(() => setModalState(null), []);
 
-  // Build event IDs by date for reorder (only for week view, but hook needs it)
   const eventIdsByDate: Record<string, string[]> = {};
   for (const [date, evts] of Object.entries(eventsByDate)) {
     eventIdsByDate[date] = evts.map((e) => e.id);
   }
 
   const { dragState, getChipDragProps, getDropZoneProps, getTouchDragProps } = useDragDrop({
-    onMove: (eventId, toDate) => moveEvent(eventId, toDate),
+    onMove:    (eventId, toDate) => moveEvent(eventId, toDate),
     onReorder: (date, orderedIds) => reorderEvents(date, orderedIds),
     eventIdsByDate,
   });
 
   const handleComplete = useCallback(
-    async (id: string) => {
-      try { await markComplete(id); } catch { /* surfaced via store */ }
-    },
+    async (id: string) => { try { await markComplete(id); } catch { /* surfaced via store */ } },
     [markComplete],
   );
   const handleSkip = useCallback(
-    async (id: string) => {
-      try { await markSkipped(id); } catch { /* surfaced via store */ }
-    },
+    async (id: string) => { try { await markSkipped(id); } catch { /* surfaced via store */ } },
     [markSkipped],
   );
 
@@ -418,23 +421,27 @@ export function MonthView() {
             borderBottom: "1px solid var(--border-default)",
           }}
         >
-          {DAY_NAMES_SHORT.map((name) => (
-            <div
-              key={name}
-              style={{
-                padding: "var(--space-2)",
-                textAlign: "center",
-                fontSize: "var(--text-xs)",
-                fontWeight: 600,
-                color: "var(--text-muted)",
-                textTransform: "uppercase",
-                letterSpacing: "0.06em",
-                borderRight: "1px solid var(--border-subtle)",
-              }}
-            >
-              {name}
-            </div>
-          ))}
+          {DAY_NAMES_SHORT.map((name, i) => {
+            const isWeekend = i >= 5;
+            return (
+              <div
+                key={name}
+                style={{
+                  padding: "var(--space-2)",
+                  textAlign: "center",
+                  fontSize: "var(--text-xs)",
+                  fontWeight: 600,
+                  color: isWeekend ? "var(--text-secondary)" : "var(--text-muted)",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.07em",
+                  borderRight: "1px solid var(--border-subtle)",
+                  background: isWeekend ? "color-mix(in srgb, var(--bg-elevated) 30%, transparent)" : "transparent",
+                }}
+              >
+                {name}
+              </div>
+            );
+          })}
         </div>
 
         {/* Day grid */}
@@ -446,7 +453,7 @@ export function MonthView() {
           }}
         >
           {gridDates.map((date) => {
-            const inMonth = isCurrentMonth(date, anchorDate);
+            const inMonth   = isCurrentMonth(date, anchorDate);
             const isDragOver = dragState.dragOverDate === date;
 
             return (
@@ -473,28 +480,25 @@ export function MonthView() {
       {/* Scoped CSS */}
       <style>{`
         @media (hover: hover) {
-          .month-add-btn { opacity: 0; transition: opacity 150ms ease-out; }
+          /* Show '+' and highlight day number on cell hover */
           .day-cell:hover .month-add-btn { opacity: 1; }
+          .day-cell:hover .month-day-num {
+            background: var(--color-accent) !important;
+            color: white !important;
+            box-shadow: 0 0 0 3px var(--color-accent-20) !important;
+          }
         }
         @media (hover: none) {
-          .month-add-btn { opacity: 0.5 !important; min-height: 44px !important; min-width: 44px !important; }
+          .month-add-btn { opacity: 0.6 !important; min-height: 44px !important; min-width: 44px !important; }
         }
       `}</style>
 
       {/* Modal */}
       {modalState &&
         (modalState.mode === "create" ? (
-          <CalendarEventModal
-            mode="create"
-            initialDate={modalState.date}
-            onClose={closeModal}
-          />
+          <CalendarEventModal mode="create" initialDate={modalState.date} onClose={closeModal} />
         ) : (
-          <CalendarEventModal
-            mode="edit"
-            event={modalState.event}
-            onClose={closeModal}
-          />
+          <CalendarEventModal mode="edit" event={modalState.event} onClose={closeModal} />
         ))}
     </>
   );
