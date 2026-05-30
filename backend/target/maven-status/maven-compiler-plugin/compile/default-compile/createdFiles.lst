@@ -51,6 +51,7 @@ com/coachfit/workout/application/service/WorkoutService.class
 com/coachfit/activity/application/service/parser/FitParser$1.class
 com/coachfit/health/application/port/in/HealthReadUseCase$SleepEntry.class
 com/coachfit/dashboard/application/service/DashboardService.class
+com/coachfit/sync/application/service/GarminWebhookService.class
 com/coachfit/workout/domain/package-info.class
 com/coachfit/wellness/package-info.class
 com/coachfit/account/application/port/in/AccountUseCase$ExportRateLimitException.class
@@ -382,6 +383,7 @@ com/coachfit/account/package-info.class
 com/coachfit/wellness/application/port/out/TrainingLoadPersistencePort$TrainingLoadSnapshot.class
 com/coachfit/sync/application/service/StravaActivitySyncService$StravaStreamsResponse.class
 com/coachfit/account/application/service/AccountService.class
+com/coachfit/sync/application/service/GarminHealthProcessingService.class
 com/coachfit/auth/application/service/StravaOAuthService$StravaTokenResponse.class
 com/coachfit/auth/application/port/in/GarminOAuthUseCase$AuthResult.class
 com/coachfit/sync/adapter/in/GarminWebhookController$HrvDto.class

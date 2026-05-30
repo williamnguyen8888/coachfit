@@ -126,7 +126,7 @@ class DashboardQueryAdapter implements DashboardQueryPort {
                         rs.getObject("id", UUID.class),
                         rs.getString("sport"),
                         rs.getString("name"),
-                        rs.getObject("started_at", Instant.class),
+                        toInstant(rs, "started_at"),
                         rs.getInt("duration_seconds"),
                         rs.getBigDecimal("distance_meters"),
                         nullableInt(rs, "avg_power"),
@@ -341,5 +341,10 @@ class DashboardQueryAdapter implements DashboardQueryPort {
     private static Short nullableShort(ResultSet rs, String col) throws SQLException {
         short v = rs.getShort(col);
         return rs.wasNull() ? null : v;
+    }
+
+    private static Instant toInstant(ResultSet rs, String col) throws SQLException {
+        java.sql.Timestamp ts = rs.getTimestamp(col);
+        return ts != null ? ts.toInstant() : null;
     }
 }

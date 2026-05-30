@@ -269,7 +269,7 @@ class ActivityPersistenceAdapter implements ActivityPersistencePort {
                 rs.getObject("id", UUID.class),
                 rs.getString("sport"),
                 rs.getString("name"),
-                rs.getObject("started_at", Instant.class),
+                toInstant(rs, "started_at"),
                 rs.getInt("duration_seconds"),
                 rs.getBigDecimal("distance_meters"),
                 nullableInt(rs, "avg_heart_rate"),
@@ -331,7 +331,7 @@ class ActivityPersistenceAdapter implements ActivityPersistencePort {
                             rs.getString("sub_sport"),
                             rs.getString("name"),
                             rs.getString("description"),
-                            rs.getObject("started_at", Instant.class),
+                            toInstant(rs, "started_at"),
                             rs.getInt("duration_seconds"),
                             nullableInt(rs, "moving_time_seconds"),
                             rs.getBigDecimal("distance_meters"),
@@ -399,6 +399,11 @@ class ActivityPersistenceAdapter implements ActivityPersistencePort {
     private static Integer nullableInt(ResultSet rs, String col) throws SQLException {
         int v = rs.getInt(col);
         return rs.wasNull() ? null : v;
+    }
+
+    private static Instant toInstant(ResultSet rs, String col) throws SQLException {
+        java.sql.Timestamp ts = rs.getTimestamp(col);
+        return ts != null ? ts.toInstant() : null;
     }
 }
 

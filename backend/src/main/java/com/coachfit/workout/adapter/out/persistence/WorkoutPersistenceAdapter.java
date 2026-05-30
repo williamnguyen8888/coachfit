@@ -241,8 +241,8 @@ class WorkoutPersistenceAdapter implements WorkoutPersistencePort {
                 rs.getBoolean("is_template"),
                 rs.getBoolean("is_public"),
                 rs.getString("source"),
-                rs.getObject("created_at", Instant.class),
-                rs.getObject("updated_at", Instant.class)
+                toInstant(rs, "created_at"),
+                toInstant(rs, "updated_at")
         );
     }
 
@@ -258,8 +258,8 @@ class WorkoutPersistenceAdapter implements WorkoutPersistencePort {
                 rs.getBoolean("is_template"),
                 rs.getBoolean("is_public"),
                 rs.getString("source"),
-                rs.getObject("created_at", Instant.class),
-                rs.getObject("updated_at", Instant.class)
+                toInstant(rs, "created_at"),
+                toInstant(rs, "updated_at")
         );
     }
 
@@ -273,7 +273,7 @@ class WorkoutPersistenceAdapter implements WorkoutPersistencePort {
                 rs.getBigDecimal("estimated_tss"),
                 arrayToList(rs, "tags"),
                 rs.getString("source"),
-                rs.getObject("created_at", Instant.class)
+                toInstant(rs, "created_at")
         );
     }
 
@@ -287,5 +287,10 @@ class WorkoutPersistenceAdapter implements WorkoutPersistencePort {
         if (arr == null) return Collections.emptyList();
         String[] vals = (String[]) arr.getArray();
         return vals == null ? Collections.emptyList() : Arrays.asList(vals);
+    }
+
+    private static Instant toInstant(ResultSet rs, String col) throws SQLException {
+        java.sql.Timestamp ts = rs.getTimestamp(col);
+        return ts != null ? ts.toInstant() : null;
     }
 }
