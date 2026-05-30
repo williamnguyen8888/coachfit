@@ -1,6 +1,7 @@
 package com.coachfit.gear.application.port.out;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -27,6 +28,12 @@ public interface GearPersistencePort {
 
     void retire(UUID gearId);   // sets is_active = false
 
+    /**
+     * Updates mutable fields of a gear item (name, sport, type).
+     * Ownership must be verified by the caller before invoking this.
+     */
+    void update(UUID gearId, String name, String sport, String type);
+
     // ── Read model ───────────────────────────────────────────────────────────
 
     record GearSummary(
@@ -36,6 +43,7 @@ public interface GearPersistencePort {
             String     sport,
             String     type,
             boolean    isActive,
-            BigDecimal totalDistanceMeters
+            BigDecimal totalDistanceMeters,
+            Instant    createdAt
     ) {}
 }

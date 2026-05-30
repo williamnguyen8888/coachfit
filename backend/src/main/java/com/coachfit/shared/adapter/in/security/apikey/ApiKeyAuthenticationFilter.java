@@ -1,5 +1,10 @@
 package com.coachfit.shared.adapter.in.security.apikey;
 
+import com.coachfit.apikey.application.port.out.ApiKeyPersistencePort;
+import com.coachfit.apikey.application.port.out.ApiKeyPersistencePort.ApiKeyRow;
+import com.coachfit.apikey.application.service.ApiKeyService;
+import com.coachfit.auth.application.port.out.UserPersistencePort;
+import com.coachfit.auth.domain.model.AuthUser;
 import com.coachfit.shared.adapter.in.security.jwt.UserPrincipal;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -7,6 +12,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
@@ -14,6 +20,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Optional;
 
 /**
  * Fallback authentication filter for CoachFit API keys.
@@ -25,20 +32,20 @@ import java.io.IOException;
  *   <li>No authentication is already present in the {@link SecurityContextHolder}</li>
  * </ol>
  *
- * <h3>API Key format (docs/08-auth-model.md)</h3>
+ * <h3>API Key format (docs/08-auth-model.md §API Key Authentication)</h3>
  * <pre>
  * Authorization: Bearer cf_live_&lt;32-char hex&gt;
- * Format stored in DB: SHA-256(rawKey)
- * Full key shown only once on creation.
+ * Format stored in DB: SHA-256(rawKey) as hex
+ * Full key shown only once on creation — never retrievable again.
  * </pre>
  *
- * <h3>TODO — full implementation (auth feature module)</h3>
+ * <h3>Authentication flow</h3>
  * <ol>
- *   <li>Hash the raw key with SHA-256</li>
- *   <li>Look up {@code hashed_key} in {@code api_keys} table via {@code ApiKeyRepository}</li>
- *   <li>Verify {@code is_active = true} and load the owning user</li>
- *   <li>Build {@link UserPrincipal} from the user record and set in context</li>
- *   <li>Rate-limit counter uses the API key's user ID (same as JWT path)</li>
+ *   <li>Extract raw key from Bearer header (must start with {@code cf_live_})</li>
+ *   <li>Hash with SHA-256 via {@link ApiKeyService#sha256Hex}</li>
+ *   <li>Look up active, non-expired key in DB via {@link ApiKeyPersistencePort}</li>
+ *   <li>Load owning user → build {@link UserPrincipal} → set in context</li>
+ *   <li>Update {@code last_used_at} asynchronously</li>
  * </ol>
  */
 public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
@@ -47,6 +54,15 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
     private static final String BEARER_PREFIX  = "Bearer ";
     private static final String API_KEY_PREFIX = "cf_live_";
     private static final String AUTH_HEADER    = "Authorization";
+
+    private final ApiKeyPersistencePort apiKeyPersistence;
+    private final UserPersistencePort   userPersistence;
+
+    public ApiKeyAuthenticationFilter(ApiKeyPersistencePort apiKeyPersistence,
+                                      UserPersistencePort userPersistence) {
+        this.apiKeyPersistence = apiKeyPersistence;
+        this.userPersistence   = userPersistence;
+    }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -66,24 +82,42 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
-        log.debug("API key authentication attempt for request: {} {}", request.getMethod(), request.getRequestURI());
+        log.debug("API key authentication attempt for request: {} {}",
+                request.getMethod(), request.getRequestURI());
 
-        // ── TODO: full API key authentication ──────────────────────────────────
-        // String hashedKey = hashSha256(rawKey);
-        // ApiKey apiKey = apiKeyRepository.findByHashedKey(hashedKey).orElse(null);
-        // if (apiKey == null || !apiKey.isActive()) {
-        //     // Let downstream handle 401 via AuthenticationEntryPoint.
-        //     filterChain.doFilter(request, response);
-        //     return;
-        // }
-        // User user = userRepository.findById(apiKey.getUserId()).orElseThrow();
-        // UserPrincipal principal = new UserPrincipal(user.getId(), user.getEmail(),
-        //                                             user.getRole(), user.getTier());
-        // UsernamePasswordAuthenticationToken auth =
-        //         new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities());
-        // auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-        // SecurityContextHolder.getContext().setAuthentication(auth);
-        // ── END TODO ───────────────────────────────────────────────────────────
+        // 1. Hash the raw key
+        String hashedKey = ApiKeyService.sha256Hex(rawKey);
+
+        // 2. Look up active, non-expired key
+        Optional<ApiKeyRow> keyOpt = apiKeyPersistence.findActiveByKeyHash(hashedKey);
+        if (keyOpt.isEmpty()) {
+            log.debug("API key not found or inactive — falling through to 401");
+            filterChain.doFilter(request, response);
+            return;
+        }
+        ApiKeyRow apiKey = keyOpt.get();
+
+        // 3. Load the owning user
+        Optional<AuthUser> userOpt = userPersistence.findById(apiKey.userId());
+        if (userOpt.isEmpty()) {
+            log.warn("API key {} points to non-existent user {}", apiKey.id(), apiKey.userId());
+            filterChain.doFilter(request, response);
+            return;
+        }
+        AuthUser user = userOpt.get();
+
+        // 4. Build UserPrincipal and set in security context
+        UserPrincipal principal = new UserPrincipal(
+                user.id(), user.email(), user.role(), user.tier());
+        UsernamePasswordAuthenticationToken auth =
+                new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities());
+        auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+        SecurityContextHolder.getContext().setAuthentication(auth);
+
+        log.debug("API key authentication succeeded for user {}", user.id());
+
+        // 5. Touch last_used_at (best-effort, non-blocking)
+        touchLastUsedAsync(apiKey.id());
 
         filterChain.doFilter(request, response);
     }
@@ -98,5 +132,18 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
             return header.substring(BEARER_PREFIX.length());
         }
         return null;
+    }
+
+    /**
+     * Updates {@code last_used_at} in a best-effort manner.
+     * Runs inline (filter is not async-aware); failure is swallowed to avoid
+     * blocking the request or causing auth failures on a non-critical update.
+     */
+    private void touchLastUsedAsync(java.util.UUID keyId) {
+        try {
+            apiKeyPersistence.touchLastUsed(keyId);
+        } catch (Exception e) {
+            log.warn("Failed to update last_used_at for key {}: {}", keyId, e.getMessage());
+        }
     }
 }

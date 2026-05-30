@@ -1,5 +1,7 @@
 package com.coachfit.shared.adapter.in.security;
 
+import com.coachfit.apikey.application.port.out.ApiKeyPersistencePort;
+import com.coachfit.auth.application.port.out.UserPersistencePort;
 import com.coachfit.shared.adapter.in.security.apikey.ApiKeyAuthenticationFilter;
 import com.coachfit.shared.adapter.in.security.featuregate.FeatureGateFilter;
 import com.coachfit.shared.adapter.in.security.jwt.JwtAuthenticationFilter;
@@ -139,8 +141,9 @@ class SecurityConfig {
     }
 
     @Bean
-    ApiKeyAuthenticationFilter apiKeyAuthenticationFilter() {
-        return new ApiKeyAuthenticationFilter();
+    ApiKeyAuthenticationFilter apiKeyAuthenticationFilter(ApiKeyPersistencePort apiKeyPersistencePort,
+                                                          UserPersistencePort userPersistencePort) {
+        return new ApiKeyAuthenticationFilter(apiKeyPersistencePort, userPersistencePort);
     }
 
     @Bean

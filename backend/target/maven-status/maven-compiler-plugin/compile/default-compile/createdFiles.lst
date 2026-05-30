@@ -76,7 +76,6 @@ com/coachfit/shared/adapter/in/package-info.class
 com/coachfit/auth/domain/model/AuthUser.class
 com/coachfit/athlete/adapter/in/package-info.class
 com/coachfit/calendar/application/port/in/package-info.class
-com/coachfit/shared/adapter/in/security/apikey/ApiKeyAuthenticationFilter.class
 com/coachfit/shared/adapter/in/security/featuregate/FeatureGateFilter.class
 com/coachfit/subscription/adapter/out/package-info.class
 com/coachfit/subscription/package-info.class

@@ -67,8 +67,18 @@ class GearPersistenceAdapter implements GearPersistencePort {
                 .update();
     }
 
+    @Override
+    @Transactional
+    public void update(UUID gearId, String name, String sport, String type) {
+        GearEntity entity = repo.findById(gearId).orElseThrow();
+        entity.name  = name;
+        entity.sport = sport;
+        entity.type  = type;
+        repo.save(entity);
+    }
+
     private GearSummary toSummary(GearEntity e) {
         return new GearSummary(e.id, e.userId, e.name, e.sport, e.type,
-                e.isActive, e.totalDistanceMeters);
+                e.isActive, e.totalDistanceMeters, e.createdAt);
     }
 }
