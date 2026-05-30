@@ -1,0 +1,128 @@
+"use client";
+// src/components/dashboard/DashboardClient.tsx
+// Client component that orchestrates all dashboard sections.
+// Fetches three APIs in parallel and renders widgets with skeleton loading states.
+//
+// Mobile composition (intentional, not desktop-collapsed):
+//   - MorningBriefing (full-width hero)
+//   - FitnessStatusBadge (quick inline CTL/ATL/TSB)
+//   - HealthSnapshot (3-col chip grid)
+//   - WeeklySummary (bar chart)
+//   - FitnessTrend (area chart)
+//   - RecentActivities (list feed)
+//
+// Desktop: two-column grid — briefing+health left, charts+activities right.
+
+import React from "react";
+import { useQuery } from "@/hooks/useQuery";
+import { MorningBriefing, MorningBriefingSkeleton } from "./MorningBriefing";
+import { HealthSnapshot, HealthSnapshotSkeleton } from "./HealthSnapshot";
+import { WeeklySummary, WeeklySummarySkeleton } from "./WeeklySummary";
+import { FitnessTrend, FitnessTrendSkeleton } from "./FitnessTrend";
+import { RecentActivities, RecentActivitiesSkeleton } from "./RecentActivities";
+import { FitnessStatusBadge } from "./FitnessStatusBadge";
+import type { DashboardToday, WeeklySummary as WeeklySummaryType, FitnessTrendResponse } from "@/lib/types/dashboard";
+
+/* ─── Error state ─────────────────────────────────────────────────────── */
+
+function SectionError({ message }: { message: string }) {
+  return (
+    <div
+      className="rounded-[var(--radius-xl)] px-5 py-4 flex items-center gap-3"
+      style={{
+        background: "var(--bg-surface)",
+        border: "1px solid var(--color-danger)",
+        borderLeftWidth: 3,
+      }}
+    >
+      <span style={{ fontSize: "var(--text-sm)", color: "var(--color-danger)" }}>
+        ⚠️ {message}
+      </span>
+    </div>
+  );
+}
+
+/* ─── Main component ──────────────────────────────────────────────────── */
+
+export function DashboardClient() {
+  const today = useQuery<DashboardToday>("/dashboard/today");
+  const weekly = useQuery<WeeklySummaryType>("/dashboard/weekly-summary");
+  const fitness = useQuery<FitnessTrendResponse>("/dashboard/fitness-trend?days=90");
+
+  return (
+    <div className="px-3 lg:px-6 py-4 pb-safe">
+      {/*
+        ── Mobile layout ──────────────────────────────────────────────
+        Single column, stacked. Cards are full-width.
+
+        ── Desktop layout (lg+) ─────────────────────────────────────
+        Two columns: left = morning + health, right = charts + activities.
+      */}
+      <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] lg:gap-5 lg:items-start">
+
+        {/* ── LEFT COLUMN ─────────────────────────────────────────── */}
+        <div className="flex flex-col gap-4">
+
+          {/* Morning Briefing */}
+          {today.loading ? (
+            <MorningBriefingSkeleton />
+          ) : today.error ? (
+            <SectionError message="Could not load today's briefing" />
+          ) : today.data ? (
+            <MorningBriefing data={today.data} />
+          ) : null}
+
+          {/* Fitness status badge (only on mobile, inline between briefing and health) */}
+          {today.data?.fitnessStatus && (
+            <div className="lg:hidden">
+              <FitnessStatusBadge data={today.data.fitnessStatus} />
+            </div>
+          )}
+
+          {/* Health Snapshot */}
+          {today.loading ? (
+            <HealthSnapshotSkeleton />
+          ) : today.error ? (
+            <SectionError message="Could not load health data" />
+          ) : (
+            <HealthSnapshot data={today.data?.healthSnapshot ?? null} />
+          )}
+        </div>
+
+        {/* ── RIGHT COLUMN ────────────────────────────────────────── */}
+        <div className="flex flex-col gap-4">
+
+          {/* Weekly Summary */}
+          {weekly.loading ? (
+            <WeeklySummarySkeleton />
+          ) : weekly.error ? (
+            <SectionError message="Could not load weekly summary" />
+          ) : weekly.data ? (
+            <WeeklySummary data={weekly.data} />
+          ) : null}
+
+          {/* Fitness Trend */}
+          {fitness.loading ? (
+            <FitnessTrendSkeleton />
+          ) : fitness.error ? (
+            <SectionError message="Could not load fitness trend" />
+          ) : fitness.data ? (
+            <FitnessTrend
+              data={fitness.data}
+              trend={today.data?.fitnessStatus?.trend}
+            />
+          ) : null}
+
+          {/* Recent Activities */}
+          {today.loading ? (
+            <RecentActivitiesSkeleton />
+          ) : today.error ? (
+            <SectionError message="Could not load recent activities" />
+          ) : (
+            <RecentActivities activities={today.data?.recentActivities ?? []} />
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

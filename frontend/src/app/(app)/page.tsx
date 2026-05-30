@@ -1,30 +1,15 @@
-import { PageHeader } from "@/components/layout/PageHeader";
+import { DashboardClient } from "@/components/dashboard/DashboardClient";
 
 export const metadata = {
-  title: "Dashboard",
+  title: "Dashboard — CoachFit",
+  description:
+    "Your training hub: morning briefing, today's workout, health snapshot, weekly summary, and fitness trend.",
 };
 
 export default function DashboardPage() {
   return (
-    <div className="flex-1">
-      <PageHeader
-        title="Dashboard"
-        subtitle="Good morning — here&apos;s your training overview"
-      />
-      <div className="px-4 lg:px-6 py-6">
-        <div
-          className="rounded-lg flex items-center justify-center"
-          style={{
-            background: "var(--bg-surface)",
-            border: "1px solid var(--border-subtle)",
-            minHeight: 240,
-            color: "var(--text-muted)",
-            fontSize: "var(--text-sm)",
-          }}
-        >
-          Dashboard coming in F12
-        </div>
-      </div>
+    <div className="flex-1 min-h-0">
+      <DashboardClient />
     </div>
   );
 }
