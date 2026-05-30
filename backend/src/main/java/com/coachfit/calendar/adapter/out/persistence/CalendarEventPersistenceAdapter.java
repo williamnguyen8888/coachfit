@@ -13,6 +13,9 @@ import java.util.UUID;
 
 /**
  * JPA + JdbcClient adapter implementing {@link CalendarEventPersistencePort}.
+ *
+ * <p>Simple reads use Spring Data JPA via {@link CalendarEventJpaRepository}.
+ * Bulk / complex writes use {@link JdbcClient} for fine-grained SQL control.
  */
 @Repository
 class CalendarEventPersistenceAdapter implements CalendarEventPersistencePort {
@@ -25,6 +28,8 @@ class CalendarEventPersistenceAdapter implements CalendarEventPersistencePort {
         this.jdbcClient = jdbcClient;
     }
 
+    // ── save ──────────────────────────────────────────────────────────────────
+
     @Override
     @Transactional
     public UUID save(UUID userId, LocalDate date, String eventType,
@@ -35,35 +40,102 @@ class CalendarEventPersistenceAdapter implements CalendarEventPersistencePort {
         return repo.save(entity).id;
     }
 
-    @Override
-    public Optional<CalendarEventSummary> findById(UUID eventId) {
-        return repo.findById(eventId)
-                .filter(e -> e.deletedAt == null)
-                .map(this::toSummary);
-    }
+    // ── update ────────────────────────────────────────────────────────────────
 
     @Override
-    public List<CalendarEventSummary> findByUserAndDateRange(UUID userId, LocalDate from, LocalDate to) {
-        return repo.findByUserIdAndDateBetweenAndDeletedAtIsNull(userId, from, to)
-                .stream().map(this::toSummary).toList();
+    @Transactional
+    public boolean update(UUID eventId, UUID userId, LocalDate date, String eventType,
+                          String title, String description, UUID workoutId) {
+        int rows = jdbcClient.sql("""
+                UPDATE calendar_events
+                   SET date        = :date,
+                       event_type  = :eventType,
+                       title       = :title,
+                       description = :description,
+                       workout_id  = :workoutId,
+                       updated_at  = now()
+                 WHERE id          = :id
+                   AND user_id     = :userId
+                   AND deleted_at IS NULL
+                """)
+                .param("id",          eventId)
+                .param("userId",      userId)
+                .param("date",        date)
+                .param("eventType",   eventType)
+                .param("title",       title)
+                .param("description", description)
+                .param("workoutId",   workoutId)
+                .update();
+        return rows > 0;
     }
+
+    // ── updateStatus ──────────────────────────────────────────────────────────
+
+    @Override
+    @Transactional
+    public boolean updateStatus(UUID eventId, UUID userId, String newStatus) {
+        int rows = jdbcClient.sql("""
+                UPDATE calendar_events
+                   SET status     = :status,
+                       updated_at = now()
+                 WHERE id         = :id
+                   AND user_id    = :userId
+                   AND deleted_at IS NULL
+                """)
+                .param("id",     eventId)
+                .param("userId", userId)
+                .param("status", newStatus)
+                .update();
+        return rows > 0;
+    }
+
+    // ── linkActivity ──────────────────────────────────────────────────────────
 
     @Override
     @Transactional
     public void linkActivity(UUID eventId, UUID activityId, BigDecimal complianceScore) {
+        // compliance_score >= 50 → completed, else partial
+        String newStatus = (complianceScore != null
+                && complianceScore.compareTo(BigDecimal.valueOf(50)) >= 0)
+                ? "completed" : "partial";
+
         jdbcClient.sql("""
                 UPDATE calendar_events
                    SET activity_id      = :activityId,
                        compliance_score = :complianceScore,
-                       status           = 'completed',
+                       status           = :status,
                        updated_at       = now()
                  WHERE id = :id AND deleted_at IS NULL
                 """)
                 .param("id",              eventId)
                 .param("activityId",      activityId)
                 .param("complianceScore", complianceScore)
+                .param("status",          newStatus)
                 .update();
     }
+
+    // ── reorder ───────────────────────────────────────────────────────────────
+
+    @Override
+    @Transactional
+    public void reorder(UUID userId, List<ReorderEntry> entries) {
+        for (ReorderEntry entry : entries) {
+            jdbcClient.sql("""
+                    UPDATE calendar_events
+                       SET order_index = :idx,
+                           updated_at  = now()
+                     WHERE id          = :id
+                       AND user_id     = :userId
+                       AND deleted_at IS NULL
+                    """)
+                    .param("idx",    entry.newOrderIndex())
+                    .param("id",     entry.eventId())
+                    .param("userId", userId)
+                    .update();
+        }
+    }
+
+    // ── softDelete ────────────────────────────────────────────────────────────
 
     @Override
     @Transactional
@@ -77,9 +149,47 @@ class CalendarEventPersistenceAdapter implements CalendarEventPersistencePort {
                 .update();
     }
 
+    // ── findById ──────────────────────────────────────────────────────────────
+
+    @Override
+    public Optional<CalendarEventSummary> findById(UUID eventId) {
+        return repo.findById(eventId)
+                .filter(e -> e.deletedAt == null)
+                .map(this::toSummary);
+    }
+
+    // ── findByUserAndDateRange ────────────────────────────────────────────────
+
+    @Override
+    public List<CalendarEventSummary> findByUserAndDateRange(UUID userId, LocalDate from, LocalDate to) {
+        return repo.findByUserIdAndDateBetweenAndDeletedAtIsNullOrderByDateAscOrderIndexAsc(userId, from, to)
+                .stream().map(this::toSummary).toList();
+    }
+
+    // ── autoSkipPastPlanned ───────────────────────────────────────────────────
+
+    @Override
+    @Transactional
+    public int autoSkipPastPlanned() {
+        return jdbcClient.sql("""
+                UPDATE calendar_events
+                   SET status     = 'skipped',
+                       updated_at = now()
+                 WHERE status     = 'planned'
+                   AND date       < CURRENT_DATE
+                   AND deleted_at IS NULL
+                """)
+                .update();
+    }
+
+    // ── Mapping ───────────────────────────────────────────────────────────────
+
     private CalendarEventSummary toSummary(CalendarEventEntity e) {
-        return new CalendarEventSummary(e.id, e.userId, e.date, e.eventType,
-                e.workoutId, e.activityId, e.title, e.status,
-                e.orderIndex, e.complianceScore);
+        return new CalendarEventSummary(
+                e.id, e.userId, e.date, e.eventType,
+                e.workoutId, e.activityId,
+                e.title, e.description,
+                e.status, e.orderIndex, e.complianceScore
+        );
     }
 }

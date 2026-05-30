@@ -11,7 +11,11 @@ import java.util.UUID;
  */
 interface CalendarEventJpaRepository extends JpaRepository<CalendarEventEntity, UUID> {
 
-    List<CalendarEventEntity> findByUserIdAndDateBetweenAndDeletedAtIsNull(
+    /**
+     * Fetches non-deleted events for a user in [from, to] (inclusive),
+     * ordered by date then order_index for stable calendar rendering.
+     */
+    List<CalendarEventEntity> findByUserIdAndDateBetweenAndDeletedAtIsNullOrderByDateAscOrderIndexAsc(
             UUID userId, LocalDate from, LocalDate to);
 
     List<CalendarEventEntity> findByUserIdAndDateAndDeletedAtIsNull(UUID userId, LocalDate date);
