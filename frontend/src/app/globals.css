@@ -51,7 +51,7 @@
   --sport-strength: #f97316;
   --sport-other: #6b7280;
 
-  /* Typography */
+  /* Typography size scale */
   --text-xs: 11px;
   --text-sm: 13px;
   --text-base: 15px;
@@ -61,7 +61,7 @@
   --text-3xl: 30px;
   --text-metric: 36px;
 
-  /* Spacing */
+  /* Spacing scale */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -86,11 +86,15 @@
   --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
   --shadow-glow: 0 0 20px rgba(139, 92, 246, 0.15);
 
-  /* Sidebar */
+  /* Animation durations */
+  --duration-micro: 150ms;
+  --duration-standard: 250ms;
+  --duration-emphasis: 400ms;
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Layout */
   --sidebar-collapsed: 64px;
   --sidebar-expanded: 240px;
-
-  /* Bottom tab bar */
   --tab-bar-height: 60px;
 }
 
@@ -108,6 +112,7 @@
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
   --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.15);
+  --shadow-glow: 0 0 20px rgba(139, 92, 246, 0.1);
 }
 
 /* ---------- Base resets ---------- */
@@ -136,16 +141,22 @@ body {
 
 /* ---------- Tailwind v4 theme extension ---------- */
 @theme inline {
-  /* Colors bridging to CSS vars */
+  /* Background colors */
   --color-bg-primary: var(--bg-primary);
   --color-bg-surface: var(--bg-surface);
   --color-bg-elevated: var(--bg-elevated);
   --color-bg-input: var(--bg-input);
+
+  /* Border colors */
   --color-border-subtle: var(--border-subtle);
   --color-border-default: var(--border-default);
+
+  /* Text colors */
   --color-text-primary: var(--text-primary);
   --color-text-secondary: var(--text-secondary);
   --color-text-muted: var(--text-muted);
+
+  /* Semantic / brand */
   --color-accent: var(--color-accent);
   --color-fitness: var(--color-fitness);
   --color-fatigue: var(--color-fatigue);
@@ -153,6 +164,23 @@ body {
   --color-success: var(--color-success);
   --color-warning: var(--color-warning);
   --color-danger: var(--color-danger);
+  --color-info: var(--color-info);
+
+  /* Training zone colors */
+  --color-zone-1: var(--zone-1);
+  --color-zone-2: var(--zone-2);
+  --color-zone-3: var(--zone-3);
+  --color-zone-4: var(--zone-4);
+  --color-zone-5: var(--zone-5);
+  --color-zone-6: var(--zone-6);
+  --color-zone-7: var(--zone-7);
+
+  /* Sport colors */
+  --color-sport-cycling: var(--sport-cycling);
+  --color-sport-running: var(--sport-running);
+  --color-sport-swimming: var(--sport-swimming);
+  --color-sport-strength: var(--sport-strength);
+  --color-sport-other: var(--sport-other);
 
   /* Font families */
   --font-sans: "Inter", system-ui, -apple-system, sans-serif;
@@ -163,6 +191,43 @@ body {
   --radius-md: var(--radius-md);
   --radius-lg: var(--radius-lg);
   --radius-xl: var(--radius-xl);
+  --radius-full: var(--radius-full);
+
+  /* Spacing scale (named) */
+  --spacing-1: var(--space-1);
+  --spacing-2: var(--space-2);
+  --spacing-3: var(--space-3);
+  --spacing-4: var(--space-4);
+  --spacing-5: var(--space-5);
+  --spacing-6: var(--space-6);
+  --spacing-8: var(--space-8);
+  --spacing-10: var(--space-10);
+  --spacing-12: var(--space-12);
+  --spacing-16: var(--space-16);
+
+  /* Shadow scale */
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+  --shadow-glow: var(--shadow-glow);
+
+  /* Animation */
+  --duration-micro: var(--duration-micro);
+  --duration-standard: var(--duration-standard);
+  --duration-emphasis: var(--duration-emphasis);
+
+  /* Keyframes */
+  --animate-skeleton: skeleton-shimmer 1.6s ease-in-out infinite;
+}
+
+/* ---------- Skeleton shimmer animation ---------- */
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: -400px 0;
+  }
+  100% {
+    background-position: 400px 0;
+  }
 }
 
 /* ---------- Scrollbar (dark) ---------- */
@@ -198,13 +263,22 @@ body {
   }
 }
 
-/* ---------- Numeric tabular ---------- */
+/* ---------- Typography utilities ---------- */
 .tabular-nums {
   font-variant-numeric: tabular-nums;
 }
 
-/* ---------- Metric display ---------- */
 .font-metric {
   font-family: "JetBrains Mono", monospace;
   font-variant-numeric: tabular-nums;
 }
+
+/* Text size helpers tied to tokens */
+.text-token-xs   { font-size: var(--text-xs); }
+.text-token-sm   { font-size: var(--text-sm); }
+.text-token-base { font-size: var(--text-base); }
+.text-token-lg   { font-size: var(--text-lg); font-weight: 500; }
+.text-token-xl   { font-size: var(--text-xl); font-weight: 600; }
+.text-token-2xl  { font-size: var(--text-2xl); font-weight: 700; }
+.text-token-3xl  { font-size: var(--text-3xl); font-weight: 700; }
+.text-token-metric { font-size: var(--text-metric); font-weight: 700; }

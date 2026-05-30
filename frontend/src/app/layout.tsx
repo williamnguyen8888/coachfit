@@ -42,6 +42,7 @@ export default function RootLayout({
       lang="en"
       // Default dark mode; toggled via data-theme attr by UI store
       className={`${inter.variable} h-full`}
+      data-theme="dark"
     >
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
