@@ -149,6 +149,14 @@ function generateSegmentsFromZones(
     color: colors.cooldown,
   });
 
+  // Normalize widthFrac to sum to exactly 1.0 to prevent off-center alignment
+  const totalWidth = segments.reduce((sum, seg) => sum + seg.widthFrac, 0);
+  if (totalWidth > 0) {
+    segments.forEach((seg) => {
+      seg.widthFrac = seg.widthFrac / totalWidth;
+    });
+  }
+
   return segments;
 }
 
@@ -184,6 +192,7 @@ export function WorkoutStepViz({
         position: "relative",
         display: "flex",
         alignItems: "flex-end",
+        justifyContent: "center",
         gap: 1,
         overflow: "hidden",
         borderRadius: 2,

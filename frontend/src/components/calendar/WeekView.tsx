@@ -19,6 +19,9 @@ import { useCalendarStore } from "@/stores/calendar.store";
 import { useDragDrop } from "@/hooks/useDragDrop";
 import { CalendarEventChip } from "./CalendarEventChip";
 import { CalendarEventModal } from "./CalendarEventModal";
+import { DailyWellnessSummary } from "./DailyWellnessSummary";
+import type { WellnessEntry } from "@/lib/types/wellness";
+import type { DailyHealthSummary, SleepRecord } from "@/lib/services/health";
 import {
   getSportMeta,
   getEstimatedLoad,
@@ -262,6 +265,9 @@ interface DayColumnProps {
   onComplete: (id: string) => void;
   onSkip: (id: string) => void;
   maxWeekLoad: number;
+  wellness?: WellnessEntry;
+  health?: DailyHealthSummary;
+  sleep?: SleepRecord;
 }
 
 function DayColumn({
@@ -280,6 +286,9 @@ function DayColumn({
   onComplete,
   onSkip,
   maxWeekLoad,
+  wellness,
+  health,
+  sleep,
 }: DayColumnProps) {
   const today    = isToday(date);
   const dayIndex = new Date(date + "T00:00:00").getDay();
@@ -437,6 +446,14 @@ function DayColumn({
           +
         </div>
       </button>
+
+      {/* Wellness Summary */}
+      <DailyWellnessSummary
+        wellness={wellness}
+        health={health}
+        sleep={sleep}
+        compact={false}
+      />
 
       {/* ── Events area (click empty space to add) ─────────────── */}
       <div
@@ -596,6 +613,9 @@ export function WeekView() {
     markSkipped,
     moveEvent,
     reorderEvents,
+    wellnessByDate,
+    healthSummaryByDate,
+    sleepByDate,
   } = useCalendarStore();
   const { from } = getWeekRange();
 
@@ -718,6 +738,9 @@ export function WeekView() {
               onComplete={handleComplete}
               onSkip={handleSkip}
               maxWeekLoad={maxWeekLoad}
+              wellness={wellnessByDate?.[date]}
+              health={healthSummaryByDate?.[date]}
+              sleep={sleepByDate?.[date]}
             />
           );
         })}

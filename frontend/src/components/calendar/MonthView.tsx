@@ -17,6 +17,9 @@ import { useCalendarStore } from "@/stores/calendar.store";
 import { useDragDrop } from "@/hooks/useDragDrop";
 import { CalendarEventChip } from "./CalendarEventChip";
 import { CalendarEventModal } from "./CalendarEventModal";
+import { DailyWellnessSummary } from "./DailyWellnessSummary";
+import type { WellnessEntry } from "@/lib/types/wellness";
+import type { DailyHealthSummary, SleepRecord } from "@/lib/services/health";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -130,6 +133,9 @@ interface DayCellProps {
   getTouchDragProps: ReturnType<typeof useDragDrop>["getTouchDragProps"];
   onComplete: (id: string) => void;
   onSkip: (id: string) => void;
+  wellness?: WellnessEntry;
+  health?: DailyHealthSummary;
+  sleep?: SleepRecord;
 }
 
 function DayCell({
@@ -145,14 +151,17 @@ function DayCell({
   getTouchDragProps,
   onComplete,
   onSkip,
+  wellness,
+  health,
+  sleep,
 }: DayCellProps) {
   const today = isToday(date);
   const [showOverflow, setShowOverflow] = useState(false);
   const dayNum = new Date(date + "T00:00:00").getDate();
 
-  const visibleEvents = events.slice(0, MAX_VISIBLE);
-  const overflowCount = events.length - MAX_VISIBLE;
-  const hasOverflow   = overflowCount > 0;
+  const visibleEvents = events;
+  const overflowCount = 0;
+  const hasOverflow   = false;
 
   // Background
   let baseBg = "transparent";
@@ -262,6 +271,16 @@ function DayCell({
           </span>
         )}
       </div>
+
+      {/* Wellness Summary */}
+      {inMonth && (
+        <DailyWellnessSummary
+          wellness={wellness}
+          health={health}
+          sleep={sleep}
+          compact={true}
+        />
+      )}
 
       {/* Events */}
       <div
@@ -375,6 +394,9 @@ export function MonthView() {
     markSkipped,
     moveEvent,
     reorderEvents,
+    wellnessByDate,
+    healthSummaryByDate,
+    sleepByDate,
   } = useCalendarStore();
 
   const [modalState, setModalState] = useState<
@@ -469,6 +491,9 @@ export function MonthView() {
                 getTouchDragProps={getTouchDragProps}
                 onComplete={handleComplete}
                 onSkip={handleSkip}
+                wellness={wellnessByDate?.[date]}
+                health={healthSummaryByDate?.[date]}
+                sleep={sleepByDate?.[date]}
               />
             );
           })}

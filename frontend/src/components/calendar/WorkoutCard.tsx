@@ -207,8 +207,9 @@ export function WorkoutCard({
         transition: "opacity 150ms ease-out",
       }}
     >
-      <button
-        type="button"
+      <div
+        role="button"
+        tabIndex={0}
         draggable={draggable}
         onDragStart={onDragStart}
         onDragEnd={onDragEnd}
@@ -219,6 +220,13 @@ export function WorkoutCard({
           if ((e.target as HTMLElement).closest(".cal-quick-action")) return;
           onClick?.(event);
         }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            if ((e.target as HTMLElement).closest(".cal-quick-action")) return;
+            onClick?.(event);
+          }
+        }}
         className="cal-chip-btn"
         aria-label={`${event.title} — ${event.status}`}
         style={{
@@ -227,13 +235,14 @@ export function WorkoutCard({
           width: "100%",
           padding: 0,
           background: "var(--bg-elevated)",
-          border: `1px solid ${sportHex.primary}25`,
+          border: `1.5px dashed ${sportHex.primary}35`,
           borderRadius: "var(--radius-md)",
           cursor: draggable ? "grab" : "pointer",
           textAlign: "center",
           transition: "box-shadow 150ms ease-out, transform 120ms ease-out, border-color 150ms ease",
           opacity: isSkipped ? 0.55 : 1,
           overflow: "hidden",
+          outline: "none",
         }}
         onMouseEnter={(e) => {
           const el = e.currentTarget;
@@ -255,20 +264,20 @@ export function WorkoutCard({
             alignItems: "center",
             justifyContent: "space-between",
             padding: "7px 10px",
-            background: `linear-gradient(135deg, ${sportHex.primary}dd 0%, ${sportHex.dark}dd 100%)`,
-            borderBottom: `1px solid ${sportHex.primary}30`,
+            background: headerBgDark,
+            borderBottom: `1px dashed ${sportHex.primary}25`,
             gap: 6,
             width: "100%",
           }}
         >
-          <SportIcon sport={sport} size={18} color="rgba(255,255,255,0.95)" />
+          <SportIcon sport={sport} size={18} color={sportHex.primary} />
 
           {/* Duration */}
           <span
             style={{
               fontSize: 15,
               fontWeight: 700,
-              color: "white",
+              color: "var(--text-primary)",
               fontVariantNumeric: "tabular-nums",
               marginLeft: 4,
             }}
@@ -284,7 +293,7 @@ export function WorkoutCard({
             style={{
               fontSize: 13,
               fontWeight: 700,
-              color: "white",
+              color: "var(--text-secondary)",
               marginRight: 6,
             }}
           >
@@ -441,7 +450,7 @@ export function WorkoutCard({
             )}
           </div>
         )}
-      </button>
+      </div>
     </div>
   );
 }

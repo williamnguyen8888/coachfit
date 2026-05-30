@@ -6,6 +6,8 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { calendarService } from "@/lib/services/calendar";
 import { activitiesService } from "@/lib/services/activities";
+import { wellnessService } from "@/lib/services/wellness";
+import { healthService } from "@/lib/services/health";
 import type {
   CalendarEvent,
   CalendarViewMode,
@@ -13,6 +15,8 @@ import type {
   UpdateCalendarPayload,
   EventsByDate,
 } from "@/lib/types/calendar";
+import type { WellnessEntry } from "@/lib/types/wellness";
+import type { DailyHealthSummary, SleepRecord } from "@/lib/services/health";
 
 // ─── Date helpers ─────────────────────────────────────────────────────────────
 
@@ -70,6 +74,9 @@ interface CalendarState {
   // Data
   events: CalendarEvent[];
   eventsByDate: EventsByDate;
+  wellnessByDate: Record<string, WellnessEntry>;
+  healthSummaryByDate: Record<string, DailyHealthSummary>;
+  sleepByDate: Record<string, SleepRecord>;
   loadedFrom: string | null;
   loadedTo: string | null;
 
@@ -124,6 +131,9 @@ export const useCalendarStore = create<CalendarState>()(
 
       events: [],
       eventsByDate: {},
+      wellnessByDate: {},
+      healthSummaryByDate: {},
+      sleepByDate: {},
       loadedFrom: null,
       loadedTo: null,
 
@@ -185,11 +195,23 @@ export const useCalendarStore = create<CalendarState>()(
 
         set({ isLoading: true, error: null });
         try {
-          const [events, activitiesRes] = await Promise.all([
+          const [events, activitiesRes, wellnessRes, healthDailyRes, sleepRes] = await Promise.all([
             calendarService.list(from, to),
             activitiesService.list({ from, to, size: 100 }).catch((err) => {
               console.error("Failed to load activities for calendar:", err);
               return { content: [], page: 0, size: 100, totalElements: 0, totalPages: 0 };
+            }),
+            wellnessService.list({ from, to }).catch((err) => {
+              console.error("Failed to load wellness for calendar:", err);
+              return [];
+            }),
+            healthService.listDaily({ from, to }).catch((err) => {
+              console.error("Failed to load daily health summaries for calendar:", err);
+              return [];
+            }),
+            healthService.listSleep({ from, to }).catch((err) => {
+              console.error("Failed to load sleep records for calendar:", err);
+              return [];
             }),
           ]);
 
@@ -228,9 +250,30 @@ export const useCalendarStore = create<CalendarState>()(
 
           const mergedEvents = [...events, ...pseudoEvents];
 
+          // Map wellness entries by date
+          const wellnessByDate: Record<string, WellnessEntry> = {};
+          wellnessRes.forEach((entry) => {
+            if (entry.date) wellnessByDate[entry.date] = entry;
+          });
+
+          // Map health summaries by date
+          const healthSummaryByDate: Record<string, DailyHealthSummary> = {};
+          healthDailyRes.forEach((summary) => {
+            if (summary.date) healthSummaryByDate[summary.date] = summary;
+          });
+
+          // Map sleep records by date
+          const sleepByDate: Record<string, SleepRecord> = {};
+          sleepRes.forEach((record) => {
+            if (record.date) sleepByDate[record.date] = record;
+          });
+
           set({
             events: mergedEvents,
             eventsByDate: groupByDate(mergedEvents),
+            wellnessByDate,
+            healthSummaryByDate,
+            sleepByDate,
             loadedFrom: from,
             loadedTo: to,
             isLoading: false,
