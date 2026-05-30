@@ -54,8 +54,8 @@ class ActivityPersistenceAdapter implements ActivityPersistencePort {
                 """)
                 .param("userId",   userId)
                 .param("sport",    sport)
-                .param("from",     startedAt.minusSeconds(60))
-                .param("to",       startedAt.plusSeconds(60))
+                .param("from",     java.sql.Timestamp.from(startedAt.minusSeconds(60)))
+                .param("to",       java.sql.Timestamp.from(startedAt.plusSeconds(60)))
                 .param("duration", durationSeconds)
                 .query(UUID.class)
                 .optional();
@@ -262,8 +262,8 @@ class ActivityPersistenceAdapter implements ActivityPersistencePort {
                 .param("offset", (long) page * size);
         if (sport  != null) stmt = stmt.param("sport",  sport);
         if (source != null) stmt = stmt.param("source", source);
-        if (from   != null) stmt = stmt.param("from",   from);
-        if (to     != null) stmt = stmt.param("to",     to);
+        if (from   != null) stmt = stmt.param("from",   java.sql.Timestamp.from(from));
+        if (to     != null) stmt = stmt.param("to",     java.sql.Timestamp.from(to));
 
         return stmt.query((rs, rowNum) -> new ActivityListItem(
                 rs.getObject("id", UUID.class),
@@ -294,8 +294,8 @@ class ActivityPersistenceAdapter implements ActivityPersistencePort {
         var stmt = jdbcClient.sql(sql.toString()).param("userId", userId);
         if (sport  != null) stmt = stmt.param("sport",  sport);
         if (source != null) stmt = stmt.param("source", source);
-        if (from   != null) stmt = stmt.param("from",   from);
-        if (to     != null) stmt = stmt.param("to",     to);
+        if (from   != null) stmt = stmt.param("from",   java.sql.Timestamp.from(from));
+        if (to     != null) stmt = stmt.param("to",     java.sql.Timestamp.from(to));
 
         return stmt.query(Long.class).single();
     }
