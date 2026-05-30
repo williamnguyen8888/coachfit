@@ -59,15 +59,20 @@ export function DashboardClient() {
     `/wellness?from=${todayDate}&to=${todayDate}`,
   );
   const wellnessEntry: WellnessEntry | null = (() => {
-    const d = wellnessQuery.data as unknown;
+    const d = wellnessQuery?.data;
     if (!d) return null;
-    // Raw array (backend returns WellnessEntry[] directly)
-    if (Array.isArray(d)) return (d as WellnessEntry[])[0] ?? null;
-    // Spring-style { content: [...] }
-    const asObj = d as Record<string, unknown>;
-    if (Array.isArray(asObj.content)) return (asObj.content as WellnessEntry[])[0] ?? null;
-    // Fallback: { data: [...] } shape
-    if (Array.isArray(asObj.data)) return (asObj.data as WellnessEntry[])[0] ?? null;
+    if (Array.isArray(d)) {
+      return d.length > 0 ? (d[0] as WellnessEntry) : null;
+    }
+    if (typeof d === "object") {
+      const asObj = d as Record<string, any>;
+      if (Array.isArray(asObj.content) && asObj.content.length > 0) {
+        return asObj.content[0] as WellnessEntry;
+      }
+      if (Array.isArray(asObj.data) && asObj.data.length > 0) {
+        return asObj.data[0] as WellnessEntry;
+      }
+    }
     return null;
   })();
   const hasCheckedInToday = !!wellnessEntry;
