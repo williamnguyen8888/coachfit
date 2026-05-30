@@ -11,6 +11,25 @@ import type {
   WorkoutPayload,
 } from "@/lib/types/workout";
 
+export interface FitExportResult {
+  /** Pre-signed download URL (24 h expiry) */
+  url: string;
+}
+
+export interface SchedulePayload {
+  workoutId: string;
+  date: string; // ISO date "YYYY-MM-DD"
+  notes?: string;
+}
+
+export interface CalendarEvent {
+  id: string;
+  date: string;
+  title: string;
+  status: string;
+  assignedBy: string | null;
+}
+
 function buildQuery(filter: WorkoutsFilter): string {
   const params = new URLSearchParams();
   if (filter.page !== undefined) params.set("page", String(filter.page));
@@ -47,4 +66,18 @@ export const workoutsService = {
   /** DELETE /workouts/{id} */
   delete: (id: string): Promise<void> =>
     api.delete<void>(`/workouts/${id}`),
+
+  /**
+   * GET /workouts/{id}/export/fit
+   * Returns a pre-signed download URL for the .FIT file.
+   */
+  exportFit: (id: string): Promise<FitExportResult> =>
+    api.get<FitExportResult>(`/workouts/${id}/export/fit`),
+
+  /**
+   * POST /calendar — schedule a workout to a specific date.
+   * Aligned to docs/05-api-design.md § Calendar.
+   */
+  scheduleToCalendar: (payload: SchedulePayload): Promise<CalendarEvent> =>
+    api.post<CalendarEvent>("/calendar", payload),
 };

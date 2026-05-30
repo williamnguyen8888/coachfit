@@ -31,13 +31,14 @@ import {
   Download,
   RefreshCw,
   AlertCircle,
-  Lock,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card, CardHeader, CardBody } from "@/components/ui/Card";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { WorkoutStepList } from "@/components/workout/WorkoutStepList";
 import { WorkoutDeleteModal } from "@/components/workout/WorkoutDeleteModal";
+import { ScheduleModal } from "@/components/workout/builder/ScheduleModal";
 import { workoutsService } from "@/lib/services/workouts";
 import { useAsync } from "@/hooks/useAsync";
 import { useQuery } from "@/hooks/useQuery";
@@ -176,6 +177,8 @@ interface HeroCardProps {
   onEdit: () => void;
   onDelete: () => void;
   onAddToCalendar: () => void;
+  onExportFit: () => void;
+  exporting: boolean;
 }
 
 function HeroCard({
@@ -185,6 +188,8 @@ function HeroCard({
   onEdit,
   onDelete,
   onAddToCalendar,
+  onExportFit,
+  exporting,
 }: HeroCardProps) {
   const { name, sport, description, estimatedDuration, tags, isTemplate } = workout;
   const emoji = SPORT_EMOJI[sport] ?? "🎯";
@@ -380,21 +385,18 @@ function HeroCard({
             </Button>
           )}
 
-          {/* Export FIT — Pro feature placeholder */}
+          {/* Export FIT */}
           <Button
             id="workout-export-btn"
             variant="ghost"
             size="md"
-            leftIcon={<Download size={14} />}
-            onClick={() => {
-              // TODO: check Pro tier, then call GET /workouts/{id}/export/fit
-              alert("FIT export requires a Pro subscription.");
-            }}
-            aria-label="Export workout as FIT file (Pro)"
-            title="Pro feature: Export as .FIT"
+            loading={exporting}
+            leftIcon={exporting ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+            onClick={onExportFit}
+            aria-label="Export workout as FIT file"
+            title="Export as .FIT file"
           >
             Export FIT
-            <Lock size={12} aria-hidden="true" style={{ color: "var(--color-accent)", marginLeft: 4 }} />
           </Button>
 
           {/* Delete — only for user-created workouts */}
@@ -429,6 +431,9 @@ export default function WorkoutDetailPage({ params }: Props) {
   const { id } = use(params);
   const router = useRouter();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportToast, setExportToast] = useState<string | null>(null);
   const { execute: executeDelete, loading: deleting } = useAsync(workoutsService.delete);
 
   /* ── Data fetch ── */
@@ -441,14 +446,31 @@ export default function WorkoutDetailPage({ params }: Props) {
   }, [router]);
 
   const handleEdit = useCallback(() => {
-    // TODO: navigate to workout builder when F09 is built
     router.push(`/workouts/${id}/edit`);
   }, [router, id]);
 
   const handleAddToCalendar = useCallback(() => {
-    // TODO: open calendar assignment sheet in F10
-    router.push("/calendar");
-  }, [router]);
+    setShowScheduleModal(true);
+  }, []);
+
+  /* ── Export FIT ── */
+  const handleExportFit = useCallback(async () => {
+    setExporting(true);
+    try {
+      const { url } = await workoutsService.exportFit(id);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${workout?.name?.replace(/[^a-z0-9]/gi, "_") ?? "workout"}.fit`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch (err) {
+      setExportToast(err instanceof Error ? err.message : "Export failed");
+      setTimeout(() => setExportToast(null), 4000);
+    } finally {
+      setExporting(false);
+    }
+  }, [id, workout?.name]);
 
   /* ── Delete flow ── */
   const handleDeleteConfirm = useCallback(async () => {
@@ -501,6 +523,8 @@ export default function WorkoutDetailPage({ params }: Props) {
           onEdit={handleEdit}
           onDelete={() => setShowDeleteModal(true)}
           onAddToCalendar={handleAddToCalendar}
+          onExportFit={handleExportFit}
+          exporting={exporting}
         />
 
         {/* Steps */}
@@ -559,6 +583,44 @@ export default function WorkoutDetailPage({ params }: Props) {
           onCancel={() => setShowDeleteModal(false)}
           loading={deleting}
         />
+      )}
+
+      {/* Schedule modal */}
+      {showScheduleModal && (
+        <ScheduleModal
+          workoutId={id}
+          workoutName={workout.name}
+          onClose={() => setShowScheduleModal(false)}
+          onSuccess={(date) => {
+            setShowScheduleModal(false);
+            setExportToast(`Scheduled for ${date}!`);
+            setTimeout(() => setExportToast(null), 4000);
+          }}
+        />
+      )}
+
+      {/* Toast */}
+      {exportToast && (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            position: "fixed",
+            bottom: 24,
+            right: 24,
+            padding: "10px 16px",
+            borderRadius: "var(--radius-md)",
+            background: "rgba(34,197,94,0.15)",
+            border: "1px solid #22C55E",
+            color: "#22C55E",
+            fontSize: "var(--text-sm)",
+            fontWeight: 500,
+            boxShadow: "var(--shadow-md)",
+            zIndex: 100,
+          }}
+        >
+          {exportToast}
+        </div>
       )}
     </main>
   );
