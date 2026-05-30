@@ -671,7 +671,7 @@ export function WeekView() {
   return (
     <>
       {isMobile && (
-        <div style={{ marginBottom: "var(--space-3)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)", overflow: "hidden" }}>
+        <div style={{ flexShrink: 0, marginBottom: "var(--space-3)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)", overflow: "hidden" }}>
           <WeeklySummaryColumn
             events={allWeekEvents}
             weekNumber={getWeekNumber(from)}
@@ -690,7 +690,7 @@ export function WeekView() {
         style={{
           display: "flex",
           flexDirection: isMobile ? "column" : "row",
-          flex: 1,
+          flex: isMobile ? "none" : 1,
           minHeight: 400,
           userSelect: "none",
           overflowX: isMobile ? "visible" : "auto",
