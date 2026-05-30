@@ -1,3 +1,8 @@
 // src/components/workout/index.ts
-// Workout builder components — populated in F08 / F09
-export {};
+// Workout library components — F08
+
+export { WorkoutCard } from "./WorkoutCard";
+export { WorkoutFilters } from "./WorkoutFilters";
+export { WorkoutList } from "./WorkoutList";
+export { WorkoutStepList } from "./WorkoutStepList";
+export { WorkoutDeleteModal } from "./WorkoutDeleteModal";

@@ -230,6 +230,18 @@ body {
   }
 }
 
+/* ---------- Modal entry animation ---------- */
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
 /* ---------- Scrollbar (dark) ---------- */
 ::-webkit-scrollbar {
   width: 6px;
