@@ -272,21 +272,23 @@ export function ActivityPowerTab({
     const coords = points.map((p, idx) => {
       const x = PAD_L + (p.t / totalDuration) * chartW;
       const w = p.power ?? (110 + Math.sin(p.t / 200) * 45 + Math.random() * 5); // Fallback mock
-      const y = getPowerY(w);
+      const y = Math.max(PAD_T, Math.min(PAD_T + chartH, PAD_T + chartH - (w / 180) * chartH)); // Clamp Y
       return `${idx === 0 ? "M" : "L"} ${x.toFixed(1)} ${y.toFixed(1)}`;
     });
     return coords.join(" ");
-  }, [points, totalDuration, chartW, chartH, maxPowerInRide]);
+  }, [points, totalDuration, chartW, chartH]);
 
   const hrLinePath = useMemo(() => {
     const coords = points.map((p, idx) => {
       const x = PAD_L + (p.t / totalDuration) * chartW;
       const hrVal = p.hr ?? (125 + Math.sin(p.t / 250) * 20 + Math.random() * 2); // Fallback mock
-      const y = getHrY(hrVal);
+      // Map HR percentage reserve: (hrVal - restingHr) / (maxHr - restingHr)
+      const hrPct = Math.min(1.0, Math.max(0, (hrVal - restingHr) / (maxHr - restingHr))); // Clamp HR Pct to [0, 1]
+      const y = PAD_T + chartH - hrPct * chartH;
       return `${idx === 0 ? "M" : "L"} ${x.toFixed(1)} ${y.toFixed(1)}`;
     });
     return coords.join(" ");
-  }, [points, totalDuration, chartW, chartH, restingHr, maxHrVal]);
+  }, [points, totalDuration, chartW, chartH, restingHr, maxHr]);
 
   // Shaded Decoupling area: polygon filling area where HR % exceeds Power %
   const decouplingAreaPath = useMemo(() => {
@@ -298,8 +300,11 @@ export function ActivityPowerTab({
       const w = p.power ?? (110 + Math.sin(p.t / 200) * 45 + Math.random() * 5);
       const hrVal = p.hr ?? (125 + Math.sin(p.t / 250) * 20 + Math.random() * 2);
 
-      const yPower = getPowerY(w);
-      const yHR = getHrY(hrVal);
+      const powerPct = Math.min(1.0, w / 180); // Clamp power pct to max scale
+      const hrPct = Math.min(1.0, Math.max(0, (hrVal - restingHr) / (maxHr - restingHr)));
+
+      const yPower = PAD_T + chartH - powerPct * chartH;
+      const yHR = PAD_T + chartH - hrPct * chartH;
 
       // When HR % is higher than Power % (yHR is lower than yPower on SVG Y-axis), shade the decoupling gap
       if (yHR < yPower) {
@@ -310,7 +315,7 @@ export function ActivityPowerTab({
 
     if (topCoords.length === 0) return "";
     return `M ${topCoords.join(" L ")} L ${bottomCoords.join(" L ")} Z`;
-  }, [points, totalDuration, chartW, chartH, restingHr, maxHrVal, maxPowerInRide]);
+  }, [points, totalDuration, chartW, chartH, restingHr, maxHr]);
 
   // ─── 6. Hover handlers on timeline ───────────────────────────────────────
   const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
@@ -795,17 +800,17 @@ export function ActivityPowerTab({
             })}
 
             {/* Left Y Axis (% HR Reserve) */}
-            <text x={PAD_L - 8} y={PAD_T + 4} textAnchor="end" fontSize="8.5" fill="var(--text-muted)">{maxHrVal} bpm</text>
-            <text x={PAD_L - 8} y={PAD_T + chartH / 2 + 3} textAnchor="end" fontSize="8.5" fill="var(--text-muted)">{Math.round(restingHr + (maxHrVal - restingHr) / 2)} bpm</text>
-            <text x={PAD_L - 8} y={PAD_T + chartH} textAnchor="end" fontSize="8.5" fill="var(--text-muted)">{restingHr} bpm</text>
+            <text x={PAD_L - 8} y={PAD_T + 4} textAnchor="end" fontSize="8.5" fill="var(--text-muted)">100%</text>
+            <text x={PAD_L - 8} y={PAD_T + chartH / 2 + 3} textAnchor="end" fontSize="8.5" fill="var(--text-muted)">50%</text>
+            <text x={PAD_L - 8} y={PAD_T + chartH} textAnchor="end" fontSize="8.5" fill="var(--text-muted)">0%</text>
             <text x={18} y={PAD_T + chartH / 2} fontSize="9" fontWeight="700" fill="var(--text-muted)" textAnchor="middle" transform={`rotate(-90, 18, ${PAD_T + chartH / 2})`}>
               % HR RESERVE
             </text>
 
             {/* Right Y Axis (Power %) */}
-            <text x={SVG_W - PAD_R + 8} y={PAD_T + 4} textAnchor="start" fontSize="8.5" fill="var(--text-muted)">{maxPowerInRide}w</text>
-            <text x={SVG_W - PAD_R + 8} y={PAD_T + chartH / 2 + 3} textAnchor="start" fontSize="8.5" fill="var(--text-muted)">{Math.round(maxPowerInRide / 2)}w</text>
-            <text x={SVG_W - PAD_R + 8} y={PAD_T + chartH} textAnchor="start" fontSize="8.5" fill="var(--text-muted)">0w</text>
+            <text x={SVG_W - PAD_R + 8} y={PAD_T + 4} textAnchor="start" fontSize="8.5" fill="var(--text-muted)">120%</text>
+            <text x={SVG_W - PAD_R + 8} y={PAD_T + chartH / 2 + 3} textAnchor="start" fontSize="8.5" fill="var(--text-muted)">60%</text>
+            <text x={SVG_W - PAD_R + 8} y={PAD_T + chartH} textAnchor="start" fontSize="8.5" fill="var(--text-muted)">0%</text>
             <text x={SVG_W - 18} y={PAD_T + chartH / 2} fontSize="9" fontWeight="700" fill="var(--text-muted)" textAnchor="middle" transform={`rotate(90, ${SVG_W - 18}, ${PAD_T + chartH / 2})`}>
               POWER %
             </text>
@@ -854,7 +859,7 @@ export function ActivityPowerTab({
                 {hasPower && (
                   <circle
                     cx={chartHoverData.x}
-                    cy={getPowerY(chartHoverData.point.power ?? 110)}
+                    cy={Math.max(PAD_T, Math.min(PAD_T + chartH, PAD_T + chartH - ((chartHoverData.point.power ?? 110) / 180) * chartH))}
                     r={4}
                     fill="var(--color-fitness)"
                     stroke="var(--bg-surface)"
@@ -864,7 +869,7 @@ export function ActivityPowerTab({
                 {hasHR && (
                   <circle
                     cx={chartHoverData.x}
-                    cy={getHrY(chartHoverData.point.hr ?? 125)}
+                    cy={Math.max(PAD_T, Math.min(PAD_T + chartH, PAD_T + chartH - Math.min(1.0, Math.max(0, ((chartHoverData.point.hr ?? 125) - restingHr) / (maxHr - restingHr))) * chartH))}
                     r={4}
                     fill="var(--color-danger)"
                     stroke="var(--bg-surface)"

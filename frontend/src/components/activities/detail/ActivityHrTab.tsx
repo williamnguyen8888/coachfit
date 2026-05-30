@@ -584,8 +584,8 @@ export function ActivityHrTab({
             onMouseLeave={() => setHoverCumIdx(null)}
           >
             {/* Grid lines */}
-            {[0, 0.25, 0.5, 0.75, 1.0].map((pct, i) => {
-              const y = 10 + 88 - pct * 88;
+            {[20, 40, 60, 80, 100].map((pct, i) => {
+              const y = 10 + (100 - pct) * 0.9;
               return (
                 <line
                   key={i}
@@ -602,10 +602,10 @@ export function ActivityHrTab({
             <path
               d={cumulativePoints.map((p, idx) => {
                 const x = 25 + (idx / (cumulativePoints.length - 1)) * 160;
-                // Log scale approximation for Y axis: map 0 to 2500s into Y: 10 to 98
+                // Log scale approximation for Y axis: map 0 to 2500s into Y: 100 to 10
                 const logVal = Math.log10(p.seconds + 1);
                 const maxLog = Math.log10(2523);
-                const y = 10 + 88 - (logVal / maxLog) * 88;
+                const y = 100 - (logVal / maxLog) * 90;
                 return `${idx === 0 ? "M" : "L"} ${x} ${y}`;
               }).join(" ")}
               fill="none"
@@ -628,9 +628,9 @@ export function ActivityHrTab({
                 {/* Horizontal line to Y-axis */}
                 <line
                   x1={25}
-                  y1={10 + 88 - (Math.log10(cumulativePoints[hoverCumIdx].seconds + 1) / Math.log10(2523)) * 88}
+                  y1={100 - (Math.log10(cumulativePoints[hoverCumIdx].seconds + 1) / Math.log10(2523)) * 90}
                   x2={25 + (hoverCumIdx / (cumulativePoints.length - 1)) * 160}
-                  y2={10 + 88 - (Math.log10(cumulativePoints[hoverCumIdx].seconds + 1) / Math.log10(2523)) * 88}
+                  y2={100 - (Math.log10(cumulativePoints[hoverCumIdx].seconds + 1) / Math.log10(2523)) * 90}
                   stroke="var(--text-muted)"
                   strokeWidth={0.8}
                   strokeDasharray="2,2"
@@ -638,9 +638,9 @@ export function ActivityHrTab({
                 {/* Vertical line to X-axis */}
                 <line
                   x1={25 + (hoverCumIdx / (cumulativePoints.length - 1)) * 160}
-                  y1={10 + 88 - (Math.log10(cumulativePoints[hoverCumIdx].seconds + 1) / Math.log10(2523)) * 88}
+                  y1={100 - (Math.log10(cumulativePoints[hoverCumIdx].seconds + 1) / Math.log10(2523)) * 90}
                   x2={25 + (hoverCumIdx / (cumulativePoints.length - 1)) * 160}
-                  y2={98}
+                  y2={100}
                   stroke="var(--text-muted)"
                   strokeWidth={0.8}
                   strokeDasharray="2,2"
@@ -648,7 +648,7 @@ export function ActivityHrTab({
                 {/* Snapped Dot */}
                 <circle
                   cx={25 + (hoverCumIdx / (cumulativePoints.length - 1)) * 160}
-                  cy={10 + 88 - (Math.log10(cumulativePoints[hoverCumIdx].seconds + 1) / Math.log10(2523)) * 88}
+                  cy={100 - (Math.log10(cumulativePoints[hoverCumIdx].seconds + 1) / Math.log10(2523)) * 90}
                   r={3.5}
                   fill="#EF4444"
                   stroke="var(--bg-surface)"
@@ -664,7 +664,7 @@ export function ActivityHrTab({
               style={{
                 position: "absolute",
                 left: `${(25 + (hoverCumIdx / (cumulativePoints.length - 1)) * 160) / 2}%`,
-                top: `${(10 + 88 - (Math.log10(cumulativePoints[hoverCumIdx].seconds + 1) / Math.log10(2523)) * 88) * 100 / 120}%`,
+                top: `${(100 - (Math.log10(cumulativePoints[hoverCumIdx].seconds + 1) / Math.log10(2523)) * 90) * 100 / 120}%`,
                 transform: "translate(-50%, -120%)",
                 background: "rgba(15, 23, 42, 0.9)",
                 backdropFilter: "blur(12px)",
