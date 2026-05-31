@@ -184,6 +184,20 @@ function DayCell({
       {...(inMonth ? dropZoneProps : {})}
       data-drop-date={inMonth ? date : undefined}
       className="day-cell"
+      role={inMonth ? "button" : undefined}
+      tabIndex={inMonth ? 0 : -1}
+      aria-label={`Day ${dayNum}, ${inMonth ? "Click to add event" : "Outside range"}`}
+      onClick={(e) => {
+        // Don't fire if clicking a chip
+        if ((e.target as HTMLElement).closest(".cal-chip-wrapper")) return;
+        if (inMonth) onAddClick(date);
+      }}
+      onKeyDown={(e) => {
+        if ((e.key === "Enter" || e.key === " ") && inMonth) {
+          e.preventDefault();
+          onAddClick(date);
+        }
+      }}
       style={{
         position: "relative",
         borderRight: "1px solid var(--border-subtle)",
@@ -192,6 +206,7 @@ function DayCell({
         display: "flex",
         flexDirection: "column",
         background: baseBg,
+        cursor: inMonth ? "pointer" : "default",
         outline: isDragOver && inMonth
           ? "1.5px dashed var(--color-accent-50)"
           : today
@@ -214,27 +229,11 @@ function DayCell({
       }}
     >
       <div
-        role="button"
-        tabIndex={0}
-        aria-label={`Add event on ${date}`}
-        onClick={(e) => {
-          // Don't fire if clicking a chip
-          if ((e.target as HTMLElement).closest(".cal-chip-wrapper")) return;
-          if (inMonth) onAddClick(date);
-        }}
-        onKeyDown={(e) => {
-          if ((e.key === "Enter" || e.key === " ") && inMonth) {
-            e.preventDefault();
-            onAddClick(date);
-          }
-        }}
         style={{
           padding: "var(--space-1) var(--space-2)",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          cursor: inMonth ? "pointer" : "default",
-          outline: "none",
           userSelect: "none",
         }}
       >

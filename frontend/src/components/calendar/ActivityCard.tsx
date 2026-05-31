@@ -398,13 +398,15 @@ export function ActivityCard({
 
             {/* Completion indicator */}
             {isCompleted && (
-              <span style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.85)" }}>
-                ✓ Done
+              <span style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.85)", display: "flex", alignItems: "center", gap: 3 }}>
+                <span>✓ Done</span>
+                <span style={{ fontSize: 8, opacity: 0.8 }}>↗</span>
               </span>
             )}
             {isPartial && (
-              <span style={{ fontSize: 10, fontWeight: 600, color: "#fbbf24" }}>
-                ◐ Partial
+              <span style={{ fontSize: 10, fontWeight: 600, color: "#fbbf24", display: "flex", alignItems: "center", gap: 3 }}>
+                <span>◐ Partial</span>
+                <span style={{ fontSize: 8, opacity: 0.8 }}>↗</span>
               </span>
             )}
           </div>
@@ -499,6 +501,57 @@ export function ActivityCard({
           )}
         </div>
 
+        {/* ── Separator / Match Score Divider (Middle Section) ── */}
+        {hasPlanAndActual && (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              position: "relative",
+              height: 10,
+              width: "100%",
+              background: "transparent",
+              margin: 0,
+              zIndex: 1,
+            }}
+          >
+            {/* Fading line */}
+            <div
+              style={{
+                height: 1,
+                width: "100%",
+                background: `linear-gradient(90deg, transparent, ${sportHex.primary}40, transparent)`,
+              }}
+            />
+            {/* Compliance pill */}
+            {compliance != null && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: "50%",
+                  left: "50%",
+                  transform: "translate(-50%, -50%)",
+                  background: compliance >= 80 ? "var(--color-success)" : compliance >= 50 ? "var(--color-warning)" : "var(--color-danger)",
+                  color: "white",
+                  fontSize: 8,
+                  fontWeight: 800,
+                  padding: "1px 6px",
+                  borderRadius: 10,
+                  boxShadow: "0 1px 4px rgba(0,0,0,0.15)",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.04em",
+                  zIndex: 2,
+                  whiteSpace: "nowrap",
+                  lineHeight: 1.2,
+                }}
+              >
+                {compliance}% Match
+              </div>
+            )}
+          </div>
+        )}
+
         {/* ── Combined planned workout details (LOWER BLOCK - clickable separately) ── */}
         {hasPlanAndActual && (
           <div
@@ -517,9 +570,8 @@ export function ActivityCard({
             }}
             style={{
               width: "100%",
-              borderTop: `1.5px dashed ${sportHex.primary}25`,
               background: `color-mix(in srgb, ${sportHex.primary} 3%, transparent)`,
-              padding: "8px 8px 8px",
+              padding: "6px 10px 10px",
               display: "flex",
               flexDirection: "column",
               gap: 4,
@@ -535,62 +587,51 @@ export function ActivityCard({
             }}
             title="Click to view/edit planned workout targets"
           >
-            {/* Floating Compliance Badge */}
-            {compliance != null && (
-              <div
-                style={{
-                  position: "absolute",
-                  top: -10,
-                  left: "50%",
-                  transform: "translateX(-50%)",
-                  background: compliance >= 80 ? "var(--color-success)" : compliance >= 50 ? "var(--color-warning)" : "var(--color-danger)",
-                  color: "white",
-                  fontSize: 9,
-                  fontWeight: 800,
-                  padding: "2px 8px",
-                  borderRadius: 8,
-                  boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.03em",
-                  zIndex: 2,
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {compliance}% Match
-              </div>
-            )}
-
-            {/* Plan Targets text */}
+            {/* Plan Header */}
             <div
               style={{
-                fontSize: 10,
-                color: "var(--text-muted)",
-                fontWeight: 700,
                 display: "flex",
-                justifyContent: "center",
                 alignItems: "center",
-                gap: 5,
-                marginTop: 2,
+                justifyContent: "space-between",
+                fontSize: 9,
+                fontWeight: 800,
+                color: sportHex.primary,
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
+                marginBottom: 2,
+                width: "100%",
               }}
             >
-              <span style={{ color: "var(--text-secondary)", opacity: 0.85 }}>PLAN:</span>
-              <span>{event.workout?.estimatedDuration ? formatDuration(event.workout.estimatedDuration) : "--"}</span>
-              {event.workout?.estimatedDuration && (
-                <span>• {formatDistance(
-                  sport === "swimming" ? (event.workout.estimatedDuration / 2400) * 1400 :
-                  sport === "cycling" ? (event.workout.estimatedDuration / 3600) * 28000 :
-                  sport === "running" ? (event.workout.estimatedDuration / 2700) * 7500 : 0
+              <span>🎯 Plan Targets</span>
+              <span style={{ fontSize: 8, opacity: 0.6, fontWeight: 700 }}>Details ⚙</span>
+            </div>
+
+            {/* Plan Targets text pills */}
+            <div style={{ display: "flex", justifyContent: "center", gap: 6, width: "100%", margin: "2px 0 4px" }}>
+              <span style={{ fontSize: 9, fontWeight: 700, background: "var(--bg-input)", padding: "2px 5px", borderRadius: 4, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 2 }}>
+                <span>⏱️</span>
+                <span>{event.workout?.estimatedDuration ? formatDuration(event.workout.estimatedDuration) : "--"}</span>
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 700, background: "var(--bg-input)", padding: "2px 5px", borderRadius: 4, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 2 }}>
+                <span>📏</span>
+                <span>{formatDistance(
+                  sport === "swimming" ? (event.workout?.estimatedDuration ? (event.workout.estimatedDuration / 2400) * 1400 : 0) :
+                  sport === "cycling" ? (event.workout?.estimatedDuration ? (event.workout.estimatedDuration / 3600) * 28000 : 0) :
+                  sport === "running" ? (event.workout?.estimatedDuration ? (event.workout.estimatedDuration / 2700) * 7500 : 0) : 0
                 )}</span>
-              )}
-              <span>• Load {getEstimatedLoad(event)}</span>
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 700, background: "var(--bg-input)", padding: "2px 5px", borderRadius: 4, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 2 }}>
+                <span>🔥</span>
+                <span>Load {getEstimatedLoad(event)}</span>
+              </span>
             </div>
 
             {/* Target steps viz bar */}
-            <div style={{ width: "100%", marginTop: 2 }}>
+            <div style={{ width: "100%" }}>
               <WorkoutStepViz
                 sport={sport}
                 zoneDistribution={getZoneDistribution(sport, "planned")}
-                height={16}
+                height={12}
               />
             </div>
           </div>

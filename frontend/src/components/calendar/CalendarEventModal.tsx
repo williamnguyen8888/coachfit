@@ -5,13 +5,14 @@
 // Supports: workout scheduling, rest days, and free-text events.
 
 import { useState, useEffect, useCallback } from "react";
-import type { CalendarEvent, CreateCalendarPayload, UpdateCalendarPayload } from "@/lib/types/calendar";
+import type { CalendarEvent, CreateCalendarPayload, UpdateCalendarPayload, CalendarEventType } from "@/lib/types/calendar";
 import type { WorkoutSummary, WorkoutDetail, WorkoutStep } from "@/lib/types/workout";
 import { workoutsService } from "@/lib/services/workouts";
 import { calendarService } from "@/lib/services/calendar";
 import { useCalendarStore } from "@/stores/calendar.store";
 import { InteractiveWorkoutChart } from "@/components/workout/InteractiveWorkoutChart";
-import { getSportHex, getEstimatedLoad } from "./calendarUtils";
+import { getSportHex, getEstimatedLoad, formatDistance } from "./calendarUtils";
+import { WorkoutStepViz } from "./WorkoutStepViz";
 
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -435,50 +436,150 @@ function WorkoutPicker({ selectedId, onSelect }: WorkoutPickerProps) {
   const [workouts, setWorkouts] = useState<WorkoutSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [sportFilter, setSportFilter] = useState<string>("all");
 
   useEffect(() => {
     workoutsService
-      .list({ size: 50, sort: "createdAt,desc" })
+      .list({ size: 100, sort: "createdAt,desc" }) // Fetch a larger set to allow tab filtering
       .then((res) => setWorkouts(res.content))
       .catch(() => setWorkouts([]))
       .finally(() => setLoading(false));
   }, []);
 
-  const filtered = workouts.filter((w) =>
-    w.name.toLowerCase().includes(search.toLowerCase()),
-  );
+  const filtered = workouts.filter((w) => {
+    const matchesSearch = w.name.toLowerCase().includes(search.toLowerCase());
+    const matchesSport = sportFilter === "all" || w.sport === sportFilter;
+    return matchesSearch && matchesSport;
+  });
+
+  const getSportCount = (sport: string) => {
+    if (sport === "all") return workouts.length;
+    return workouts.filter((w) => w.sport === sport).length;
+  };
+
+  const SPORT_FILTERS = [
+    { value: "all", label: "All", icon: "🌐" },
+    { value: "running", label: "Run", icon: "🏃" },
+    { value: "cycling", label: "Bike", icon: "🚴" },
+    { value: "swimming", label: "Swim", icon: "🏊" },
+    { value: "strength", label: "Gym", icon: "💪" },
+    { value: "other", label: "Other", icon: "🏋️" },
+  ];
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
-      <input
-        type="text"
-        placeholder="Search workouts…"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        style={{
-          background: "var(--bg-input)",
-          border: "1px solid var(--border-default)",
-          borderRadius: "var(--radius-sm)",
-          padding: "var(--space-2) var(--space-3)",
-          color: "var(--text-primary)",
-          fontSize: "var(--text-sm)",
-          outline: "none",
-          width: "100%",
-        }}
-        onFocus={(e) => {
-          e.currentTarget.style.borderColor = "var(--color-accent)";
-        }}
-        onBlur={(e) => {
-          e.currentTarget.style.borderColor = "var(--border-default)";
-        }}
-      />
+    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+      {/* Search Input with modern styling */}
+      <div style={{ position: "relative" }}>
+        <input
+          type="text"
+          placeholder="Search workouts by name..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={{
+            background: "rgba(255, 255, 255, 0.03)",
+            border: "1px solid var(--border-default)",
+            borderRadius: "var(--radius-md)",
+            padding: "10px 14px 10px 36px",
+            color: "var(--text-primary)",
+            fontSize: "var(--text-sm)",
+            outline: "none",
+            width: "100%",
+            transition: "border-color 0.2s, box-shadow 0.2s",
+          }}
+          onFocus={(e) => {
+            e.currentTarget.style.borderColor = "var(--color-accent)";
+            e.currentTarget.style.boxShadow = "0 0 0 3px rgba(0, 156, 222, 0.15)";
+          }}
+          onBlur={(e) => {
+            e.currentTarget.style.borderColor = "var(--border-default)";
+            e.currentTarget.style.boxShadow = "none";
+          }}
+        />
+        {/* Search icon */}
+        <span style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)", fontSize: "14px" }}>
+          🔍
+        </span>
+      </div>
+
+      {/* Sport category grid (no scroller needed, 3-column layout) */}
       <div
         style={{
-          maxHeight: 220,
+          display: "grid",
+          gridTemplateColumns: "repeat(3, 1fr)",
+          gap: "8px",
+          width: "100%",
+          paddingTop: "2px",
+          paddingBottom: "2px",
+        }}
+      >
+        {SPORT_FILTERS.map((f) => {
+          const isActive = sportFilter === f.value;
+          const count = getSportCount(f.value);
+          return (
+            <button
+              key={f.value}
+              type="button"
+              onClick={() => setSportFilter(f.value)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "4px",
+                padding: "8px 10px",
+                background: isActive ? "rgba(0, 156, 222, 0.15)" : "rgba(255, 255, 255, 0.02)",
+                border: `1.5px solid ${isActive ? "var(--color-accent)" : "var(--border-subtle)"}`,
+                borderRadius: "var(--radius-md)",
+                color: isActive ? "var(--color-accent)" : "var(--text-secondary)",
+                fontSize: "11px",
+                fontWeight: 600,
+                cursor: "pointer",
+                transition: "all 0.15s ease",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "4px", minWidth: 0, overflow: "hidden" }}>
+                <span style={{ fontSize: "12px", flexShrink: 0 }}>{f.icon}</span>
+                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.label}</span>
+              </div>
+              <span style={{
+                fontSize: "9px",
+                background: isActive ? "rgba(0, 156, 222, 0.25)" : "rgba(255, 255, 255, 0.05)",
+                color: isActive ? "var(--color-accent)" : "var(--text-muted)",
+                padding: "1px 5px",
+                borderRadius: "4px",
+                marginLeft: "auto",
+                flexShrink: 0,
+              }}>
+                {count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Workout list container with custom thin scrollbar */}
+      <style>{`
+        .workout-list::-webkit-scrollbar {
+          width: 5px;
+        }
+        .workout-list::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .workout-list::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.12);
+          border-radius: 4px;
+        }
+        .workout-list::-webkit-scrollbar-thumb:hover {
+          background: rgba(255, 255, 255, 0.25);
+        }
+      `}</style>
+      <div
+        className="workout-list"
+        style={{
+          maxHeight: "260px",
           overflowY: "auto",
           display: "flex",
           flexDirection: "column",
-          gap: 2,
+          gap: "8px",
+          paddingRight: "8px",
         }}
       >
         {/* None option */}
@@ -488,68 +589,190 @@ function WorkoutPicker({ selectedId, onSelect }: WorkoutPickerProps) {
           style={{
             display: "flex",
             alignItems: "center",
-            gap: "var(--space-2)",
-            padding: "var(--space-2) var(--space-3)",
-            background: selectedId === null ? "var(--color-accent-15)" : "transparent",
-            border: selectedId === null ? "1px solid var(--color-accent)" : "1px solid transparent",
-            borderRadius: "var(--radius-sm)",
+            gap: "12px",
+            padding: "8px 12px",
+            background: selectedId === null ? "rgba(16, 185, 129, 0.08)" : "rgba(255, 255, 255, 0.02)",
+            border: selectedId === null ? "1.5px solid #10b981" : "1.5px solid var(--border-subtle)",
+            borderRadius: "var(--radius-md)",
             cursor: "pointer",
             textAlign: "left",
-            color: "var(--text-secondary)",
-            fontSize: "var(--text-sm)",
+            width: "100%",
+            transition: "all 0.15s ease",
           }}
         >
-          <span>😴</span>
-          <span>No workout (rest / note)</span>
+          <div style={{
+            width: "28px",
+            height: "28px",
+            borderRadius: "50%",
+            background: "rgba(16, 185, 129, 0.1)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: "14px"
+          }}>
+            😴
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ color: selectedId === null ? "#10b981" : "var(--text-primary)", fontSize: "13px", fontWeight: 600 }}>
+              No workout (rest / note)
+            </div>
+          </div>
         </button>
 
         {loading ? (
-          <div style={{ padding: "var(--space-3)", color: "var(--text-muted)", fontSize: "var(--text-sm)" }}>
-            Loading workouts…
+          <div style={{ padding: "var(--space-3)", color: "var(--text-muted)", fontSize: "var(--text-sm)", textAlign: "center" }}>
+            Loading workouts...
           </div>
         ) : (
-          filtered.map((w) => (
-            <button
-              key={w.id}
-              type="button"
-              onClick={() => onSelect(w.id)}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "var(--space-2)",
-                padding: "var(--space-2) var(--space-3)",
-                background: selectedId === w.id ? "var(--color-accent-15)" : "transparent",
-                border: selectedId === w.id ? "1px solid var(--color-accent)" : "1px solid transparent",
-                borderRadius: "var(--radius-sm)",
-                cursor: "pointer",
-                textAlign: "left",
-                width: "100%",
-              }}
-            >
-              <span>{SPORT_ICONS[w.sport] ?? "🏋️"}</span>
-              <div style={{ flex: 1, overflow: "hidden" }}>
-                <div style={{ color: "var(--text-primary)", fontSize: "var(--text-sm)", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {w.name}
+          filtered.map((w) => {
+            const isSelected = selectedId === w.id;
+            const sportHex = getSportHex(w.sport);
+            const estLoad = calculateWorkoutLoad(w.estimatedDuration ?? 0, w.sport);
+
+            return (
+              <button
+                key={w.id}
+                type="button"
+                onClick={() => onSelect(w.id)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "12px",
+                  padding: "8px 12px",
+                  background: isSelected ? `${sportHex.primary}0c` : "rgba(255, 255, 255, 0.02)",
+                  border: `1.5px solid ${isSelected ? sportHex.primary : "var(--border-subtle)"}`,
+                  borderRadius: "var(--radius-md)",
+                  cursor: "pointer",
+                  textAlign: "left",
+                  width: "100%",
+                  transition: "all 0.15s ease",
+                }}
+              >
+                <div style={{
+                  width: "28px",
+                  height: "28px",
+                  borderRadius: "50%",
+                  background: `${sportHex.primary}15`,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "14px",
+                  border: `1px solid ${sportHex.primary}30`
+                }}>
+                  {SPORT_ICONS[w.sport] ?? "🏋️"}
                 </div>
-                <div style={{ color: "var(--text-muted)", fontSize: "var(--text-xs)" }}>
-                  {w.sport}
-                  {w.estimatedDuration ? ` · ${formatDuration(w.estimatedDuration)}` : ""}
+                <div style={{ flex: 1, overflow: "hidden" }}>
+                  <div style={{
+                    color: isSelected ? "var(--text-primary)" : "var(--text-secondary)",
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap"
+                  }}>
+                    {w.name}
+                  </div>
+                  <div style={{ color: "var(--text-muted)", fontSize: "11px", display: "flex", gap: "6px", alignItems: "center", marginTop: "1px" }}>
+                    <span style={{ textTransform: "capitalize" }}>{w.sport}</span>
+                    <span>•</span>
+                    <span>{w.estimatedDuration ? formatDuration(w.estimatedDuration) : "--"}</span>
+                    {estLoad > 0 && (
+                      <>
+                        <span>•</span>
+                        <span style={{ color: "var(--color-warning)", fontWeight: 500 }}>⚡ {estLoad} Load</span>
+                      </>
+                    )}
+                  </div>
                 </div>
-              </div>
-              {selectedId === w.id && (
-                <span style={{ color: "var(--color-accent)", fontSize: 14 }}>✓</span>
-              )}
-            </button>
-          ))
+                {isSelected && (
+                  <span style={{ color: sportHex.primary, fontSize: 14, fontWeight: "bold" }}>✓</span>
+                )}
+              </button>
+            );
+          })
         )}
         {!loading && filtered.length === 0 && (
-          <div style={{ padding: "var(--space-3)", color: "var(--text-muted)", fontSize: "var(--text-sm)" }}>
+          <div style={{ padding: "var(--space-4)", color: "var(--text-muted)", fontSize: "var(--text-sm)", textAlign: "center" }}>
             No workouts found
           </div>
         )}
       </div>
     </div>
   );
+}
+
+// ─── Metadata Parser for Edit Mode ───────────────────────────────────────────
+
+interface InitialParsedData {
+  initialPriority: "A" | "B" | "C";
+  initialTargetTime: string;
+  initialTargetPace: string;
+  initialTitle: string;
+  initialNotes: string;
+  initialNoteCategory: "General" | "Travel" | "Gear" | "Health" | "Diet";
+  initialRecoveryPreset: string;
+}
+
+function parseInitialData(event?: CalendarEvent): InitialParsedData {
+  let initialPriority: "A" | "B" | "C" = "A";
+  let initialTargetTime = "";
+  let initialTargetPace = "";
+  let initialTitle = event?.title ?? "";
+  let initialNotes = event?.notes ?? "";
+  let initialNoteCategory: "General" | "Travel" | "Gear" | "Health" | "Diet" = "General";
+  let initialRecoveryPreset = "";
+
+  if (event) {
+    if (event.eventType === "race") {
+      const raceMatch = event.title?.match(/^\[([A-C])-Race\]\s*(.*)$/);
+      if (raceMatch) {
+        initialPriority = raceMatch[1] as "A" | "B" | "C";
+        initialTitle = raceMatch[2];
+      }
+      
+      if (event.notes) {
+        const timeMatch = event.notes.match(/⏱️ Target Finish Time:\s*([^\n]+)/);
+        if (timeMatch) initialTargetTime = timeMatch[1].trim();
+
+        const paceMatch = event.notes.match(/🎯 Goal Pace\/Power:\s*([^\n]+)/);
+        if (paceMatch) initialTargetPace = paceMatch[1].trim();
+
+        // Extract clean notes by removing the metadata block
+        const cleanNotes = event.notes.replace(/^🏆 Priority:[^\n]*\n⏱️ Target Finish Time:[^\n]*\n🎯 Goal Pace\/Power:[^\n]*\n*\s*/g, "");
+        initialNotes = cleanNotes;
+      }
+    } else if (event.eventType === "rest") {
+      const restMatch = event.title?.match(/^\[Rest\]\s*(.*)$/);
+      if (restMatch) {
+        initialTitle = restMatch[1];
+      }
+      
+      if (event.notes) {
+        const typeMatch = event.notes.match(/💆 Type:\s*([^\n]+)/);
+        if (typeMatch) {
+          initialRecoveryPreset = typeMatch[1].trim();
+        }
+        const cleanNotes = event.notes.replace(/^💆 Type:[^\n]*\n*\s*/g, "");
+        initialNotes = cleanNotes;
+      }
+    } else if (event.eventType === "note") {
+      const noteMatch = event.title?.match(/^\[(General|Travel|Gear|Health|Diet)\]\s*(.*)$/);
+      if (noteMatch) {
+        initialNoteCategory = noteMatch[1] as any;
+        initialTitle = noteMatch[2];
+      }
+    }
+  }
+
+  return {
+    initialPriority,
+    initialTargetTime,
+    initialTargetPace,
+    initialTitle,
+    initialNotes,
+    initialNoteCategory,
+    initialRecoveryPreset
+  };
 }
 
 // ─── Main modal ───────────────────────────────────────────────────────────────
@@ -595,17 +818,48 @@ export function CalendarEventModal({
   }, [viewMode, event]);
 
   // Form state
+  const initialData = parseInitialData(event);
+
+  const [selectedType, setSelectedType] = useState<CalendarEventType>(
+    event?.eventType ?? "workout",
+  );
   const [date, setDate] = useState<string>(
     event?.date ?? initialDate ?? new Date().toISOString().split("T")[0],
   );
-  const [notes, setNotes] = useState<string>(event?.notes ?? "");
+  const [notes, setNotes] = useState<string>(initialData.initialNotes);
   const [title, setTitle] = useState<string>(
-    // For non-workout events, allow custom title
-    event?.eventType !== "workout" ? (event?.title ?? "") : "",
+    event?.eventType !== "workout" ? initialData.initialTitle : "",
   );
   const [workoutId, setWorkoutId] = useState<string | null>(
     event?.workout?.id ?? null,
   );
+
+  // Preview workout detail
+  const [previewWorkout, setPreviewWorkout] = useState<WorkoutDetail | null>(null);
+  const [loadingPreview, setLoadingPreview] = useState(false);
+  
+  // Expanded Athlete & Coach fields
+  const [racePriority, setRacePriority] = useState<"A" | "B" | "C">(initialData.initialPriority);
+  const [targetTime, setTargetTime] = useState<string>(initialData.initialTargetTime);
+  const [targetPace, setTargetPace] = useState<string>(initialData.initialTargetPace);
+  const [recoveryPreset, setRecoveryPreset] = useState<string>(initialData.initialRecoveryPreset);
+  const [noteCategory, setNoteCategory] = useState<"General" | "Travel" | "Gear" | "Health" | "Diet">(initialData.initialNoteCategory);
+
+  useEffect(() => {
+    if (selectedType === "workout" && workoutId) {
+      setLoadingPreview(true);
+      workoutsService
+        .get(workoutId)
+        .then((res) => setPreviewWorkout(res))
+        .catch((err) => {
+          console.error("Failed to load workout preview:", err);
+          setPreviewWorkout(null);
+        })
+        .finally(() => setLoadingPreview(false));
+    } else {
+      setPreviewWorkout(null);
+    }
+  }, [workoutId, selectedType]);
 
   const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -651,25 +905,49 @@ export function CalendarEventModal({
     setSubmitting(true);
     setError(null);
     try {
+      let finalTitle = title;
+      let finalNotes = notes;
+
+      if (selectedType === "workout") {
+        // Workout title is derived on the backend, nothing special here
+      } else if (selectedType === "race") {
+        finalTitle = `[${racePriority}-Race] ${title || "Race Day"}`;
+        const goalsBlock = `🏆 Priority: ${racePriority}-Race\n⏱️ Target Finish Time: ${targetTime || "--"}\n🎯 Goal Pace/Power: ${targetPace || "--"}`;
+        finalNotes = notes ? `${goalsBlock}\n\n${notes}` : goalsBlock;
+      } else if (selectedType === "rest") {
+        finalTitle = `[Rest] ${title || recoveryPreset || "Rest Day"}`;
+        const presetBlock = recoveryPreset ? `💆 Type: ${recoveryPreset}` : "";
+        finalNotes = presetBlock ? `${presetBlock}\n\n${notes}` : notes;
+      } else if (selectedType === "note") {
+        finalTitle = `[${noteCategory}] ${title || "Daily Log"}`;
+      }
+
       if (mode === "create") {
         const payload: CreateCalendarPayload = {
           date,
-          notes: notes || undefined,
+          notes: finalNotes || undefined,
+          eventType: selectedType,
+          title: finalTitle || undefined,
         };
-        if (workoutId) {
+        if (selectedType === "workout") {
+          if (!workoutId) {
+            setError("Please select a workout");
+            setSubmitting(false);
+            return;
+          }
           payload.workoutId = workoutId;
-          payload.eventType = "workout";
-        } else {
-          payload.eventType = title.toLowerCase().includes("rest") ? "rest" : "note";
-          payload.title = title || "Rest Day";
         }
         await createEvent(payload);
       } else if (event) {
         const payload: UpdateCalendarPayload = {
           date,
-          notes: notes || undefined,
-          title: title || undefined,
+          notes: finalNotes || undefined,
+          title: finalTitle || undefined,
+          eventType: selectedType,
         };
+        if (selectedType === "workout" && workoutId) {
+          payload.workoutId = workoutId;
+        }
         await updateEvent(event.id, payload);
       }
       onSuccess?.();
@@ -679,7 +957,7 @@ export function CalendarEventModal({
     } finally {
       setSubmitting(false);
     }
-  }, [mode, date, notes, title, workoutId, event, createEvent, updateEvent, onClose, onSuccess]);
+  }, [mode, date, notes, title, workoutId, selectedType, racePriority, targetTime, targetPace, recoveryPreset, noteCategory, event, createEvent, updateEvent, onClose, onSuccess]);
 
   const handleDelete = useCallback(async () => {
     if (!event) return;
@@ -718,7 +996,7 @@ export function CalendarEventModal({
   }, [event, markSkipped, onClose, onSuccess]);
 
   const isCreateMode = mode === "create";
-  const canSubmit = isCreateMode ? (workoutId !== null || title.trim().length > 0) : true;
+  const canSubmit = isCreateMode ? (selectedType === "workout" ? workoutId !== null : true) : true;
 
   if (viewMode === "detail" && event && event.eventType === "workout" && event.workout) {
     const sport = event.workout.sport ?? "other";
@@ -970,6 +1248,7 @@ export function CalendarEventModal({
                     fontSize: "13px",
                     color: "var(--text-secondary)",
                     lineHeight: "1.5",
+                    whiteSpace: "pre-wrap",
                   }}
                 >
                   <div style={{ fontWeight: 700, color: "var(--text-primary)", marginBottom: "4px" }}>Athlete Notes</div>
@@ -1173,8 +1452,23 @@ export function CalendarEventModal({
     );
   }
 
+  const showPreview = selectedType === "workout" && previewWorkout;
+  const modalWidth = showPreview ? 820 : 520;
+
   return (
-    <Overlay onClose={onClose} maxWidth={480}>
+    <Overlay onClose={onClose} maxWidth={modalWidth}>
+      {/* Scoped keyframes */}
+      <style>{`
+        @keyframes slideDown {
+          from { transform: translateY(-8px); opacity: 0; }
+          to   { transform: translateY(0);   opacity: 1; }
+        }
+        @keyframes scaleIn {
+          from { transform: scale(0.97); opacity: 0; }
+          to   { transform: scale(1);   opacity: 1; }
+        }
+      `}</style>
+
       {/* Header */}
       <div
         style={{
@@ -1232,302 +1526,750 @@ export function CalendarEventModal({
           padding: "var(--space-5)",
           display: "flex",
           flexDirection: "column",
-          gap: "var(--space-5)",
         }}
       >
-        {/* Date picker */}
-        <div>
-          <label
-            style={{ display: "block", fontSize: "var(--text-sm)", fontWeight: 500, color: "var(--text-secondary)", marginBottom: "var(--space-2)" }}
-          >
-            Date
-          </label>
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            style={{
-              background: "var(--bg-input)",
-              border: "1px solid var(--border-default)",
-              borderRadius: "var(--radius-sm)",
-              padding: "var(--space-2) var(--space-3)",
-              color: "var(--text-primary)",
-              fontSize: "var(--text-sm)",
-              outline: "none",
-              width: "100%",
-              colorScheme: "dark",
-            }}
-          />
-        </div>
+        <div
+          className={showPreview ? "modal-layout-grid" : ""}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "20px",
+            width: "100%",
+          }}
+        >
+          <style>{`
+            @media (min-width: 768px) {
+              .modal-layout-grid {
+                display: grid !important;
+                grid-template-columns: 1.1fr 1.25fr !important;
+                gap: 24px !important;
+                align-items: start;
+              }
+            }
+          `}</style>
 
-        {/* Workout picker (create mode) */}
-        {isCreateMode && (
-          <div>
-            <label
-              style={{ display: "block", fontSize: "var(--text-sm)", fontWeight: 500, color: "var(--text-secondary)", marginBottom: "var(--space-2)" }}
-            >
-              Workout
-            </label>
-            <WorkoutPicker selectedId={workoutId} onSelect={setWorkoutId} />
-          </div>
-        )}
-
-        {/* Title (for non-workout events in create, or edit mode) */}
-        {(!isCreateMode || workoutId === null) && (
-          <div>
-            <label
-              style={{ display: "block", fontSize: "var(--text-sm)", fontWeight: 500, color: "var(--text-secondary)", marginBottom: "var(--space-2)" }}
-            >
-              {isCreateMode ? "Label" : "Title"}
-            </label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder={isCreateMode ? "Rest Day, Race, Notes…" : "Event title"}
-              style={{
-                background: "var(--bg-input)",
-                border: "1px solid var(--border-default)",
-                borderRadius: "var(--radius-sm)",
-                padding: "var(--space-2) var(--space-3)",
-                color: "var(--text-primary)",
-                fontSize: "var(--text-sm)",
-                outline: "none",
-                width: "100%",
-              }}
-              onFocus={(e) => { e.currentTarget.style.borderColor = "var(--color-accent)"; }}
-              onBlur={(e) => { e.currentTarget.style.borderColor = "var(--border-default)"; }}
-            />
-          </div>
-        )}
-
-        {/* Notes */}
-        <div>
-          <label
-            style={{ display: "block", fontSize: "var(--text-sm)", fontWeight: 500, color: "var(--text-secondary)", marginBottom: "var(--space-2)" }}
-          >
-            Notes
-          </label>
-          <textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="Focus points, reminders…"
-            rows={3}
-            style={{
-              background: "var(--bg-input)",
-              border: "1px solid var(--border-default)",
-              borderRadius: "var(--radius-sm)",
-              padding: "var(--space-2) var(--space-3)",
-              color: "var(--text-primary)",
-              fontSize: "var(--text-sm)",
-              outline: "none",
-              width: "100%",
-              resize: "vertical",
-              fontFamily: "inherit",
-              lineHeight: 1.5,
-            }}
-            onFocus={(e) => { e.currentTarget.style.borderColor = "var(--color-accent)"; }}
-            onBlur={(e) => { e.currentTarget.style.borderColor = "var(--border-default)"; }}
-          />
-        </div>
-
-        {/* Edit mode quick actions */}
-        {!isCreateMode && event && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
-            {/* Status actions */}
-            <div style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap" }}>
-              {event.status === "planned" && (
-                <button
-                  type="button"
-                  onClick={handleMarkComplete}
+          {/* LEFT COLUMN: CORE FORM */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+            {/* Event Type Tab Selector (Create Mode Only) */}
+            {isCreateMode && (
+              <div>
+                <label
+                  style={{ display: "block", fontSize: "var(--text-sm)", fontWeight: 500, color: "var(--text-secondary)", marginBottom: "var(--space-2)" }}
+                >
+                  Event Type
+                </label>
+                <div
                   style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "var(--space-1)",
-                    padding: "var(--space-2) var(--space-3)",
-                    background: "var(--color-success-10)",
-                    border: "1px solid var(--color-success-30)",
-                    borderRadius: "var(--radius-sm)",
-                    color: "var(--color-success)",
-                    fontSize: "var(--text-sm)",
-                    fontWeight: 500,
-                    cursor: "pointer",
+                    display: "grid",
+                    gridTemplateColumns: "repeat(4, 1fr)",
+                    gap: 6,
+                    background: "rgba(255, 255, 255, 0.02)",
+                    padding: 4,
+                    borderRadius: "var(--radius-md)",
+                    border: "1px solid var(--border-subtle)",
                   }}
                 >
-                  ✓ Mark Complete
-                </button>
-              )}
-              {(event.status === "planned" || event.status === "partial") && (
-                <button
-                  type="button"
-                  onClick={handleMarkSkipped}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "var(--space-1)",
-                    padding: "var(--space-2) var(--space-3)",
-                    background: "var(--color-danger-10)",
-                    border: "1px solid var(--color-danger-30)",
-                    borderRadius: "var(--radius-sm)",
-                    color: "var(--color-danger)",
-                    fontSize: "var(--text-sm)",
-                    fontWeight: 500,
-                    cursor: "pointer",
-                  }}
-                >
-                  — Mark Skipped
-                </button>
-              )}
-            </div>
+                  {(["workout", "rest", "race", "note"] as const).map((type) => {
+                    const isActive = selectedType === type;
+                    let label = "Workout";
+                    let icon = "🏃";
+                    let activeColor = "var(--color-accent)";
+                    let activeBg = "rgba(0, 156, 222, 0.12)";
+                    let activeBorder = "1px solid rgba(0, 156, 222, 0.3)";
 
-            {/* Garmin Training sync — only for workout events */}
-            {event.eventType === "workout" && event.workout && (
-              <div
-                style={{
-                  padding: "var(--space-3)",
-                  background: isSyncedToGarmin
-                    ? "color-mix(in srgb, #009CDE 6%, var(--bg-elevated))"
-                    : "var(--bg-elevated)",
-                  border: `1px solid ${
-                    isSyncedToGarmin
-                      ? "color-mix(in srgb, #009CDE 30%, var(--border-subtle))"
-                      : "var(--border-subtle)"
-                  }`,
-                  borderRadius: "var(--radius-sm)",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "var(--space-3)",
-                }}
-              >
-                {/* Garmin icon */}
-                <div style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: "50%",
-                  background: "#009CDE",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flexShrink: 0,
-                  fontSize: 14,
-                }}>
-                  ⌚
-                </div>
+                    if (type === "rest") {
+                      label = "Rest";
+                      icon = "😴";
+                      activeColor = "#10b981"; // Emerald
+                      activeBg = "rgba(16, 185, 129, 0.12)";
+                      activeBorder = "1px solid rgba(16, 185, 129, 0.3)";
+                    } else if (type === "race") {
+                      label = "Race";
+                      icon = "🏁";
+                      activeColor = "#ef4444"; // Red
+                      activeBg = "rgba(239, 68, 68, 0.12)";
+                      activeBorder = "1px solid rgba(239, 68, 68, 0.3)";
+                    } else if (type === "note") {
+                      label = "Note";
+                      icon = "📝";
+                      activeColor = "#8b5cf6"; // Violet
+                      activeBg = "rgba(139, 92, 246, 0.12)";
+                      activeBorder = "1px solid rgba(139, 92, 246, 0.3)";
+                    }
 
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--text-primary)" }}>
-                    Garmin Connect
-                  </div>
-                  <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", marginTop: 1 }}>
-                    {isSyncedToGarmin
-                      ? `Synced${event.garminSyncedAt ? " · " + new Date(event.garminSyncedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : ""}`
-                      : "Push workout to your Garmin device"}
-                  </div>
-                </div>
-
-                <div style={{ display: "flex", gap: "var(--space-2)", flexShrink: 0 }}>
-                  {isSyncedToGarmin ? (
-                    <>
+                    return (
                       <button
+                        key={type}
                         type="button"
-                        onClick={handleGarminSync}
-                        disabled={garminSyncing || garminRemoving}
-                        title="Re-sync workout to Garmin"
+                        onClick={() => {
+                          setSelectedType(type);
+                          setError(null);
+                          if (type !== "workout") setWorkoutId(null);
+                        }}
                         style={{
-                          padding: "4px 10px",
-                          background: "color-mix(in srgb, #009CDE 12%, transparent)",
-                          border: "1px solid color-mix(in srgb, #009CDE 40%, transparent)",
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: 4,
+                          padding: "8px 2px",
+                          background: isActive ? activeBg : "transparent",
+                          border: isActive ? activeBorder : "1px solid transparent",
                           borderRadius: "var(--radius-sm)",
-                          color: "#009CDE",
-                          fontSize: "var(--text-xs)",
-                          fontWeight: 600,
-                          cursor: garminSyncing ? "not-allowed" : "pointer",
-                          opacity: garminSyncing ? 0.6 : 1,
+                          color: isActive ? activeColor : "var(--text-muted)",
+                          fontSize: "11px",
+                          fontWeight: 700,
+                          cursor: "pointer",
+                          transition: "all 150ms ease",
                         }}
                       >
-                        {garminSyncing ? "Syncing…" : "↺ Re-sync"}
+                        <span style={{ fontSize: 16 }}>{icon}</span>
+                        <span>{label}</span>
                       </button>
-                      <button
-                        type="button"
-                        onClick={handleGarminRemove}
-                        disabled={garminSyncing || garminRemoving}
-                        title="Remove from Garmin calendar"
-                        style={{
-                          padding: "4px 10px",
-                          background: "transparent",
-                          border: "1px solid var(--border-default)",
-                          borderRadius: "var(--radius-sm)",
-                          color: "var(--text-muted)",
-                          fontSize: "var(--text-xs)",
-                          fontWeight: 500,
-                          cursor: garminRemoving ? "not-allowed" : "pointer",
-                          opacity: garminRemoving ? 0.6 : 1,
-                        }}
-                      >
-                        {garminRemoving ? "Removing…" : "Remove"}
-                      </button>
-                    </>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={handleGarminSync}
-                      disabled={garminSyncing}
-                      id="garmin-sync-button"
-                      style={{
-                        padding: "4px 12px",
-                        background: "#009CDE",
-                        border: "none",
-                        borderRadius: "var(--radius-sm)",
-                        color: "white",
-                        fontSize: "var(--text-xs)",
-                        fontWeight: 600,
-                        cursor: garminSyncing ? "not-allowed" : "pointer",
-                        opacity: garminSyncing ? 0.7 : 1,
-                      }}
-                    >
-                      {garminSyncing ? "Syncing…" : "⌚ Push to Garmin"}
-                    </button>
-                  )}
+                    );
+                  })}
                 </div>
               </div>
             )}
 
-            {/* Garmin error */}
-            {garminError && (
+            {/* Date Picker */}
+            <div>
+              <label
+                style={{ display: "block", fontSize: "var(--text-sm)", fontWeight: 500, color: "var(--text-secondary)", marginBottom: "var(--space-2)" }}
+              >
+                Date
+              </label>
+              <input
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                style={{
+                  background: "rgba(255, 255, 255, 0.03)",
+                  border: "1px solid var(--border-default)",
+                  borderRadius: "var(--radius-md)",
+                  padding: "10px 14px",
+                  color: "var(--text-primary)",
+                  fontSize: "var(--text-sm)",
+                  outline: "none",
+                  width: "100%",
+                  colorScheme: "dark",
+                  transition: "border-color 0.2s",
+                }}
+                onFocus={(e) => e.currentTarget.style.borderColor = "var(--color-accent)"}
+                onBlur={(e) => e.currentTarget.style.borderColor = "var(--border-default)"}
+              />
+            </div>
+
+            {/* Workout Selector (Only in Workout Mode & Create Mode) */}
+            {isCreateMode && selectedType === "workout" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                <label
+                  style={{ display: "block", fontSize: "var(--text-sm)", fontWeight: 500, color: "var(--text-secondary)" }}
+                >
+                  Select Workout
+                </label>
+                <WorkoutPicker selectedId={workoutId} onSelect={setWorkoutId} />
+              </div>
+            )}
+
+            {/* Rest Day Presets (Only in Rest Mode) */}
+            {selectedType === "rest" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px", animation: "slideDown 0.2s ease" }}>
+                <label style={{ display: "block", fontSize: "var(--text-sm)", fontWeight: 500, color: "var(--text-secondary)" }}>
+                  HLV Recovery Suggestion Presets
+                </label>
+                <div style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: "6px",
+                  background: "rgba(255, 255, 255, 0.01)",
+                  border: "1px dashed var(--border-subtle)",
+                  borderRadius: "var(--radius-md)",
+                  padding: "8px"
+                }}>
+                  {[
+                    { type: "Complete Rest", label: "🛌 Complete Rest", text: "Total recovery focus. Prioritize sleep (8+ hours), hydration, and clean nutrition. No training.", title: "Complete Rest Day" },
+                    { type: "Active Recovery", label: "🧘 Active Recovery", text: "Keep heart rate strictly in Zone 1. 20-30 minutes of light spinning, walking, or swimming. Flush the legs.", title: "Active Recovery" },
+                    { type: "Mobility & Stretch", label: "🦴 Mobility & Flex", text: "Focus on joint mobility, hamstring flexibility, and thoracic opening. 20 minutes of dynamic stretching or foam rolling.", title: "Mobility & Stretching" },
+                    { type: "Recovery Therapy", label: "💆 Therapy", text: "Utilize massage, sauna, ice bath, or pneumatic compression boots (e.g. Normatec) to accelerate recovery.", title: "Recovery Therapy" }
+                  ].map((preset) => {
+                    const isActive = recoveryPreset === preset.type;
+                    return (
+                      <button
+                        key={preset.type}
+                        type="button"
+                        onClick={() => {
+                          setRecoveryPreset(preset.type);
+                          setTitle(preset.title);
+                          setNotes(preset.text);
+                        }}
+                        style={{
+                          padding: "6px 10px",
+                          background: isActive ? "rgba(16, 185, 129, 0.15)" : "rgba(255, 255, 255, 0.02)",
+                          border: `1px solid ${isActive ? "#10b981" : "var(--border-subtle)"}`,
+                          borderRadius: "var(--radius-full)",
+                          color: isActive ? "#10b981" : "var(--text-secondary)",
+                          fontSize: "11px",
+                          fontWeight: 600,
+                          cursor: "pointer",
+                          transition: "all 0.15s ease",
+                        }}
+                      >
+                        {preset.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Race Goals Grid (Only in Race Mode) */}
+            {selectedType === "race" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px", animation: "slideDown 0.2s ease" }}>
+                {/* Star Priority Selector */}
+                <div>
+                  <label style={{ display: "block", fontSize: "var(--text-sm)", fontWeight: 500, color: "var(--text-secondary)", marginBottom: "8px" }}>
+                    Race Priority
+                  </label>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+                    {(["A", "B", "C"] as const).map((priority) => {
+                      const isActive = racePriority === priority;
+                      let activeBg = "rgba(239, 68, 68, 0.1)";
+                      let activeBorder = "1.5px solid #ef4444";
+                      let activeColor = "#ef4444";
+                      let rLabel = "⭐ A-Race (Peak)";
+
+                      if (priority === "B") {
+                        activeBg = "rgba(245, 158, 11, 0.1)";
+                        activeBorder = "1.5px solid #f59e0b";
+                        activeColor = "#f59e0b";
+                        rLabel = "🏁 B-Race (Prep)";
+                      } else if (priority === "C") {
+                        activeBg = "rgba(59, 130, 246, 0.1)";
+                        activeBorder = "1.5px solid #3b82f6";
+                        activeColor = "#3b82f6";
+                        rLabel = "⚙️ C-Race (Train)";
+                      }
+
+                      return (
+                        <button
+                          key={priority}
+                          type="button"
+                          onClick={() => setRacePriority(priority)}
+                          style={{
+                            padding: "10px 4px",
+                            background: isActive ? activeBg : "rgba(255, 255, 255, 0.02)",
+                            border: isActive ? activeBorder : "1px solid var(--border-default)",
+                            borderRadius: "var(--radius-md)",
+                            color: isActive ? activeColor : "var(--text-secondary)",
+                            fontSize: "11px",
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            transition: "all 120ms ease",
+                          }}
+                        >
+                          {rLabel}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Goals */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: "11px", fontWeight: 500, color: "var(--text-secondary)", marginBottom: "6px" }}>
+                      Target Finish Time
+                    </label>
+                    <input
+                      type="text"
+                      value={targetTime}
+                      onChange={(e) => setTargetTime(e.target.value)}
+                      placeholder="e.g. 3h 45m"
+                      style={{
+                        background: "rgba(255, 255, 255, 0.03)",
+                        border: "1px solid var(--border-default)",
+                        borderRadius: "var(--radius-md)",
+                        padding: "8px 12px",
+                        color: "var(--text-primary)",
+                        fontSize: "var(--text-sm)",
+                        outline: "none",
+                        width: "100%",
+                        transition: "border-color 0.2s",
+                      }}
+                      onFocus={(e) => e.currentTarget.style.borderColor = "#ef4444"}
+                      onBlur={(e) => e.currentTarget.style.borderColor = "var(--border-default)"}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "11px", fontWeight: 500, color: "var(--text-secondary)", marginBottom: "6px" }}>
+                      Goal Pace / Power
+                    </label>
+                    <input
+                      type="text"
+                      value={targetPace}
+                      onChange={(e) => setTargetPace(e.target.value)}
+                      placeholder="e.g. 4:45 /km, 250W"
+                      style={{
+                        background: "rgba(255, 255, 255, 0.03)",
+                        border: "1px solid var(--border-default)",
+                        borderRadius: "var(--radius-md)",
+                        padding: "8px 12px",
+                        color: "var(--text-primary)",
+                        fontSize: "var(--text-sm)",
+                        outline: "none",
+                        width: "100%",
+                        transition: "border-color 0.2s",
+                      }}
+                      onFocus={(e) => e.currentTarget.style.borderColor = "#ef4444"}
+                      onBlur={(e) => e.currentTarget.style.borderColor = "var(--border-default)"}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Note Categories (Only in Note Mode) */}
+            {selectedType === "note" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px", animation: "slideDown 0.2s ease" }}>
+                <label style={{ display: "block", fontSize: "var(--text-sm)", fontWeight: 500, color: "var(--text-secondary)" }}>
+                  Note Category
+                </label>
+                <div style={{ display: "flex", gap: "6px", overflowX: "auto", paddingBottom: "4px" }}>
+                  {[
+                    { value: "General", label: "📝 General" },
+                    { value: "Travel", label: "✈️ Travel" },
+                    { value: "Gear", label: "🔧 Gear & Tech" },
+                    { value: "Health", label: "🩺 Health" },
+                    { value: "Diet", label: "🥗 Diet & Carbs" }
+                  ].map((c) => {
+                    const isActive = noteCategory === c.value;
+                    return (
+                      <button
+                        key={c.value}
+                        type="button"
+                        onClick={() => setNoteCategory(c.value as any)}
+                        style={{
+                          padding: "6px 12px",
+                          background: isActive ? "rgba(139, 92, 246, 0.15)" : "rgba(255, 255, 255, 0.02)",
+                          border: `1px solid ${isActive ? "#8b5cf6" : "var(--border-subtle)"}`,
+                          borderRadius: "var(--radius-full)",
+                          color: isActive ? "#8b5cf6" : "var(--text-secondary)",
+                          fontSize: "11px",
+                          fontWeight: 600,
+                          cursor: "pointer",
+                          whiteSpace: "nowrap",
+                          transition: "all 0.15s ease",
+                        }}
+                      >
+                        {c.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Title / Description Label (Non-workout, or edit mode) */}
+            {(!isCreateMode || selectedType !== "workout") && (
+              <div>
+                <label
+                  style={{ display: "block", fontSize: "var(--text-sm)", fontWeight: 500, color: "var(--text-secondary)", marginBottom: "var(--space-2)" }}
+                >
+                  {selectedType === "race" ? "Race Name" : selectedType === "rest" ? "Recovery Label" : "Title"}
+                </label>
+                <input
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder={
+                    selectedType === "race"
+                      ? "e.g. Da Nang Ironman 70.3"
+                      : selectedType === "rest"
+                      ? "e.g. Recovery Session"
+                      : "Enter event title..."
+                  }
+                  style={{
+                    background: "rgba(255, 255, 255, 0.03)",
+                    border: "1px solid var(--border-default)",
+                    borderRadius: "var(--radius-md)",
+                    padding: "10px 14px",
+                    color: "var(--text-primary)",
+                    fontSize: "var(--text-sm)",
+                    outline: "none",
+                    width: "100%",
+                    transition: "border-color 0.2s",
+                  }}
+                  onFocus={(e) => e.currentTarget.style.borderColor = "var(--color-accent)"}
+                  onBlur={(e) => e.currentTarget.style.borderColor = "var(--border-default)"}
+                />
+              </div>
+            )}
+
+            {/* Notes / Details text area */}
+            <div>
+              <label
+                style={{ display: "block", fontSize: "var(--text-sm)", fontWeight: 500, color: "var(--text-secondary)", marginBottom: "var(--space-2)" }}
+              >
+                {selectedType === "workout"
+                  ? "Focus / Instructions"
+                  : selectedType === "rest"
+                  ? "Recovery Focus Details"
+                  : selectedType === "race"
+                  ? "Race Strategy & Fueling Plan"
+                  : "Details"}
+              </label>
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder={
+                  selectedType === "workout"
+                    ? "Key intervals focus, target power, etc..."
+                    : selectedType === "rest"
+                    ? "Hydration, stretching, foam rolling instructions..."
+                    : selectedType === "race"
+                    ? "Tapering execution, pacing strategy, split goals..."
+                    : "Notes, reminders, details..."
+                }
+                rows={3}
+                style={{
+                  background: "rgba(255, 255, 255, 0.03)",
+                  border: "1px solid var(--border-default)",
+                  borderRadius: "var(--radius-md)",
+                  padding: "10px 14px",
+                  color: "var(--text-primary)",
+                  fontSize: "var(--text-sm)",
+                  outline: "none",
+                  width: "100%",
+                  resize: "vertical",
+                  fontFamily: "inherit",
+                  lineHeight: 1.5,
+                  transition: "border-color 0.2s",
+                }}
+                onFocus={(e) => e.currentTarget.style.borderColor = "var(--color-accent)"}
+                onBlur={(e) => e.currentTarget.style.borderColor = "var(--border-default)"}
+              />
+            </div>
+
+            {/* Edit mode quick actions & Garmin Sync (only for Workout events) */}
+            {!isCreateMode && event && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                {/* Status markings */}
+                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                  {event.status === "planned" && (
+                    <button
+                      type="button"
+                      onClick={handleMarkComplete}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                        padding: "8px 12px",
+                        background: "var(--color-success-10)",
+                        border: "1px solid var(--color-success-30)",
+                        borderRadius: "var(--radius-sm)",
+                        color: "var(--color-success)",
+                        fontSize: "12px",
+                        fontWeight: 600,
+                        cursor: "pointer",
+                      }}
+                    >
+                      ✓ Mark Done
+                    </button>
+                  )}
+                  {(event.status === "planned" || event.status === "partial") && (
+                    <button
+                      type="button"
+                      onClick={handleMarkSkipped}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                        padding: "8px 12px",
+                        background: "var(--color-danger-10)",
+                        border: "1px solid var(--color-danger-30)",
+                        borderRadius: "var(--radius-sm)",
+                        color: "var(--color-danger)",
+                        fontSize: "12px",
+                        fontWeight: 600,
+                        cursor: "pointer",
+                      }}
+                    >
+                      — Mark Skipped
+                    </button>
+                  )}
+                </div>
+
+                {/* Garmin Connect scheduling */}
+                {event.eventType === "workout" && event.workout && (
+                  <div
+                    style={{
+                      padding: "12px",
+                      background: isSyncedToGarmin
+                        ? "rgba(0, 156, 222, 0.05)"
+                        : "rgba(255, 255, 255, 0.01)",
+                      border: `1px solid ${
+                        isSyncedToGarmin
+                          ? "rgba(0, 156, 222, 0.3)"
+                          : "var(--border-subtle)"
+                      }`,
+                      borderRadius: "var(--radius-md)",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "12px",
+                    }}
+                  >
+                    <div style={{
+                      width: "28px",
+                      height: "28px",
+                      borderRadius: "50%",
+                      background: "#009CDE",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: "14px",
+                      flexShrink: 0
+                    }}>
+                      ⌚
+                    </div>
+
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>
+                        Garmin Connect Sync
+                      </div>
+                      <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px" }}>
+                        {isSyncedToGarmin
+                          ? `Synced${event.garminSyncedAt ? " · " + new Date(event.garminSyncedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : ""}`
+                          : "Schedule workout on your Garmin Connect"}
+                      </div>
+                    </div>
+
+                    <div style={{ display: "flex", gap: "6px", flexShrink: 0 }}>
+                      {isSyncedToGarmin ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={handleGarminSync}
+                            disabled={garminSyncing || garminRemoving}
+                            title="Re-sync workout to Garmin"
+                            style={{
+                              padding: "4px 8px",
+                              background: "rgba(0, 156, 222, 0.1)",
+                              border: "1px solid rgba(0, 156, 222, 0.3)",
+                              borderRadius: "var(--radius-sm)",
+                              color: "#009CDE",
+                              fontSize: "11px",
+                              fontWeight: 600,
+                              cursor: garminSyncing ? "not-allowed" : "pointer",
+                              opacity: garminSyncing ? 0.6 : 1,
+                            }}
+                          >
+                            {garminSyncing ? "Syncing…" : "↺ Re-sync"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleGarminRemove}
+                            disabled={garminSyncing || garminRemoving}
+                            title="Remove from Garmin calendar"
+                            style={{
+                              padding: "4px 8px",
+                              background: "transparent",
+                              border: "1px solid var(--border-default)",
+                              borderRadius: "var(--radius-sm)",
+                              color: "var(--text-muted)",
+                              fontSize: "11px",
+                              fontWeight: 500,
+                              cursor: garminRemoving ? "not-allowed" : "pointer",
+                              opacity: garminRemoving ? 0.6 : 1,
+                            }}
+                          >
+                            {garminRemoving ? "Removing…" : "Remove"}
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={handleGarminSync}
+                          disabled={garminSyncing}
+                          id="garmin-sync-button"
+                          style={{
+                            padding: "6px 12px",
+                            background: "#009CDE",
+                            border: "none",
+                            borderRadius: "var(--radius-sm)",
+                            color: "white",
+                            fontSize: "11px",
+                            fontWeight: 600,
+                            cursor: garminSyncing ? "not-allowed" : "pointer",
+                            opacity: garminSyncing ? 0.7 : 1,
+                          }}
+                        >
+                          {garminSyncing ? "Syncing…" : "⌚ Push to Garmin"}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Garmin error log */}
+                {garminError && (
+                  <div
+                    style={{
+                      padding: "8px 12px",
+                      background: "var(--color-danger-10)",
+                      border: "1px solid var(--color-danger-30)",
+                      borderRadius: "var(--radius-sm)",
+                      color: "var(--color-danger)",
+                      fontSize: "11px",
+                    }}
+                  >
+                    {garminError}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Standard error log */}
+            {error && (
               <div
                 style={{
-                  padding: "var(--space-2) var(--space-3)",
+                  padding: "10px 14px",
                   background: "var(--color-danger-10)",
                   border: "1px solid var(--color-danger-30)",
                   borderRadius: "var(--radius-sm)",
                   color: "var(--color-danger)",
-                  fontSize: "var(--text-xs)",
+                  fontSize: "12px",
                 }}
               >
-                {garminError}
+                {error}
               </div>
             )}
           </div>
-        )}
 
-        {/* Error */}
-        {error && (
-          <div
-            style={{
-              padding: "var(--space-3)",
-              background: "var(--color-danger-10)",
-              border: "1px solid var(--color-danger-30)",
-              borderRadius: "var(--radius-sm)",
-              color: "var(--color-danger)",
-              fontSize: "var(--text-sm)",
-            }}
-          >
-            {error}
-          </div>
-        )}
+          {/* RIGHT COLUMN: WORKOUT PREVIEW PANEL */}
+          {showPreview && (
+            <div
+              style={{
+                background: "rgba(255, 255, 255, 0.01)",
+                borderRadius: "var(--radius-lg)",
+                border: "1.5px dashed rgba(255, 255, 255, 0.08)",
+                padding: "20px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "16px",
+                maxHeight: "680px",
+                overflowY: "auto",
+                backdropFilter: "blur(8px)",
+                animation: "scaleIn 0.22s ease-out",
+              }}
+            >
+              {/* Header */}
+              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                <div style={{
+                  width: "42px",
+                  height: "42px",
+                  borderRadius: "50%",
+                  background: `${getSportHex(previewWorkout.sport).primary}15`,
+                  border: `1.5px solid ${getSportHex(previewWorkout.sport).primary}30`,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "20px"
+                }}>
+                  {SPORT_ICONS[previewWorkout.sport] ?? "🏋️"}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {previewWorkout.name}
+                  </h3>
+                  <span style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.05em" }}>
+                    Structured {previewWorkout.sport} Plan
+                  </span>
+                </div>
+              </div>
+
+              {/* Metrics Grid */}
+              <div style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(4, 1fr)",
+                gap: "8px",
+                background: "rgba(255, 255, 255, 0.02)",
+                border: "1px solid var(--border-subtle)",
+                borderRadius: "var(--radius-md)",
+                padding: "10px 8px",
+                textAlign: "center"
+              }}>
+                <div>
+                  <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 600 }}>Duration</div>
+                  <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", marginTop: "2px" }}>
+                    {previewWorkout.estimatedDuration ? formatDuration(previewWorkout.estimatedDuration) : "--"}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 600 }}>Distance</div>
+                  <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", marginTop: "2px" }}>
+                    {calculateWorkoutDistance(previewWorkout.steps, previewWorkout.sport) > 0
+                      ? formatDistance(calculateWorkoutDistance(previewWorkout.steps, previewWorkout.sport))
+                      : "--"}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 600 }}>Est. Load</div>
+                  <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", marginTop: "2px" }}>
+                    {calculateWorkoutLoad(previewWorkout.estimatedDuration ?? 0, previewWorkout.sport)}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 600 }}>Intensity</div>
+                  <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", marginTop: "2px" }}>
+                    {calculateWorkoutIntensity(previewWorkout.steps, previewWorkout.sport)}%
+                  </div>
+                </div>
+              </div>
+
+              {/* Step Viz Bar */}
+              <div>
+                <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-secondary)", marginBottom: "6px" }}>Zone Distribution</div>
+                <WorkoutStepViz
+                  sport={previewWorkout.sport}
+                  zoneDistribution={Object.values(calculateWorkoutZoneDurations(previewWorkout.steps).zones)}
+                  height={16}
+                />
+              </div>
+
+              {/* Chart timeline */}
+              <div style={{ marginTop: "4px" }}>
+                <InteractiveWorkoutChart steps={previewWorkout.steps} sport={previewWorkout.sport} />
+              </div>
+
+              {/* Steps Instructions */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-secondary)" }}>Workout Profile Steps</div>
+                <div style={{
+                  maxHeight: "120px",
+                  overflowY: "auto",
+                  background: "rgba(255, 255, 255, 0.02)",
+                  border: "1px solid var(--border-subtle)",
+                  borderRadius: "var(--radius-md)",
+                  padding: "10px",
+                  fontSize: "11px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "6px"
+                }}>
+                  {previewWorkout.steps.map((step, idx) => (
+                    <div key={idx}>
+                      {renderWorkoutStepInstructions(step, previewWorkout.sport, idx)}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Footer actions */}
+      {/* Footer Actions */}
       <div
         style={{
           display: "flex",
@@ -1537,7 +2279,7 @@ export function CalendarEventModal({
           flexShrink: 0,
         }}
       >
-        {/* Delete (edit mode only) */}
+        {/* Delete (Edit mode only) */}
         {!isCreateMode && event && (
           <button
             type="button"
@@ -1594,7 +2336,17 @@ export function CalendarEventModal({
             transition: "background var(--duration-micro) ease-out",
           }}
         >
-          {submitting ? "Saving…" : isCreateMode ? "Add to Calendar" : "Save Changes"}
+          {submitting
+            ? "Saving…"
+            : isCreateMode
+            ? selectedType === "workout"
+              ? "Add Workout"
+              : selectedType === "rest"
+              ? "Add Rest Day"
+              : selectedType === "race"
+              ? "Add Race Day"
+              : "Add Note"
+            : "Save Changes"}
         </button>
       </div>
     </Overlay>
