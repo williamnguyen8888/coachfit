@@ -25,6 +25,7 @@ import {
   formatPace,
   getRpeEmoji,
   getRpeColor,
+  getEstimatedLoad,
 } from "./calendarUtils";
 import { WorkoutStepViz } from "./WorkoutStepViz";
 
@@ -54,6 +55,65 @@ function SportIcon({
     >
       <path d={icon.path} />
     </svg>
+  );
+}
+
+// ─── Platform source badge helper ─────────────────────────────────────────────
+
+function renderSourceBadge(source?: string) {
+  if (!source) return null;
+  const src = source.toLowerCase();
+
+  let label = "Manual";
+  let bg = "rgba(107, 114, 128, 0.15)";
+  let color = "var(--text-secondary)";
+  let border = "1px solid rgba(107, 114, 128, 0.3)";
+  let dotColor = "#9ca3af";
+
+  if (src === "strava") {
+    label = "Strava";
+    bg = "rgba(252, 76, 2, 0.08)";
+    color = "#fc4c02";
+    border = "1px solid rgba(252, 76, 2, 0.25)";
+    dotColor = "#fc4c02";
+  } else if (src === "garmin") {
+    label = "Garmin";
+    bg = "rgba(0, 124, 195, 0.08)";
+    color = "#007cc3";
+    border = "1px solid rgba(0, 124, 195, 0.25)";
+    dotColor = "#007cc3";
+  } else if (src === "coros") {
+    label = "COROS";
+    bg = "rgba(28, 28, 28, 0.4)";
+    color = "var(--text-primary)";
+    border = "1px solid rgba(255, 255, 255, 0.15)";
+    dotColor = "#ffffff";
+  }
+
+  return (
+    <div
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 3,
+        padding: "2px 6px",
+        borderRadius: 4,
+        background: bg,
+        color: color,
+        border: border,
+        fontSize: 9,
+        fontWeight: 700,
+        textTransform: "uppercase",
+        letterSpacing: "0.04em",
+        pointerEvents: "none",
+        flexShrink: 0,
+        height: 16,
+        lineHeight: 1,
+      }}
+    >
+      <span style={{ color: dotColor, fontSize: 8, marginRight: 1 }}>●</span>
+      <span>{label}</span>
+    </div>
   );
 }
 
@@ -143,6 +203,8 @@ export function ActivityCard({
     }
   };
 
+  const hasPlanAndActual = event.workout !== null && (isCompleted || isPartial);
+
   // ── Compact mode (month view) ──────────────────────────────────────────────
   if (compact) {
     return (
@@ -227,17 +289,14 @@ export function ActivityCard({
         transition: "opacity 150ms ease-out",
       }}
     >
-      <button
-        type="button"
+      <div
         draggable={draggable}
         onDragStart={onDragStart}
         onDragEnd={onDragEnd}
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
-        onClick={handleClick}
-        className="cal-chip-btn"
-        aria-label={`${event.title} — ${event.status}`}
+        className="cal-chip-btn-container"
         style={{
           display: "flex",
           flexDirection: "column",
@@ -246,7 +305,7 @@ export function ActivityCard({
           background: "var(--bg-elevated)",
           border: `1px solid ${sportHex.primary}30`,
           borderRadius: "var(--radius-md)",
-          cursor: draggable ? "grab" : "pointer",
+          cursor: draggable ? "grab" : "default",
           textAlign: "center",
           transition: "box-shadow 150ms ease-out, transform 120ms ease-out, border-color 150ms ease",
           overflow: "hidden",
@@ -264,210 +323,279 @@ export function ActivityCard({
           el.style.borderColor = `${sportHex.primary}30`;
         }}
       >
-        {/* ── Header: FULL sport color background ─────────────────── */}
+        {/* UPPER BLOCK: Actual Activity details (clickable) */}
         <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "7px 10px",
-            background: `linear-gradient(135deg, ${sportHex.primary} 0%, ${sportHex.dark} 100%)`,
-            gap: 6,
-            width: "100%",
+          role="button"
+          tabIndex={0}
+          onClick={handleClick}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              handleClick(e as any);
+            }
           }}
-        >
-          <SportIcon sport={sport} size={18} color="rgba(255,255,255,0.9)" />
-
-          {/* Duration */}
-          {durationSec > 0 && (
-            <span
-              style={{
-                fontSize: 15,
-                fontWeight: 700,
-                color: "white",
-                fontVariantNumeric: "tabular-nums",
-                marginLeft: 4,
-              }}
-            >
-              {formatDuration(durationSec)}
-            </span>
-          )}
-
-          {/* Spacer */}
-          <div style={{ flex: 1 }} />
-
-          {/* Distance */}
-          {estDistanceMeters && estDistanceMeters > 0 && (
-            <span
-              style={{
-                fontSize: 13,
-                fontWeight: 700,
-                color: "white",
-                marginRight: 6,
-              }}
-            >
-              {formatDistance(estDistanceMeters)}
-            </span>
-          )}
-
-          {/* Completion indicator */}
-          {isCompleted && (
-            <span style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.85)" }}>
-              ✓ Done
-            </span>
-          )}
-          {isPartial && (
-            <span style={{ fontSize: 10, fontWeight: 600, color: "#fbbf24" }}>
-              ◐ Partial
-            </span>
-          )}
-        </div>
-
-        {/* ── Synced activity metrics row (HR, Power, Pace) ───────── */}
-        {(avgHr != null || paceOrPowerStr) && (
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              gap: 12,
-              padding: "5px 10px 2px",
-              fontSize: 11,
-              fontWeight: 600,
-              color: "var(--text-secondary)",
-            }}
-          >
-            {avgHr != null && (
-              <span style={{ color: "var(--color-danger)" }}>
-                ❤️ {avgHr} bpm
-              </span>
-            )}
-            {paceOrPowerStr && (
-              <span style={{ color: "var(--color-success)" }}>
-                ⚡ {paceOrPowerStr}
-              </span>
-            )}
-          </div>
-        )}
-
-        {/* ── TSS / Load ──────────────────────────────────────────── */}
-        {tss > 0 && (
-          <div
-            style={{
-              padding: "2px 0",
-              fontSize: 13,
-              fontWeight: 700,
-              color: "var(--text-primary)",
-            }}
-          >
-            Load {tss}
-          </div>
-        )}
-
-        {/* ── Perceived exertion RPE ──────────────────────────────── */}
-        {rpe != null && (
-          <div
-            style={{
-              padding: "2px 0 4px",
-              fontSize: 11,
-              fontWeight: 700,
-              color: getRpeColor(rpe),
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 4,
-            }}
-          >
-            <span>RPE {rpe}</span>
-            <span>{getRpeEmoji(rpe)}</span>
-          </div>
-        )}
-
-        {/* ── Intensity visualization ─────────────────────────────── */}
-        <div style={{ padding: "4px 8px 4px", width: "100%" }}>
-          <WorkoutStepViz
-            sport={sport}
-            zoneDistribution={dist}
-            height={24}
-          />
-        </div>
-
-        {/* ── Max HR row ──────────────────────────────────────────── */}
-        {maxHr != null && (
-          <div
-            style={{
-              padding: "2px 0 4px",
-              fontSize: 10,
-              fontWeight: 600,
-              color: "var(--text-muted)",
-            }}
-          >
-            ❤️ {maxHr} Max HR
-          </div>
-        )}
-
-        {/* ── Activity title + Bookmark/flag ──────────────────────── */}
-        <div
           style={{
-            padding: "3px 8px 4px",
-            fontSize: 11,
-            fontWeight: 600,
-            color: "var(--text-secondary)",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-            lineHeight: 1.3,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 4,
+            cursor: "pointer",
             width: "100%",
+            textAlign: "center",
+            display: "flex",
+            flexDirection: "column",
+            transition: "background 150ms ease",
           }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = `color-mix(in srgb, ${sportHex.primary} 4%, transparent)`;
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = "transparent";
+          }}
+          title="Click to view actual activity details & analysis"
         >
-          <span>{event.title}</span>
-          <span style={{ fontSize: 10, opacity: 0.8 }} title="Synced Platform Activity">📋</span>
-        </div>
-
-        {/* ── Compliance score ────────────────────────────────────── */}
-        {compliance != null && compliance > 0 && (
+          {/* ── Header: FULL sport color background ─────────────────── */}
           <div
             style={{
-              padding: "2px 8px 6px",
-              fontSize: 11,
-              fontWeight: 600,
-              color: compliance >= 80 ? "var(--color-success)" : compliance >= 50 ? "var(--color-warning)" : "var(--color-danger)",
               display: "flex",
               alignItems: "center",
-              justifyContent: "center",
-              gap: 3,
-            }}
-          >
-            <span>✅ Compliance</span>
-            <span>{compliance}%</span>
-          </div>
-        )}
-
-        {/* ── Linked workout badge ────────────────────────────────── */}
-        {event.workout && (
-          <div
-            style={{
-              padding: "5px 8px 6px",
-              borderTop: `1px solid ${sportHex.primary}12`,
-              fontSize: 10,
-              color: sportHex.primary,
-              fontWeight: 600,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 3,
+              justifyContent: "space-between",
+              padding: "7px 10px",
+              background: `linear-gradient(135deg, ${sportHex.primary} 0%, ${sportHex.dark} 100%)`,
+              gap: 6,
               width: "100%",
             }}
           >
-            <span style={{ fontSize: 9 }}>🔗</span>
-            <span>Matched to Planned Workout</span>
+            <SportIcon sport={sport} size={18} color="rgba(255,255,255,0.9)" />
+
+            {/* Duration */}
+            {durationSec > 0 && (
+              <span
+                style={{
+                  fontSize: 15,
+                  fontWeight: 700,
+                  color: "white",
+                  fontVariantNumeric: "tabular-nums",
+                  marginLeft: 4,
+                }}
+              >
+                {formatDuration(durationSec)}
+              </span>
+            )}
+
+            {/* Spacer */}
+            <div style={{ flex: 1 }} />
+
+            {/* Distance */}
+            {estDistanceMeters && estDistanceMeters > 0 && (
+              <span
+                style={{
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: "white",
+                  marginRight: 6,
+                }}
+              >
+                {formatDistance(estDistanceMeters)}
+              </span>
+            )}
+
+            {/* Completion indicator */}
+            {isCompleted && (
+              <span style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.85)" }}>
+                ✓ Done
+              </span>
+            )}
+            {isPartial && (
+              <span style={{ fontSize: 10, fontWeight: 600, color: "#fbbf24" }}>
+                ◐ Partial
+              </span>
+            )}
+          </div>
+
+          {/* ── Synced activity metrics row (HR, Power, Pace) ───────── */}
+          {(avgHr != null || paceOrPowerStr) && (
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                gap: 12,
+                padding: "5px 10px 2px",
+                fontSize: 11,
+                fontWeight: 600,
+                color: "var(--text-secondary)",
+              }}
+            >
+              {avgHr != null && (
+                <span style={{ color: "var(--color-danger)" }}>
+                  ❤️ {avgHr} bpm
+                </span>
+              )}
+              {paceOrPowerStr && (
+                <span style={{ color: "var(--color-success)" }}>
+                  ⚡ {paceOrPowerStr}
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* ── TSS / Load & RPE ────────────────────────────────────────── */}
+          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 10, padding: "2px 0" }}>
+            {tss > 0 && (
+              <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)" }}>
+                Load {tss}
+              </span>
+            )}
+            {rpe != null && (
+              <span style={{ fontSize: 11, fontWeight: 700, color: getRpeColor(rpe), display: "flex", alignItems: "center", gap: 3 }}>
+                <span>RPE {rpe}</span>
+                <span>{getRpeEmoji(rpe)}</span>
+              </span>
+            )}
+          </div>
+
+          {/* ── Max HR row ──────────────────────────────────────────── */}
+          {maxHr != null && (
+            <div
+              style={{
+                padding: "2px 0 2px",
+                fontSize: 10,
+                fontWeight: 600,
+                color: "var(--text-muted)",
+              }}
+            >
+              ❤️ {maxHr} Max HR
+            </div>
+          )}
+
+          {/* ── Activity title + Brand Source Icon ──────────────────────── */}
+          <div
+            style={{
+              padding: "4px 8px 6px",
+              fontSize: 11,
+              fontWeight: 600,
+              color: "var(--text-secondary)",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              lineHeight: 1.3,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 6,
+              width: "100%",
+            }}
+          >
+            <span>{event.title}</span>
+            {renderSourceBadge(activityRef?.source)}
+          </div>
+
+          {/* ── Intensity visualization (Only when no plan and actual combined) ── */}
+          {!hasPlanAndActual && (
+            <div style={{ padding: "4px 8px 6px", width: "100%" }}>
+              <WorkoutStepViz
+                sport={sport}
+                zoneDistribution={dist}
+                height={24}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* ── Combined planned workout details (LOWER BLOCK - clickable separately) ── */}
+        {hasPlanAndActual && (
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={(e) => {
+              e.stopPropagation();
+              onClick?.(event);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                e.stopPropagation();
+                onClick?.(event);
+              }
+            }}
+            style={{
+              width: "100%",
+              borderTop: `1.5px dashed ${sportHex.primary}25`,
+              background: `color-mix(in srgb, ${sportHex.primary} 3%, transparent)`,
+              padding: "8px 8px 8px",
+              display: "flex",
+              flexDirection: "column",
+              gap: 4,
+              position: "relative",
+              cursor: "pointer",
+              transition: "background 150ms ease",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = `color-mix(in srgb, ${sportHex.primary} 8%, transparent)`;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = `color-mix(in srgb, ${sportHex.primary} 3%, transparent)`;
+            }}
+            title="Click to view/edit planned workout targets"
+          >
+            {/* Floating Compliance Badge */}
+            {compliance != null && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: -10,
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  background: compliance >= 80 ? "var(--color-success)" : compliance >= 50 ? "var(--color-warning)" : "var(--color-danger)",
+                  color: "white",
+                  fontSize: 9,
+                  fontWeight: 800,
+                  padding: "2px 8px",
+                  borderRadius: 8,
+                  boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.03em",
+                  zIndex: 2,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {compliance}% Match
+              </div>
+            )}
+
+            {/* Plan Targets text */}
+            <div
+              style={{
+                fontSize: 10,
+                color: "var(--text-muted)",
+                fontWeight: 700,
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                gap: 5,
+                marginTop: 2,
+              }}
+            >
+              <span style={{ color: "var(--text-secondary)", opacity: 0.85 }}>PLAN:</span>
+              <span>{event.workout?.estimatedDuration ? formatDuration(event.workout.estimatedDuration) : "--"}</span>
+              {event.workout?.estimatedDuration && (
+                <span>• {formatDistance(
+                  sport === "swimming" ? (event.workout.estimatedDuration / 2400) * 1400 :
+                  sport === "cycling" ? (event.workout.estimatedDuration / 3600) * 28000 :
+                  sport === "running" ? (event.workout.estimatedDuration / 2700) * 7500 : 0
+                )}</span>
+              )}
+              <span>• Load {getEstimatedLoad(event)}</span>
+            </div>
+
+            {/* Target steps viz bar */}
+            <div style={{ width: "100%", marginTop: 2 }}>
+              <WorkoutStepViz
+                sport={sport}
+                zoneDistribution={getZoneDistribution(sport, "planned")}
+                height={16}
+              />
+            </div>
           </div>
         )}
-      </button>
+      </div>
     </div>
   );
 }

@@ -465,6 +465,8 @@ function DayColumn({
                   isDragging={draggingId === event.id}
                   onComplete={() => onComplete(event.id)}
                   onSkip={() => onSkip(event.id)}
+                  sleep={sleep}
+                  health={health}
                 />
               </div>
             </div>

@@ -14,23 +14,44 @@ export const calendarService = {
    * GET /calendar?from=YYYY-MM-DD&to=YYYY-MM-DD
    * Returns all events in the given date range (flat array, no pagination).
    */
-  list: (from: string, to: string): Promise<CalendarEvent[]> =>
-    api.get<CalendarEvent[]>(`/calendar?from=${from}&to=${to}`),
+  list: async (from: string, to: string): Promise<CalendarEvent[]> => {
+    const events = await api.get<any[]>(`/calendar?from=${from}&to=${to}`);
+    return events.map((e) => ({
+      ...e,
+      notes: e.description || null,
+    }));
+  },
 
   /**
    * POST /calendar
    * Create a new calendar event (schedule workout, rest day, etc.)
    */
-  create: (payload: CreateCalendarPayload): Promise<CalendarEvent> =>
-    api.post<CalendarEvent>("/calendar", payload),
+  create: async (payload: CreateCalendarPayload): Promise<CalendarEvent> => {
+    const { notes, ...rest } = payload;
+    const body = {
+      ...rest,
+      description: notes,
+    };
+    const event = await api.post<any>("/calendar", body);
+    return {
+      ...event,
+      notes: event.description || null,
+    };
+  },
 
   /**
    * PUT /calendar/{id}
    * Update an existing calendar event (reschedule date, change notes, etc.)
    * Returns void — backend responds 200 with no body.
    */
-  update: (id: string, payload: UpdateCalendarPayload): Promise<void> =>
-    api.put<void>(`/calendar/${id}`, payload),
+  update: (id: string, payload: UpdateCalendarPayload): Promise<void> => {
+    const { notes, ...rest } = payload;
+    const body = {
+      ...rest,
+      description: notes,
+    };
+    return api.put<void>(`/calendar/${id}`, body);
+  },
 
   /**
    * DELETE /calendar/{id}

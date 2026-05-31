@@ -319,6 +319,8 @@ function DayCell({
               isDragging={draggingId === event.id}
               onComplete={() => onComplete(event.id)}
               onSkip={() => onSkip(event.id)}
+              sleep={sleep}
+              health={health}
             />
           );
         })}
@@ -591,6 +593,8 @@ export function MonthView() {
                   onClick={(e) => setModalState({ mode: "edit", event: e })}
                   onComplete={() => handleComplete(event.id)}
                   onSkip={() => handleSkip(event.id)}
+                  sleep={sleepByDate?.[selectedDate]}
+                  health={healthSummaryByDate?.[selectedDate]}
                 />
               ))
             )}

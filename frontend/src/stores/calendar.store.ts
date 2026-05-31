@@ -215,40 +215,71 @@ export const useCalendarStore = create<CalendarState>()(
             }),
           ]);
 
-          // Synthesize pseudo calendar events for all activities
-          const pseudoEvents = activitiesRes.content.map((act) => {
-            const dateStr = act.startedAt.split("T")[0];
-            const pseudoEvent: CalendarEvent = {
-              id: `activity-event-${act.id}`,
-              date: dateStr,
-              eventType: "workout", // route to rich cards
-              title: act.name,
-              status: "completed", // route to ActivityCard
-              workout: null,
-              activity: {
-                id: act.id,
-                tss: act.tss,
-                durationSeconds: act.durationSeconds,
-                sport: act.sport,
-                name: act.name,
-                distanceMeters: act.distanceMeters,
-                avgHeartRate: act.avgHeartRate,
-                maxHeartRate: act.avgHeartRate, // Fallback/estimation
-                avgPower: act.avgPower,
-                rpe: null,
-              },
-              complianceScore: null,
-              orderIndex: 999, // Render after planned workouts
-              assignedBy: null,
-              notes: null,
-              garminWorkoutId: null,
-              garminScheduledId: null,
-              garminSyncedAt: null,
-            };
-            return pseudoEvent;
+          // Extract the IDs of activities that are already matched to a calendar event in the database
+          const matchedActivityIds = new Set<string>();
+          events.forEach((evt) => {
+            if (evt.activity?.id) {
+              matchedActivityIds.add(evt.activity.id);
+            }
           });
 
-          const mergedEvents = [...events, ...pseudoEvents];
+          // Synthesize pseudo calendar events ONLY for activities that are NOT matched (standalone)
+          const pseudoEvents = activitiesRes.content
+            .filter((act) => !matchedActivityIds.has(act.id))
+            .map((act) => {
+              const dateStr = act.startedAt.split("T")[0];
+              const pseudoEvent: CalendarEvent = {
+                id: `activity-event-${act.id}`,
+                date: dateStr,
+                eventType: "workout", // route to rich cards
+                title: act.name,
+                status: "completed", // route to ActivityCard
+                workout: null,
+                activity: {
+                  id: act.id,
+                  tss: act.tss,
+                  durationSeconds: act.durationSeconds,
+                  sport: act.sport,
+                  name: act.name,
+                  distanceMeters: act.distanceMeters,
+                  avgHeartRate: act.avgHeartRate,
+                  maxHeartRate: act.avgHeartRate, // Fallback/estimation
+                  avgPower: act.avgPower,
+                  rpe: null,
+                  source: act.source,
+                },
+                complianceScore: null,
+                orderIndex: 999, // Render after planned workouts
+                assignedBy: null,
+                notes: null,
+                garminWorkoutId: null,
+                garminScheduledId: null,
+                garminSyncedAt: null,
+              };
+              return pseudoEvent;
+            });
+
+          // Enrich matched activities with full summary details from activitiesRes
+          const enrichedEvents = events.map((evt) => {
+            if (evt.activity) {
+              const matchedAct = activitiesRes.content.find((a) => a.id === evt.activity?.id);
+              if (matchedAct) {
+                evt.activity = {
+                  ...evt.activity,
+                  source: matchedAct.source,
+                  sport: matchedAct.sport,
+                  name: matchedAct.name,
+                  distanceMeters: matchedAct.distanceMeters,
+                  avgHeartRate: matchedAct.avgHeartRate,
+                  maxHeartRate: matchedAct.avgHeartRate, // Fallback/estimation
+                  avgPower: matchedAct.avgPower,
+                };
+              }
+            }
+            return evt;
+          });
+
+          const mergedEvents = [...enrichedEvents, ...pseudoEvents];
 
           // Map wellness entries by date
           const wellnessByDate: Record<string, WellnessEntry> = {};
@@ -293,12 +324,34 @@ export const useCalendarStore = create<CalendarState>()(
       },
 
       updateEvent: async (id, payload) => {
+        const existing = get().events.find((e) => e.id === id);
+        if (!existing) return;
+
+        // Build the full request payload for the backend.
+        // It requires date, eventType, and title.
+        const fullPayload: UpdateCalendarPayload = {
+          date: payload.date ?? existing.date,
+          eventType: payload.eventType ?? existing.eventType,
+          title: payload.title ?? existing.title,
+          notes: payload.notes !== undefined ? payload.notes : (existing.notes ?? undefined),
+          workoutId: payload.workoutId !== undefined ? payload.workoutId : (existing.workout?.id ?? undefined),
+        };
+
         // Backend returns void — optimistically update from local state + payload
-        await calendarService.update(id, payload);
+        await calendarService.update(id, fullPayload);
         set((state) => {
-          const existing = state.events.find((e) => e.id === id);
-          if (!existing) return {};
-          const updated = { ...existing, ...payload };
+          const target = state.events.find((e) => e.id === id);
+          if (!target) return {};
+          const updated = {
+            ...target,
+            date: fullPayload.date!,
+            eventType: fullPayload.eventType!,
+            title: fullPayload.title!,
+            notes: fullPayload.notes ?? null,
+            workout: fullPayload.workoutId
+              ? { id: fullPayload.workoutId, sport: target.workout?.sport ?? "other", estimatedDuration: target.workout?.estimatedDuration ?? null }
+              : null,
+          };
           const next = state.events.map((e) => e.id === id ? updated : e);
           return { events: next, eventsByDate: groupByDate(next) };
         });
@@ -382,8 +435,15 @@ export const useCalendarStore = create<CalendarState>()(
         });
 
         try {
-          // Backend returns void — we already applied the optimistic update
-          await calendarService.update(eventId, { date: toDate });
+          // Backend returns void — we already applied the optimistic update.
+          // We must send the full details because the backend PUT /calendar/{id} validates eventType & title.
+          await calendarService.update(eventId, {
+            date: toDate,
+            eventType: event.eventType,
+            title: event.title,
+            notes: event.notes ?? undefined,
+            workoutId: event.workout?.id ?? undefined,
+          });
           // No need to upsert — optimistic state is already correct
         } catch {
           // Rollback

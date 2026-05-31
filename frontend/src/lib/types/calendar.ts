@@ -38,6 +38,7 @@ export interface CalendarActivityRef {
   maxHeartRate?: number | null;
   avgPower?: number | null;
   rpe?: number | null;
+  source?: string;
 }
 
 /** Calendar event as returned by GET /calendar */
@@ -93,6 +94,8 @@ export interface UpdateCalendarPayload {
   date?: string;
   notes?: string;
   title?: string;
+  eventType?: CalendarEventType;
+  workoutId?: string;
 }
 
 // ─── Helper / derived types ───────────────────────────────────────────────────

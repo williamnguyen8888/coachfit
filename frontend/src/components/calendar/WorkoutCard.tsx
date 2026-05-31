@@ -58,6 +58,35 @@ function SportIcon({
   );
 }
 
+// ─── Garmin device sync badge helper ──────────────────────────────────────────
+
+function renderGarminSyncBadge(synced: boolean) {
+  return (
+    <div
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 3,
+        padding: "1px 5px",
+        borderRadius: 4,
+        background: synced ? "rgba(0, 124, 195, 0.08)" : "rgba(107, 114, 128, 0.05)",
+        color: synced ? "#007cc3" : "var(--text-muted)",
+        border: synced ? "1px solid rgba(0, 124, 195, 0.2)" : "1px solid rgba(107, 114, 128, 0.15)",
+        fontSize: 9,
+        fontWeight: 700,
+        textTransform: "uppercase",
+        letterSpacing: "0.03em",
+        height: 15,
+        lineHeight: 1,
+      }}
+      title={synced ? "Synced to Garmin Connect Calendar" : "Not synced to Garmin"}
+    >
+      <span style={{ color: synced ? "#10b981" : "#9ca3af", fontSize: 8 }}>{synced ? "✓" : "○"}</span>
+      <span>Garmin</span>
+    </div>
+  );
+}
+
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 export interface WorkoutCardProps {
@@ -346,21 +375,34 @@ export function WorkoutCard({
           </div>
         )}
 
-        {/* ── Workout title ───────────────────────────────────────── */}
+        {/* ── Workout title & Garmin Sync Badge ───────────────────── */}
         <div
           style={{
             padding: "4px 8px 7px",
-            fontSize: 11,
-            fontWeight: 500,
-            color: isSkipped ? "var(--text-muted)" : "var(--text-secondary)",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-            textDecoration: isSkipped ? "line-through" : "none",
-            lineHeight: 1.3,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 6,
+            width: "100%",
           }}
         >
-          {event.title}
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 500,
+              color: isSkipped ? "var(--text-muted)" : "var(--text-secondary)",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              textDecoration: isSkipped ? "line-through" : "none",
+              lineHeight: 1.3,
+              flex: 1,
+              textAlign: "left",
+            }}
+          >
+            {event.title}
+          </span>
+          {!isSkipped && renderGarminSyncBadge(Boolean(event.garminWorkoutId))}
         </div>
 
         {/* ── Quick action buttons ────────────────────────────────── */}
