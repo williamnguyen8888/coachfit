@@ -29,13 +29,218 @@ function formatDuration(seconds: number): string {
   return `${m}m`;
 }
 
-const SPORT_ICONS: Record<string, string> = {
-  cycling: "🚴",
-  running: "🏃",
-  swimming: "🏊",
-  strength: "💪",
-  other: "🏋️",
+// ─── Premium Vector SVG Icons ──────────────────────────────────────────────────
+
+const SportIcon = ({ sport, size = 18, color = "currentColor" }: { sport: string; size?: number; color?: string }) => {
+  const norm = sport.toLowerCase();
+  if (norm === "cycling") {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+        <circle cx="5.5" cy="17.5" r="3.5" />
+        <circle cx="18.5" cy="17.5" r="3.5" />
+        <path d="M15 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm-3 11.5L9 12H5m11.5-6L12 17.5m4.5-11.5H19" />
+        <path d="M12 6c-1.2 0-2 .8-2 2s.8 2 2 2h3v7.5" />
+      </svg>
+    );
+  }
+  if (norm === "running") {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+        <path d="m18 8-4-1v4" />
+        <path d="M14 7c-1.2 0-2-.8-2-2s.8-2 2-2 2 .8 2 2-.8 2-2 2Z" />
+        <path d="m4 20 5-5-2-4 5-4h3" />
+        <path d="m12 11 4 4 3-1" />
+      </svg>
+    );
+  }
+  if (norm === "swimming") {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+        <path d="M2 10a4 4 0 0 0 8 0 4 4 0 0 0 8 0 4 4 0 0 0 4 0" />
+        <path d="M2 14a4 4 0 0 0 8 0 4 4 0 0 0 8 0 4 4 0 0 0 4 0" />
+        <path d="M2 18a4 4 0 0 0 8 0 4 4 0 0 0 8 0 4 4 0 0 0 4 0" />
+        <path d="m12 6 2-2 2 2M10 4l2 2" />
+      </svg>
+    );
+  }
+  if (norm === "strength" || norm === "gym") {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+        <path d="M18 6h2a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2" />
+        <path d="M6 6H4a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" />
+        <rect x="6" y="4" width="12" height="16" rx="2" />
+        <line x1="6" y1="12" x2="18" y2="12" />
+      </svg>
+    );
+  }
+  // default / other
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
+    </svg>
+  );
 };
+
+const EventIcon = ({ type, size = 18, color = "currentColor" }: { type: string; size?: number; color?: string }) => {
+  if (type === "workout") {
+    return <SportIcon sport="running" size={size} color={color} />;
+  }
+  if (type === "rest") {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+        <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
+      </svg>
+    );
+  }
+  if (type === "race") {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+        <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+        <line x1="4" y1="22" x2="4" y2="15" />
+      </svg>
+    );
+  }
+  // note
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+      <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+      <polyline points="14 2 14 8 20 8" />
+    </svg>
+  );
+};
+
+const NoteCategoryIcon = ({ category, size = 14, color = "currentColor" }: { category: string; size?: number; color?: string }) => {
+  const norm = category.toLowerCase();
+  if (norm === "travel") {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+        <path d="M21 16V8a2 2 0 0 0-2-2h-3L12 2 8 6H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h3l4 4 4-4h3a2 2 0 0 0 2-2z" />
+      </svg>
+    );
+  }
+  if (norm === "gear") {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+        <circle cx="12" cy="12" r="3" />
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+      </svg>
+    );
+  }
+  if (norm === "health") {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+        <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+      </svg>
+    );
+  }
+  if (norm === "diet") {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+        <circle cx="12" cy="12" r="10" />
+        <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+      </svg>
+    );
+  }
+  // general
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+      <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+    </svg>
+  );
+};
+
+const RestPresetIcon = ({ type, size = 14, color = "currentColor" }: { type: string; size?: number; color?: string }) => {
+  const norm = type.toLowerCase();
+  if (norm.includes("complete") || norm.includes("rest")) {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+        <path d="M2 4v16M2 10h18a2 2 0 0 1 2 2v7a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-9zM6 10V8a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+      </svg>
+    );
+  }
+  if (norm.includes("active") || norm.includes("recovery")) {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+        <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10zM12 6v12M8 10h8" />
+      </svg>
+    );
+  }
+  if (norm.includes("mobility") || norm.includes("stretch") || norm.includes("flex")) {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+        <path d="m21 21-6-6m6 6v-5m0 5h-5M3 10a7 7 0 1 1 14 0" />
+      </svg>
+    );
+  }
+  // therapy
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+      <path d="M12 2a10 10 0 1 0 10 10H12V2z" />
+      <path d="M12 12L7.5 7.5" />
+      <path d="M12 12H20" />
+    </svg>
+  );
+};
+
+const RacePriorityIcon = ({ priority, size = 14, color = "currentColor" }: { priority: "A" | "B" | "C"; size?: number; color?: string }) => {
+  if (priority === "A") {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+      </svg>
+    );
+  }
+  if (priority === "B") {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+        <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+        <line x1="4" y1="22" x2="4" y2="15" />
+      </svg>
+    );
+  }
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+    </svg>
+  );
+};
+
+const LoadIcon = ({ size = 12, color = "#F59E0B" }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+  </svg>
+);
+
+const WatchIcon = ({ size = 16, color = "currentColor" }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+    <circle cx="12" cy="12" r="7" />
+    <polyline points="12 9 12 12 13.5 13.5" />
+    <path d="M16.51 7.16 18 3H6l1.49 4.16" />
+    <path d="M7.49 16.84 6 21h12l-1.49-4.16" />
+  </svg>
+);
+
+const SearchIcon = ({ size = 14, color = "currentColor" }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+    <circle cx="11" cy="11" r="8" />
+    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+  </svg>
+);
+
+const CheckIcon = ({ size = 14, color = "currentColor" }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+    <polyline points="20 6 9 17 4 12" />
+  </svg>
+);
+
+const SkipIcon = ({ size = 14, color = "currentColor" }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+    <line x1="18" y1="12" x2="6" y2="12" />
+  </svg>
+);
 
 // ─── Overlay ──────────────────────────────────────────────────────────────────
 
@@ -458,12 +663,12 @@ function WorkoutPicker({ selectedId, onSelect }: WorkoutPickerProps) {
   };
 
   const SPORT_FILTERS = [
-    { value: "all", label: "All", icon: "🌐" },
-    { value: "running", label: "Run", icon: "🏃" },
-    { value: "cycling", label: "Bike", icon: "🚴" },
-    { value: "swimming", label: "Swim", icon: "🏊" },
-    { value: "strength", label: "Gym", icon: "💪" },
-    { value: "other", label: "Other", icon: "🏋️" },
+    { value: "all", label: "All" },
+    { value: "running", label: "Run" },
+    { value: "cycling", label: "Bike" },
+    { value: "swimming", label: "Swim" },
+    { value: "strength", label: "Gym" },
+    { value: "other", label: "Other" },
   ];
 
   return (
@@ -496,8 +701,8 @@ function WorkoutPicker({ selectedId, onSelect }: WorkoutPickerProps) {
           }}
         />
         {/* Search icon */}
-        <span style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)", fontSize: "14px" }}>
-          🔍
+        <span style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)", display: "flex", alignItems: "center" }}>
+          <SearchIcon size={14} color="var(--text-muted)" />
         </span>
       </div>
 
@@ -536,7 +741,7 @@ function WorkoutPicker({ selectedId, onSelect }: WorkoutPickerProps) {
               }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: "4px", minWidth: 0, overflow: "hidden" }}>
-                <span style={{ fontSize: "12px", flexShrink: 0 }}>{f.icon}</span>
+                <SportIcon sport={f.value} size={14} color={isActive ? "var(--color-accent)" : "var(--text-secondary)"} />
                 <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.label}</span>
               </div>
               <span style={{
@@ -608,9 +813,8 @@ function WorkoutPicker({ selectedId, onSelect }: WorkoutPickerProps) {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            fontSize: "14px"
           }}>
-            😴
+            <EventIcon type="rest" size={14} color={selectedId === null ? "#10b981" : "var(--text-secondary)"} />
           </div>
           <div style={{ flex: 1 }}>
             <div style={{ color: selectedId === null ? "#10b981" : "var(--text-primary)", fontSize: "13px", fontWeight: 600 }}>
@@ -656,10 +860,9 @@ function WorkoutPicker({ selectedId, onSelect }: WorkoutPickerProps) {
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  fontSize: "14px",
                   border: `1px solid ${sportHex.primary}30`
                 }}>
-                  {SPORT_ICONS[w.sport] ?? "🏋️"}
+                  <SportIcon sport={w.sport} size={14} color={isSelected ? sportHex.primary : "var(--text-secondary)"} />
                 </div>
                 <div style={{ flex: 1, overflow: "hidden" }}>
                   <div style={{
@@ -679,13 +882,16 @@ function WorkoutPicker({ selectedId, onSelect }: WorkoutPickerProps) {
                     {estLoad > 0 && (
                       <>
                         <span>•</span>
-                        <span style={{ color: "var(--color-warning)", fontWeight: 500 }}>⚡ {estLoad} Load</span>
+                        <span style={{ color: "var(--color-warning)", fontWeight: 500, display: "inline-flex", alignItems: "center", gap: "3px" }}>
+                          <LoadIcon size={12} color="var(--color-warning)" />
+                          <span>{estLoad} Load</span>
+                        </span>
                       </>
                     )}
                   </div>
                 </div>
                 {isSelected && (
-                  <span style={{ color: sportHex.primary, fontSize: 14, fontWeight: "bold" }}>✓</span>
+                  <CheckIcon size={14} color={sportHex.primary} />
                 )}
               </button>
             );
@@ -1121,7 +1327,7 @@ export function CalendarEventModal({
                 fontSize: "24px",
               }}
             >
-              <span>{SPORT_ICONS[sport] ?? "🏋️"}</span>
+              <SportIcon sport={sport} size={24} color={sportHex.primary} />
             </div>
             <div>
               <h2
@@ -1399,6 +1605,9 @@ export function CalendarEventModal({
                 type="button"
                 onClick={handleMarkComplete}
                 style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
                   background: "var(--color-success-10)",
                   border: "1px solid var(--color-success-30)",
                   color: "var(--color-success)",
@@ -1409,7 +1618,8 @@ export function CalendarEventModal({
                   cursor: "pointer",
                 }}
               >
-                MARK DONE
+                <CheckIcon size={14} color="var(--color-success)" />
+                <span>MARK DONE</span>
               </button>
             )}
 
@@ -1572,26 +1782,22 @@ export function CalendarEventModal({
                   {(["workout", "rest", "race", "note"] as const).map((type) => {
                     const isActive = selectedType === type;
                     let label = "Workout";
-                    let icon = "🏃";
                     let activeColor = "var(--color-accent)";
                     let activeBg = "rgba(0, 156, 222, 0.12)";
                     let activeBorder = "1px solid rgba(0, 156, 222, 0.3)";
 
                     if (type === "rest") {
                       label = "Rest";
-                      icon = "😴";
                       activeColor = "#10b981"; // Emerald
                       activeBg = "rgba(16, 185, 129, 0.12)";
                       activeBorder = "1px solid rgba(16, 185, 129, 0.3)";
                     } else if (type === "race") {
                       label = "Race";
-                      icon = "🏁";
                       activeColor = "#ef4444"; // Red
                       activeBg = "rgba(239, 68, 68, 0.12)";
                       activeBorder = "1px solid rgba(239, 68, 68, 0.3)";
                     } else if (type === "note") {
                       label = "Note";
-                      icon = "📝";
                       activeColor = "#8b5cf6"; // Violet
                       activeBg = "rgba(139, 92, 246, 0.12)";
                       activeBorder = "1px solid rgba(139, 92, 246, 0.3)";
@@ -1623,7 +1829,7 @@ export function CalendarEventModal({
                           transition: "all 150ms ease",
                         }}
                       >
-                        <span style={{ fontSize: 16 }}>{icon}</span>
+                        <EventIcon type={type} size={18} color={isActive ? activeColor : "var(--text-muted)"} />
                         <span>{label}</span>
                       </button>
                     );
@@ -1688,10 +1894,10 @@ export function CalendarEventModal({
                   padding: "8px"
                 }}>
                   {[
-                    { type: "Complete Rest", label: "🛌 Complete Rest", text: "Total recovery focus. Prioritize sleep (8+ hours), hydration, and clean nutrition. No training.", title: "Complete Rest Day" },
-                    { type: "Active Recovery", label: "🧘 Active Recovery", text: "Keep heart rate strictly in Zone 1. 20-30 minutes of light spinning, walking, or swimming. Flush the legs.", title: "Active Recovery" },
-                    { type: "Mobility & Stretch", label: "🦴 Mobility & Flex", text: "Focus on joint mobility, hamstring flexibility, and thoracic opening. 20 minutes of dynamic stretching or foam rolling.", title: "Mobility & Stretching" },
-                    { type: "Recovery Therapy", label: "💆 Therapy", text: "Utilize massage, sauna, ice bath, or pneumatic compression boots (e.g. Normatec) to accelerate recovery.", title: "Recovery Therapy" }
+                    { type: "Complete Rest", label: "Complete Rest", text: "Total recovery focus. Prioritize sleep (8+ hours), hydration, and clean nutrition. No training.", title: "Complete Rest Day" },
+                    { type: "Active Recovery", label: "Active Recovery", text: "Keep heart rate strictly in Zone 1. 20-30 minutes of light spinning, walking, or swimming. Flush the legs.", title: "Active Recovery" },
+                    { type: "Mobility & Stretch", label: "Mobility & Flex", text: "Focus on joint mobility, hamstring flexibility, and thoracic opening. 20 minutes of dynamic stretching or foam rolling.", title: "Mobility & Stretching" },
+                    { type: "Recovery Therapy", label: "Therapy", text: "Utilize massage, sauna, ice bath, or pneumatic compression boots (e.g. Normatec) to accelerate recovery.", title: "Recovery Therapy" }
                   ].map((preset) => {
                     const isActive = recoveryPreset === preset.type;
                     return (
@@ -1704,6 +1910,9 @@ export function CalendarEventModal({
                           setNotes(preset.text);
                         }}
                         style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "6px",
                           padding: "6px 10px",
                           background: isActive ? "rgba(16, 185, 129, 0.15)" : "rgba(255, 255, 255, 0.02)",
                           border: `1px solid ${isActive ? "#10b981" : "var(--border-subtle)"}`,
@@ -1715,7 +1924,8 @@ export function CalendarEventModal({
                           transition: "all 0.15s ease",
                         }}
                       >
-                        {preset.label}
+                        <RestPresetIcon type={preset.type} size={14} color={isActive ? "#10b981" : "var(--text-secondary)"} />
+                        <span>{preset.label}</span>
                       </button>
                     );
                   })}
@@ -1737,18 +1947,18 @@ export function CalendarEventModal({
                       let activeBg = "rgba(239, 68, 68, 0.1)";
                       let activeBorder = "1.5px solid #ef4444";
                       let activeColor = "#ef4444";
-                      let rLabel = "⭐ A-Race (Peak)";
+                      let rLabel = "A-Race (Peak)";
 
                       if (priority === "B") {
                         activeBg = "rgba(245, 158, 11, 0.1)";
                         activeBorder = "1.5px solid #f59e0b";
                         activeColor = "#f59e0b";
-                        rLabel = "🏁 B-Race (Prep)";
+                        rLabel = "B-Race (Prep)";
                       } else if (priority === "C") {
                         activeBg = "rgba(59, 130, 246, 0.1)";
                         activeBorder = "1.5px solid #3b82f6";
                         activeColor = "#3b82f6";
-                        rLabel = "⚙️ C-Race (Train)";
+                        rLabel = "C-Race (Train)";
                       }
 
                       return (
@@ -1757,6 +1967,10 @@ export function CalendarEventModal({
                           type="button"
                           onClick={() => setRacePriority(priority)}
                           style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: "6px",
                             padding: "10px 4px",
                             background: isActive ? activeBg : "rgba(255, 255, 255, 0.02)",
                             border: isActive ? activeBorder : "1px solid var(--border-default)",
@@ -1768,7 +1982,8 @@ export function CalendarEventModal({
                             transition: "all 120ms ease",
                           }}
                         >
-                          {rLabel}
+                          <RacePriorityIcon priority={priority} size={14} color={isActive ? activeColor : "var(--text-secondary)"} />
+                          <span>{rLabel}</span>
                         </button>
                       );
                     })}
@@ -1837,11 +2052,11 @@ export function CalendarEventModal({
                 </label>
                 <div style={{ display: "flex", gap: "6px", overflowX: "auto", paddingBottom: "4px" }}>
                   {[
-                    { value: "General", label: "📝 General" },
-                    { value: "Travel", label: "✈️ Travel" },
-                    { value: "Gear", label: "🔧 Gear & Tech" },
-                    { value: "Health", label: "🩺 Health" },
-                    { value: "Diet", label: "🥗 Diet & Carbs" }
+                    { value: "General", label: "General" },
+                    { value: "Travel", label: "Travel" },
+                    { value: "Gear", label: "Gear & Tech" },
+                    { value: "Health", label: "Health" },
+                    { value: "Diet", label: "Diet & Carbs" }
                   ].map((c) => {
                     const isActive = noteCategory === c.value;
                     return (
@@ -1850,6 +2065,9 @@ export function CalendarEventModal({
                         type="button"
                         onClick={() => setNoteCategory(c.value as any)}
                         style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "6px",
                           padding: "6px 12px",
                           background: isActive ? "rgba(139, 92, 246, 0.15)" : "rgba(255, 255, 255, 0.02)",
                           border: `1px solid ${isActive ? "#8b5cf6" : "var(--border-subtle)"}`,
@@ -1862,7 +2080,8 @@ export function CalendarEventModal({
                           transition: "all 0.15s ease",
                         }}
                       >
-                        {c.label}
+                        <NoteCategoryIcon category={c.value} size={14} color={isActive ? "#8b5cf6" : "var(--text-secondary)"} />
+                        <span>{c.label}</span>
                       </button>
                     );
                   })}
@@ -1963,7 +2182,7 @@ export function CalendarEventModal({
                       style={{
                         display: "flex",
                         alignItems: "center",
-                        gap: "4px",
+                        gap: "6px",
                         padding: "8px 12px",
                         background: "var(--color-success-10)",
                         border: "1px solid var(--color-success-30)",
@@ -1974,7 +2193,8 @@ export function CalendarEventModal({
                         cursor: "pointer",
                       }}
                     >
-                      ✓ Mark Done
+                      <CheckIcon size={13} color="var(--color-success)" />
+                      <span>Mark Done</span>
                     </button>
                   )}
                   {(event.status === "planned" || event.status === "partial") && (
@@ -1984,7 +2204,7 @@ export function CalendarEventModal({
                       style={{
                         display: "flex",
                         alignItems: "center",
-                        gap: "4px",
+                        gap: "6px",
                         padding: "8px 12px",
                         background: "var(--color-danger-10)",
                         border: "1px solid var(--color-danger-30)",
@@ -1995,7 +2215,8 @@ export function CalendarEventModal({
                         cursor: "pointer",
                       }}
                     >
-                      — Mark Skipped
+                      <SkipIcon size={13} color="var(--color-danger)" />
+                      <span>Mark Skipped</span>
                     </button>
                   )}
                 </div>
@@ -2027,10 +2248,9 @@ export function CalendarEventModal({
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      fontSize: "14px",
                       flexShrink: 0
                     }}>
-                      ⌚
+                      <WatchIcon size={14} color="white" />
                     </div>
 
                     <div style={{ flex: 1, minWidth: 0 }}>
@@ -2093,6 +2313,9 @@ export function CalendarEventModal({
                           disabled={garminSyncing}
                           id="garmin-sync-button"
                           style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "6px",
                             padding: "6px 12px",
                             background: "#009CDE",
                             border: "none",
@@ -2104,7 +2327,8 @@ export function CalendarEventModal({
                             opacity: garminSyncing ? 0.7 : 1,
                           }}
                         >
-                          {garminSyncing ? "Syncing…" : "⌚ Push to Garmin"}
+                          <WatchIcon size={13} color="white" />
+                          <span>{garminSyncing ? "Syncing…" : "Push to Garmin"}</span>
                         </button>
                       )}
                     </div>
@@ -2176,7 +2400,7 @@ export function CalendarEventModal({
                   justifyContent: "center",
                   fontSize: "20px"
                 }}>
-                  {SPORT_ICONS[previewWorkout.sport] ?? "🏋️"}
+                  <SportIcon sport={previewWorkout.sport} size={20} color={getSportHex(previewWorkout.sport).primary} />
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
