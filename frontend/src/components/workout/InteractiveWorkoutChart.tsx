@@ -103,9 +103,12 @@ export function InteractiveWorkoutChart({ steps, sport, athleteZones }: Interact
         }
         return { intensity: 0.7, color: getZoneColor(2), text: "Pace" };
       }
+      case "rpe": {
+        const mid = ((target.min ?? 6) + (target.max ?? 7)) / 2;
+        return { intensity: mid / 10, color: getZoneColor(2), text: `RPE ${target.min}–${target.max}` };
+      }
       case "cadence": {
-        const mid = ((target.min ?? 5) + (target.max ?? 7)) / 2;
-        return { intensity: mid / 10, color: getZoneColor(2), text: `${target.value ?? 90} rpm` };
+        return { intensity: 0.65, color: getZoneColor(2), text: `${target.min ?? 80}–${target.max ?? 90} rpm` };
       }
       default:
         return { intensity: 0.5, color: "#8B8B9E", text: "Open" };

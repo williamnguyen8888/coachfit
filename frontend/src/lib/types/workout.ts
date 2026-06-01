@@ -21,6 +21,7 @@ export type TargetType =
   | "hr_zone"
   | "pace"
   | "cadence"
+  | "rpe"
   | "open"
   | "none";
 

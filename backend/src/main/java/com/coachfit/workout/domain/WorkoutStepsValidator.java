@@ -210,6 +210,13 @@ public class WorkoutStepsValidator {
                     throw new WorkoutValidationException(prefix + ": rpe requires 1 <= min <= max <= 10");
                 }
             }
+            case "cadence" -> {
+                double min = requireDouble(target, "min", prefix);
+                double max = requireDouble(target, "max", prefix);
+                if (min < 0 || max > 250 || min > max) {
+                    throw new WorkoutValidationException(prefix + ": cadence requires 0 <= min <= max <= 250");
+                }
+            }
             case "open" -> { /* no additional fields required */ }
             default -> throw new WorkoutValidationException(prefix + ".type unknown target type: " + type);
         }

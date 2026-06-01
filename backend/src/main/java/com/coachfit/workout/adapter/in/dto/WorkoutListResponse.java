@@ -28,6 +28,7 @@ public record WorkoutListResponse(
             String     sport,
             String     description,
             Integer    estimatedDurationSeconds,
+            Integer    estimatedDuration,
             BigDecimal estimatedTss,
             List<String> tags,
             boolean    isTemplate,
@@ -41,7 +42,7 @@ public record WorkoutListResponse(
         List<Item> items = page.content().stream()
                 .map(w -> new Item(
                         w.id(), w.name(), w.sport(), w.description(),
-                        w.estimatedDurationSeconds(), w.estimatedTss(),
+                        w.estimatedDurationSeconds(), w.estimatedDurationSeconds(), w.estimatedTss(),
                         w.tags(), w.isTemplate(), w.isPublic(), w.source(),
                         w.createdAt(), w.updatedAt()))
                 .toList();

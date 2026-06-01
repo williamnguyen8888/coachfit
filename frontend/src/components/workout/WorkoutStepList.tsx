@@ -65,7 +65,15 @@ function targetLabel(target?: WorkoutStep["target"]): string | null {
       return target.zone != null ? `HR Zone ${target.zone}` : "HR zone";
     case "pace":
       return target.value != null ? `${target.value} min/km` : "Pace";
+    case "rpe":
+      if (target.min != null && target.max != null) {
+        return `RPE ${target.min}–${target.max}`;
+      }
+      return "RPE";
     case "cadence":
+      if (target.min != null && target.max != null) {
+        return `${target.min}–${target.max} rpm`;
+      }
       return target.value != null ? `${target.value} rpm` : "Cadence";
     default:
       return null;

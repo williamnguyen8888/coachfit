@@ -13,6 +13,7 @@ import com.coachfit.workout.application.port.out.WorkoutExportStoragePort;
 import com.coachfit.workout.application.port.out.WorkoutPersistencePort;
 import com.coachfit.workout.domain.FitEncoder;
 import com.coachfit.workout.domain.WorkoutStepsValidator;
+import com.coachfit.workout.domain.WorkoutCalculator;
 import com.coachfit.workout.domain.ZoneContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -103,6 +104,18 @@ public class WorkoutService
     public UUID create(UUID userId, CreateCommand command) {
         validator.validate(command.stepsJson());
 
+        Integer estDur = command.estimatedDurationSeconds();
+        java.math.BigDecimal estTss = command.estimatedTss();
+        if (estDur == null || estDur == 0 || estTss == null || estTss.compareTo(java.math.BigDecimal.ZERO) == 0) {
+            var calc = WorkoutCalculator.calculate(command.stepsJson(), command.sport());
+            if (estDur == null || estDur == 0) {
+                estDur = calc.durationSeconds();
+            }
+            if (estTss == null || estTss.compareTo(java.math.BigDecimal.ZERO) == 0) {
+                estTss = calc.tss();
+            }
+        }
+
         UUID id = port.save(
                 userId,
                 command.name(),
@@ -113,8 +126,8 @@ public class WorkoutService
                 command.isTemplate(),
                 command.isPublic(),
                 "user",
-                command.estimatedDurationSeconds(),
-                command.estimatedTss()
+                estDur,
+                estTss
         );
 
         log.info("Workout created: id={} user={} name={}", id, userId, command.name());
@@ -128,6 +141,18 @@ public class WorkoutService
     public void update(UUID userId, UUID workoutId, UpdateCommand command) {
         validator.validate(command.stepsJson());
 
+        Integer estDur = command.estimatedDurationSeconds();
+        java.math.BigDecimal estTss = command.estimatedTss();
+        if (estDur == null || estDur == 0 || estTss == null || estTss.compareTo(java.math.BigDecimal.ZERO) == 0) {
+            var calc = WorkoutCalculator.calculate(command.stepsJson(), command.sport());
+            if (estDur == null || estDur == 0) {
+                estDur = calc.durationSeconds();
+            }
+            if (estTss == null || estTss.compareTo(java.math.BigDecimal.ZERO) == 0) {
+                estTss = calc.tss();
+            }
+        }
+
         boolean found = port.update(
                 workoutId,
                 userId,
@@ -138,8 +163,8 @@ public class WorkoutService
                 command.tags(),
                 command.isTemplate(),
                 command.isPublic(),
-                command.estimatedDurationSeconds(),
-                command.estimatedTss()
+                estDur,
+                estTss
         );
 
         if (!found) {

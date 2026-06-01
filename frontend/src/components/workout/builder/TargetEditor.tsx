@@ -32,7 +32,8 @@ const TARGET_TYPES: TargetMeta[] = [
   { type: "power_pct", label: "% FTP", sports: ["cycling", "running", "swimming"] },
   { type: "hr_zone", label: "HR Zone", sports: "all" },
   { type: "pace", label: "Pace", sports: ["running"] },
-  { type: "cadence", label: "RPE (1–10)", sports: "all" }, // repurposed as RPE
+  { type: "rpe", label: "RPE (1–10)", sports: "all" },
+  { type: "cadence", label: "Cadence (rpm)", sports: ["cycling", "running"] },
   { type: "open", label: "Open / No target", sports: "all" },
 ];
 
@@ -224,14 +225,17 @@ function PaceInput({
 /* ------------------------------------------------------------------ */
 
 export function TargetEditor({ value, sport, onSave, onClose }: TargetEditorProps) {
-  const [type, setType] = React.useState<TargetType>(value.type);
+  const initialType = value.type === "cadence" && value.min != null && value.min < 15 ? "rpe" : value.type;
+  const [type, setType] = React.useState<TargetType>(initialType);
   const [zone, setZone] = React.useState<number>(value.zone ?? 2);
   const [minVal, setMinVal] = React.useState<number>(value.min != null ? Math.round(value.min * 100) : 75);
   const [maxVal, setMaxVal] = React.useState<number>(value.max != null ? Math.round(value.max * 100) : 85);
   const [paceMin, setPaceMin] = React.useState<number>(value.min ?? 300);
   const [paceMax, setPaceMax] = React.useState<number>(value.max ?? 330);
-  const [rpeMin, setRpeMin] = React.useState<number>(value.min ?? 6);
-  const [rpeMax, setRpeMax] = React.useState<number>(value.max ?? 7);
+  const [rpeMin, setRpeMin] = React.useState<number>(initialType === "rpe" && value.min != null ? value.min : 6);
+  const [rpeMax, setRpeMax] = React.useState<number>(initialType === "rpe" && value.max != null ? value.max : 7);
+  const [cadenceMin, setCadenceMin] = React.useState<number>(value.type === "cadence" && value.min != null && value.min >= 15 ? value.min : 80);
+  const [cadenceMax, setCadenceMax] = React.useState<number>(value.type === "cadence" && value.max != null && value.max >= 15 ? value.max : 90);
 
   const availableTypes = TARGET_TYPES.filter(
     (t) => t.sports === "all" || t.sports.includes(sport)
@@ -255,8 +259,10 @@ export function TargetEditor({ value, sport, onSave, onClose }: TargetEditorProp
         return { type: "hr_zone", zone };
       case "pace":
         return { type: "pace", min: paceMin, max: paceMax };
-      case "cadence": // used as RPE
-        return { type: "cadence", min: rpeMin, max: rpeMax };
+      case "rpe":
+        return { type: "rpe", min: rpeMin, max: rpeMax };
+      case "cadence":
+        return { type: "cadence", min: cadenceMin, max: cadenceMax };
       case "open":
       default:
         return { type: "open" };
@@ -392,10 +398,18 @@ export function TargetEditor({ value, sport, onSave, onClose }: TargetEditorProp
         )}
 
         {/* RPE */}
-        {type === "cadence" && (
+        {type === "rpe" && (
           <div style={{ display: "flex", gap: 12 }}>
             <NumInput label="RPE Min (1-10)" id="rpe-min" value={rpeMin} min={1} max={10} onChange={setRpeMin} />
             <NumInput label="RPE Max (1-10)" id="rpe-max" value={rpeMax} min={1} max={10} onChange={setRpeMax} />
+          </div>
+        )}
+
+        {/* Cadence */}
+        {type === "cadence" && (
+          <div style={{ display: "flex", gap: 12 }}>
+            <NumInput label="Cadence Min (rpm)" id="cadence-min" value={cadenceMin} min={30} max={220} onChange={setCadenceMin} />
+            <NumInput label="Cadence Max (rpm)" id="cadence-max" value={cadenceMax} min={30} max={220} onChange={setCadenceMax} />
           </div>
         )}
 

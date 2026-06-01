@@ -21,6 +21,7 @@ public record WorkoutDetailResponse(
         String     sport,
         String     description,
         Integer    estimatedDurationSeconds,
+        Integer    estimatedDuration,
         BigDecimal estimatedTss,
 
         @JsonRawValue
@@ -37,7 +38,7 @@ public record WorkoutDetailResponse(
     public static WorkoutDetailResponse from(WorkoutDetail d) {
         return new WorkoutDetailResponse(
                 d.id(), d.userId(), d.name(), d.sport(), d.description(),
-                d.estimatedDurationSeconds(), d.estimatedTss(),
+                d.estimatedDurationSeconds(), d.estimatedDurationSeconds(), d.estimatedTss(),
                 d.stepsJson(),
                 d.tags(), d.isTemplate(), d.isPublic(), d.source(),
                 d.createdAt(), d.updatedAt()

@@ -379,6 +379,7 @@
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/workout/application/service/WorkoutService.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/workout/application/service/package-info.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/workout/domain/FitEncoder.java
+/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/workout/domain/WorkoutCalculator.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/workout/domain/WorkoutStepsValidator.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/workout/domain/WorkoutValidationException.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/workout/domain/ZoneContext.java

@@ -95,9 +95,12 @@ function targetLabel(target?: BuilderLeafStep["target"]): string {
         return `${fmt(target.min)}–${fmt(target.max)} /km`;
       }
       return "Pace";
-    case "cadence":
+    case "rpe":
       if (target.min != null && target.max != null) return `RPE ${target.min}–${target.max}`;
       return "RPE";
+    case "cadence":
+      if (target.min != null && target.max != null) return `${target.min}–${target.max} rpm`;
+      return "Cadence";
     default:
       return "Open";
   }

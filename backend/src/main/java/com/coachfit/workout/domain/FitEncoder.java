@@ -249,8 +249,11 @@ public class FitEncoder {
                 if (sport != null && (sport.equalsIgnoreCase("running") || sport.equalsIgnoreCase("swimming"))) {
                     // Convert % of Threshold Pace to absolute speed in mm/s
                     double thresholdPace = ctx.thresholdPace();
-                    if (thresholdPace <= 0) thresholdPace = 300.0;
-                    double thresholdSpeedMmS = 1_000_000.0 / thresholdPace;
+                    double factor = sport.equalsIgnoreCase("swimming") ? 100_000.0 : 1_000_000.0;
+                    if (thresholdPace <= 0) {
+                        thresholdPace = sport.equalsIgnoreCase("swimming") ? 100.0 : 300.0;
+                    }
+                    double thresholdSpeedMmS = factor / thresholdPace;
 
                     long speedLow = Math.round(thresholdSpeedMmS * target.get("min").asDouble());
                     long speedHigh = Math.round(thresholdSpeedMmS * target.get("max").asDouble());
@@ -313,6 +316,12 @@ public class FitEncoder {
                 step.setTargetValue(0L);
                 step.setCustomTargetValueLow(minMms);
                 step.setCustomTargetValueHigh(maxMms);
+            }
+            case "cadence" -> {
+                step.setTargetType(WktStepTarget.CADENCE);
+                step.setTargetValue(0L);
+                step.setCustomTargetValueLow(target.get("min").asLong());
+                step.setCustomTargetValueHigh(target.get("max").asLong());
             }
             default -> {
                 // rpe, open, unknown

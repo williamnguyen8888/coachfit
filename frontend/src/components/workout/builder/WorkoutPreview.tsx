@@ -72,12 +72,14 @@ function intensityFromTarget(target?: BuilderLeafStep["target"]): { intensity: n
       const zone = Math.max(1, Math.min(5, Math.round(intensity * 5)));
       return { intensity, color: zoneColor(zone) };
     }
-    case "cadence": {
-      // Used as RPE
-      const mid = ((target.min ?? 5) + (target.max ?? 7)) / 2;
+    case "rpe": {
+      const mid = ((target.min ?? 6) + (target.max ?? 7)) / 2;
       const intensity = mid / 10;
       const zone = Math.max(1, Math.min(5, Math.round(intensity * 5)));
       return { intensity, color: zoneColor(zone) };
+    }
+    case "cadence": {
+      return { intensity: 0.65, color: zoneColor(2) };
     }
     default:
       return { intensity: 0.3, color: "#8B8B9E" };

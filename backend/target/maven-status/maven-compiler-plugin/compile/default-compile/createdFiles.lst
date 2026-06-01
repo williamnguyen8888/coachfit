@@ -93,6 +93,7 @@ com/coachfit/activity/adapter/in/dto/ActivityResponse.class
 com/coachfit/sync/application/port/in/SyncStravaWebhookUseCase.class
 com/coachfit/CoachFitApplication.class
 com/coachfit/workout/adapter/in/package-info.class
+com/coachfit/workout/domain/WorkoutCalculator.class
 com/coachfit/auth/application/port/in/StravaOAuthUseCase.class
 com/coachfit/activity/application/service/ActivityUploadService$1.class
 com/coachfit/athlete/application/port/in/GetSportZonesUseCase.class
@@ -253,6 +254,7 @@ com/coachfit/sync/package-info.class
 com/coachfit/athlete/application/service/package-info.class
 com/coachfit/calendar/application/port/in/ListCalendarEventsUseCase$WorkoutSummary.class
 com/coachfit/shared/domain/package-info.class
+com/coachfit/workout/domain/WorkoutCalculator$CalculationResult.class
 com/coachfit/dashboard/application/service/package-info.class
 com/coachfit/sync/application/port/in/SyncSupportUseCase$ProviderStatus.class
 com/coachfit/athlete/adapter/in/dto/UpsertSportZoneRequest.class
