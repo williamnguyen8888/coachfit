@@ -1,7 +1,7 @@
 "use client";
 // src/components/dashboard/WeeklySummary.tsx
 // Bar chart: planned vs actual hours per day. CTL/TSS totals.
-// Uses Recharts. Premium design with sport gradients and detailed compliance logs.
+// Uses Recharts for the weekly training-load breakdown.
 
 import React from "react";
 import { clsx } from "clsx";
@@ -116,7 +116,7 @@ function StatPill({ label, value, color, icon }: { label: string; value: string;
 export function WeeklySummarySkeleton() {
   return (
     <div
-      className="rounded-[var(--radius-xl)] p-6 flex flex-col gap-4 glass-card"
+      className="rounded-[var(--radius-md)] p-5 flex flex-col gap-4 glass-card"
     >
       <div className="flex items-center justify-between">
         <Skeleton width="120px" height="22px" />
@@ -156,7 +156,7 @@ export function WeeklySummary({ data, className }: Props) {
 
   return (
     <div
-      className={clsx("rounded-[var(--radius-xl)] p-6 flex flex-col gap-5 glass-card", className)}
+      className={clsx("rounded-[var(--radius-md)] p-5 flex flex-col gap-4 glass-card", className)}
     >
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -203,7 +203,7 @@ export function WeeklySummary({ data, className }: Props) {
         />
         <div className="flex flex-col items-center justify-center gap-0.5 flex-1 py-2">
           <span
-            className="font-metric tabular-nums font-bold text-glow"
+            className="font-metric tabular-nums font-bold"
             style={{
               fontSize: "var(--text-base)",
               color: complianceColor(compliancePct),
@@ -269,7 +269,7 @@ export function WeeklySummary({ data, className }: Props) {
         </div>
       )}
 
-      {/* Sports detailed breakdown list (Premium addition for multi-sport athletes & coaches) */}
+      {/* Sports detailed breakdown list */}
       {(data.bySport?.length ?? 0) > 0 && (
         <div className="flex flex-col gap-2 border-t border-[var(--border-subtle)] pt-3.5">
           <span style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 600, letterSpacing: "0.02em" }}>

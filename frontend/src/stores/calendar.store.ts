@@ -7,6 +7,11 @@ import { persist } from "zustand/middleware";
 import { calendarService } from "@/lib/services/calendar";
 import { wellnessService } from "@/lib/services/wellness";
 import { healthService } from "@/lib/services/health";
+import {
+  addLocalDays,
+  parseLocalDateString,
+  toLocalDateString,
+} from "@/lib/utils";
 import type {
   CalendarEvent,
   CalendarViewMode,
@@ -17,38 +22,19 @@ import type {
 import type { WellnessEntry } from "@/lib/types/wellness";
 import type { DailyHealthSummary, SleepRecord } from "@/lib/services/health";
 
-// ─── Date helpers ─────────────────────────────────────────────────────────────
-
-function toISODate(d: Date): string {
-  return d.toISOString().split("T")[0];
-}
-
-function addDays(dateStr: string, days: number): string {
-  const d = new Date(dateStr);
-  d.setDate(d.getDate() + days);
-  return toISODate(d);
-}
-
 /** Monday of the week containing the given date */
 function weekStart(dateStr: string): string {
-  const d = new Date(dateStr);
+  const d = parseLocalDateString(dateStr);
   const day = d.getDay(); // 0=Sun, 1=Mon...
   const diff = day === 0 ? -6 : 1 - day; // shift to Monday
   d.setDate(d.getDate() + diff);
-  return toISODate(d);
+  return toLocalDateString(d);
 }
 
 /** First day of the month containing the given date */
 function monthStart(dateStr: string): string {
-  const d = new Date(dateStr);
+  const d = parseLocalDateString(dateStr);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
-}
-
-/** Last day of the month containing the given date */
-function monthEnd(dateStr: string): string {
-  const d = new Date(dateStr);
-  const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0);
-  return toISODate(lastDay);
 }
 
 /** Group a flat array of events by their date string */
@@ -126,7 +112,7 @@ export const useCalendarStore = create<CalendarState>()(
   persist(
     (set, get) => ({
       viewMode: "week",
-      anchorDate: toISODate(new Date()),
+      anchorDate: toLocalDateString(new Date()),
 
       events: [],
       eventsByDate: {},
@@ -144,7 +130,7 @@ export const useCalendarStore = create<CalendarState>()(
       getWeekRange: () => {
         const { anchorDate } = get();
         const from = weekStart(anchorDate);
-        const to = addDays(from, 6);
+        const to = addLocalDays(from, 6);
         return { from, to };
       },
 
@@ -153,7 +139,7 @@ export const useCalendarStore = create<CalendarState>()(
         // For month view we load the full calendar grid including leading/trailing days
         const from = weekStart(monthStart(anchorDate));
         // Grid is 6 weeks max = 42 days from grid start
-        const to = addDays(from, 41);
+        const to = addLocalDays(from, 41);
         return { from, to };
       },
 
@@ -162,27 +148,27 @@ export const useCalendarStore = create<CalendarState>()(
       setViewMode: (mode) => set({ viewMode: mode }),
 
       goToToday: () =>
-        set({ anchorDate: toISODate(new Date()), error: null }),
+        set({ anchorDate: toLocalDateString(new Date()), error: null }),
 
       nextPeriod: () => {
         const { viewMode, anchorDate } = get();
         if (viewMode === "week") {
-          set({ anchorDate: addDays(anchorDate, 7) });
+          set({ anchorDate: addLocalDays(anchorDate, 7) });
         } else {
-          const d = new Date(anchorDate);
+          const d = parseLocalDateString(anchorDate);
           d.setMonth(d.getMonth() + 1, 1);
-          set({ anchorDate: toISODate(d) });
+          set({ anchorDate: toLocalDateString(d) });
         }
       },
 
       prevPeriod: () => {
         const { viewMode, anchorDate } = get();
         if (viewMode === "week") {
-          set({ anchorDate: addDays(anchorDate, -7) });
+          set({ anchorDate: addLocalDays(anchorDate, -7) });
         } else {
-          const d = new Date(anchorDate);
+          const d = parseLocalDateString(anchorDate);
           d.setMonth(d.getMonth() - 1, 1);
-          set({ anchorDate: toISODate(d) });
+          set({ anchorDate: toLocalDateString(d) });
         }
       },
 
@@ -277,7 +263,7 @@ export const useCalendarStore = create<CalendarState>()(
         if (dateChanged) {
           // Optimistic update for date change
           set((state) => {
-            let nextEvents = state.events.map((e) => {
+            const nextEvents = state.events.map((e) => {
               if (e.id === id) {
                 if (e.workout && e.activity) {
                   return {
@@ -357,6 +343,7 @@ export const useCalendarStore = create<CalendarState>()(
         } catch (err) {
           // Rollback on error
           set({ events: previousEvents, eventsByDate: previousById });
+          set({ error: err instanceof Error ? err.message : "Failed to update calendar event" });
           throw err;
         }
       },
@@ -423,13 +410,14 @@ export const useCalendarStore = create<CalendarState>()(
         // Find the event
         const event = get().events.find((e) => e.id === eventId);
         if (!event) return;
+        if (event.activity && !event.workout) return;
 
         // Optimistic update: move event to new date with orderIndex at end of target day
         const targetDayEvents = get().eventsByDate[toDate] ?? [];
         const newOrderIndex = targetDayEvents.length;
 
         set((state) => {
-          let nextEvents = state.events.map((e) => {
+          const nextEvents = state.events.map((e) => {
             if (e.id === eventId) {
               // If it's a workout with a linked activity, moving it unlinks the activity
               if (e.workout && e.activity) {
@@ -488,9 +476,11 @@ export const useCalendarStore = create<CalendarState>()(
           });
           // Fetch the updated calendar from the backend to replace temporary IDs with actuals & resolve auto-matching
           await get().fetchCurrentRange(true);
-        } catch {
+        } catch (err) {
           // Rollback
           set({ events: previousEvents, eventsByDate: previousById });
+          set({ error: err instanceof Error ? err.message : "Failed to move calendar event" });
+          throw err;
         }
       },
 

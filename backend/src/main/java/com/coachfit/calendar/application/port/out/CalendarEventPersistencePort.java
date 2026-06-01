@@ -38,7 +38,7 @@ public interface CalendarEventPersistencePort {
      * Links a completed activity to an event and sets compliance score.
      * Also transitions status to 'completed' (or 'partial' if score < 50).
      */
-    void linkActivity(UUID eventId, UUID activityId, BigDecimal complianceScore);
+    void linkActivity(UUID eventId, UUID userId, UUID activityId, BigDecimal complianceScore);
 
     /**
      * Unlinks an activity from an event, resetting status to 'planned'.
@@ -65,7 +65,7 @@ public interface CalendarEventPersistencePort {
     List<CalendarEventSummary> findPlannedWorkoutsByDate(UUID userId, LocalDate date);
 
     /**
-     * Finds the user's timezone from their settings, defaulting to Asia/Ho_Chi_Minh or UTC.
+     * Finds the user's timezone from their settings, defaulting to Asia/Ho_Chi_Minh.
      */
     String findUserTimezone(UUID userId);
 
@@ -78,17 +78,15 @@ public interface CalendarEventPersistencePort {
     /**
      * Finds duration and sport details of an activity.
      */
-    Optional<SimpleActivityDetails> findActivityDetails(UUID activityId);
+    Optional<SimpleActivityDetails> findActivityDetails(UUID userId, UUID activityId);
 
     record SimpleActivityDetails(Integer durationSeconds, String sport) {}
 
-    record SimpleActivityDetailsWithId(UUID id, int durationSeconds, String sport) {}
-
     void createStandaloneActivityEvent(UUID userId, LocalDate date, UUID activityId, String name, String sport);
 
-    Optional<SimpleActivityDetailsWithId> findUnmatchedActivityOnDate(UUID userId, LocalDate date, String sport);
+    List<AutoLinkActivityCandidate> findAutoLinkActivityCandidates(UUID userId, LocalDate date);
 
-    void deleteStandaloneEventForActivity(UUID activityId);
+    boolean hasActiveEventForActivity(UUID userId, UUID activityId);
 
     // ── Read model ─────────────────────────────────────────────────────────────
 

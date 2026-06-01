@@ -4,14 +4,14 @@
  * StepTypeMenu — "Add Step" panel with block type picker.
  *
  * Renders a floating card with buttons for each step type:
- *   Warm-up | Work | Rest | Cool-down | Repeat
+ *   Warm-up | Work | Rest | Cool-down | Ramp | Free | Repeat
  *
  * Constrained by max repeat nesting depth = 1:
  *   "Repeat" button is hidden when insideRepeat = true.
  */
 
 import * as React from "react";
-import { Flame, Zap, Moon, Wind, Repeat2, Plus, X } from "lucide-react";
+import { Activity, Flame, Moon, Repeat2, TrendingUp, Wind, Zap, Plus, X } from "lucide-react";
 import type { BuilderLeafStep } from "@/lib/types/builder";
 
 /* ------------------------------------------------------------------ */
@@ -59,6 +59,22 @@ const STEP_OPTIONS: {
     bg: "rgba(129,140,248,0.12)",
   },
   {
+    type: "ramp",
+    label: "Ramp",
+    description: "Progressively increase effort",
+    icon: <TrendingUp size={18} />,
+    color: "#F59E0B",
+    bg: "rgba(245,158,11,0.12)",
+  },
+  {
+    type: "free",
+    label: "Free block",
+    description: "Unstructured block with optional target",
+    icon: <Activity size={18} />,
+    color: "#A3A3A3",
+    bg: "rgba(163,163,163,0.12)",
+  },
+  {
     type: "repeat",
     label: "Repeat Block",
     description: "Repeat a set of steps",
@@ -103,9 +119,11 @@ export function StepTypeMenu({ onAdd, onClose }: StepTypeMenuProps) {
         style={{
           background: "var(--bg-elevated)",
           border: "1px solid var(--border-default)",
-          borderRadius: "var(--radius-lg)",
+          borderRadius: "var(--radius-md)",
           padding: "24px",
-          width: 420,
+          width: "min(560px, calc(100vw - 32px))",
+          maxHeight: "calc(100dvh - 48px)",
+          overflowY: "auto",
           boxShadow: "var(--shadow-lg)",
           display: "flex",
           flexDirection: "column",
@@ -117,7 +135,7 @@ export function StepTypeMenu({ onAdd, onClose }: StepTypeMenuProps) {
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <Plus size={16} style={{ color: "var(--color-accent)" }} />
             <h3 style={{ fontSize: "var(--text-lg)", fontWeight: 600, color: "var(--text-primary)", margin: 0 }}>
-              Add Step
+              Add workout block
             </h3>
           </div>
           <button
@@ -130,7 +148,7 @@ export function StepTypeMenu({ onAdd, onClose }: StepTypeMenuProps) {
         </div>
 
         {/* Step option grid */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 8 }}>
           {STEP_OPTIONS.map((opt) => (
             <button
               key={opt.type}

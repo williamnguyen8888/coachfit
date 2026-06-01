@@ -1,5 +1,6 @@
 package com.coachfit.calendar.adapter.out.persistence;
 
+import com.coachfit.calendar.application.port.out.AutoLinkActivityCandidate;
 import com.coachfit.calendar.application.port.out.CalendarEventPersistencePort;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
@@ -93,7 +94,7 @@ class CalendarEventPersistenceAdapter implements CalendarEventPersistencePort {
 
     @Override
     @Transactional
-    public void linkActivity(UUID eventId, UUID activityId, BigDecimal complianceScore) {
+    public void linkActivity(UUID eventId, UUID userId, UUID activityId, BigDecimal complianceScore) {
         // compliance_score >= 50 → completed, else partial
         String newStatus = (complianceScore != null
                 && complianceScore.compareTo(BigDecimal.valueOf(50)) >= 0)
@@ -101,13 +102,48 @@ class CalendarEventPersistenceAdapter implements CalendarEventPersistencePort {
 
         jdbcClient.sql("""
                 UPDATE calendar_events
+                   SET activity_id      = null,
+                       compliance_score = null,
+                       status           = 'planned',
+                       updated_at       = now()
+                 WHERE user_id          = :userId
+                   AND activity_id      = :activityId
+                   AND id              <> :id
+                   AND workout_id IS NOT NULL
+                   AND deleted_at IS NULL
+                """)
+                .param("id",         eventId)
+                .param("userId",     userId)
+                .param("activityId", activityId)
+                .update();
+
+        jdbcClient.sql("""
+                UPDATE calendar_events
+                   SET deleted_at = now(),
+                       updated_at = now()
+                 WHERE user_id     = :userId
+                   AND activity_id = :activityId
+                   AND id         <> :id
+                   AND workout_id IS NULL
+                   AND deleted_at IS NULL
+                """)
+                .param("id",         eventId)
+                .param("userId",     userId)
+                .param("activityId", activityId)
+                .update();
+
+        jdbcClient.sql("""
+                UPDATE calendar_events
                    SET activity_id      = :activityId,
                        compliance_score = :complianceScore,
                        status           = :status,
                        updated_at       = now()
-                 WHERE id = :id AND deleted_at IS NULL
+                 WHERE id       = :id
+                   AND user_id  = :userId
+                   AND deleted_at IS NULL
                 """)
                 .param("id",              eventId)
+                .param("userId",          userId)
                 .param("activityId",      activityId)
                 .param("complianceScore", complianceScore)
                 .param("status",          newStatus)
@@ -341,12 +377,15 @@ class CalendarEventPersistenceAdapter implements CalendarEventPersistencePort {
     }
 
     @Override
-    public Optional<SimpleActivityDetails> findActivityDetails(UUID activityId) {
+    public Optional<SimpleActivityDetails> findActivityDetails(UUID userId, UUID activityId) {
         return jdbcClient.sql("""
                 SELECT duration_seconds, sport FROM activities
-                 WHERE id = :activityId AND deleted_at IS NULL
+                  WHERE id = :activityId
+                    AND user_id = :userId
+                    AND deleted_at IS NULL
                 """)
                 .param("activityId", activityId)
+                .param("userId", userId)
                 .query((rs, rowNum) -> new SimpleActivityDetails(
                         rs.getInt("duration_seconds"),
                         rs.getString("sport")
@@ -365,47 +404,82 @@ class CalendarEventPersistenceAdapter implements CalendarEventPersistencePort {
     }
 
     @Override
-    public Optional<SimpleActivityDetailsWithId> findUnmatchedActivityOnDate(UUID userId, LocalDate date, String sport) {
+    public List<AutoLinkActivityCandidate> findAutoLinkActivityCandidates(UUID userId, LocalDate date) {
         return jdbcClient.sql("""
-                SELECT a.id, a.duration_seconds, a.sport
-                  FROM activities a
-                 WHERE a.user_id = :userId
-                   AND LOWER(a.sport) = LOWER(:sport)
-                   AND a.deleted_at IS NULL
-                   AND date(a.started_at AT TIME ZONE :timezone) = :date
-                   AND NOT EXISTS (
-                       SELECT 1 FROM calendar_events c
-                        WHERE c.activity_id = a.id
-                          AND c.workout_id IS NOT NULL
-                          AND c.deleted_at IS NULL
-                   )
-                 LIMIT 1
+                SELECT id, duration_seconds, sport, name
+                  FROM (
+                        SELECT a.id,
+                               a.duration_seconds,
+                               a.sport,
+                               a.name,
+                               a.started_at,
+                               0 AS source_rank
+                          FROM calendar_events c
+                          JOIN activities a ON a.id = c.activity_id AND a.deleted_at IS NULL
+                         WHERE c.user_id = :userId
+                           AND c.date = :date
+                           AND c.workout_id IS NULL
+                           AND c.activity_id IS NOT NULL
+                           AND c.deleted_at IS NULL
+                           AND NOT EXISTS (
+                               SELECT 1
+                                 FROM calendar_events linked
+                                WHERE linked.user_id = :userId
+                                  AND linked.activity_id = a.id
+                                  AND linked.workout_id IS NOT NULL
+                                  AND linked.deleted_at IS NULL
+                           )
+                        UNION ALL
+                        SELECT a.id,
+                               a.duration_seconds,
+                               a.sport,
+                               a.name,
+                               a.started_at,
+                               1 AS source_rank
+                          FROM activities a
+                         WHERE a.user_id = :userId
+                           AND a.deleted_at IS NULL
+                           AND (
+                               date(a.started_at AT TIME ZONE :timezone) = :date
+                               OR CAST(a.started_at AS date) = :date
+                           )
+                           AND NOT EXISTS (
+                               SELECT 1
+                                 FROM calendar_events c
+                                WHERE c.user_id = :userId
+                                  AND c.activity_id = a.id
+                                  AND c.deleted_at IS NULL
+                           )
+                  ) candidates
+                 ORDER BY source_rank ASC, started_at ASC, id ASC
                 """)
-                .param("userId",   userId)
-                .param("sport",    sport)
+                .param("userId", userId)
+                .param("date", date)
                 .param("timezone", findUserTimezone(userId))
-                .param("date",     date)
-                .query((rs, rowNum) -> new SimpleActivityDetailsWithId(
+                .query((rs, rowNum) -> new AutoLinkActivityCandidate(
                         rs.getObject("id", UUID.class),
                         rs.getInt("duration_seconds"),
-                        rs.getString("sport")
+                        rs.getString("sport"),
+                        rs.getString("name")
                 ))
-                .optional();
+                .list();
     }
 
     @Override
-    @Transactional
-    public void deleteStandaloneEventForActivity(UUID activityId) {
-        jdbcClient.sql("""
-                UPDATE calendar_events
-                   SET deleted_at = now(),
-                       updated_at = now()
-                 WHERE activity_id = :activityId
-                   AND workout_id IS NULL
-                   AND deleted_at IS NULL
+    public boolean hasActiveEventForActivity(UUID userId, UUID activityId) {
+        return jdbcClient.sql("""
+                SELECT EXISTS (
+                    SELECT 1
+                      FROM calendar_events
+                     WHERE user_id = :userId
+                       AND activity_id = :activityId
+                       AND deleted_at IS NULL
+                )
                 """)
+                .param("userId", userId)
                 .param("activityId", activityId)
-                .update();
+                .query(Boolean.class)
+                .single();
     }
 
     // ── Mapping ───────────────────────────────────────────────────────────────

@@ -9,6 +9,7 @@ import React, { useState, useCallback, useEffect } from "react";
 import { Check, Loader2, ArrowLeft, ArrowRight, RefreshCw } from "lucide-react";
 import { clsx } from "clsx";
 import { wellnessService } from "@/lib/services/wellness";
+import { toLocalDateString } from "@/lib/utils";
 import type {
   WellnessEntry, WellnessLogRequest,
   MoodScore, RpeScore, FatigueScore, SleepQuality,
@@ -241,7 +242,7 @@ export interface WellnessCheckInProps {
 }
 
 export function WellnessCheckIn({ lastEntry, onSuccess, date }: WellnessCheckInProps) {
-  const today = date ?? new Date().toISOString().split("T")[0];
+  const today = date ?? toLocalDateString(new Date());
   const isTodaysEntry = lastEntry?.date === today;
 
   // Active wizard step (1 to 5)

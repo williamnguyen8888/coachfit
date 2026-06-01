@@ -25,9 +25,9 @@ export interface DragState {
 
 export interface UseDragDropOptions {
   /** Called when an event is moved to a different date */
-  onMove: (eventId: string, toDate: string) => void;
+  onMove: (eventId: string, toDate: string) => void | Promise<void>;
   /** Called when events on the same day are reordered */
-  onReorder: (date: string, orderedIds: string[]) => void;
+  onReorder: (date: string, orderedIds: string[]) => void | Promise<void>;
   /** Map of date → ordered event IDs (used for reorder calculation) */
   eventIdsByDate: Record<string, string[]>;
 }
@@ -178,10 +178,14 @@ export function useDragDrop({
           const reordered = [...ids];
           reordered.splice(fromIdx, 1);
           reordered.splice(toIdx, 0, eventId);
-          onReorder(date, reordered);
+          void Promise.resolve(onReorder(date, reordered)).catch((err) => {
+            console.error("Failed to reorder calendar events:", err);
+          });
         } else {
           // Move to different date
-          onMove(eventId, date);
+          void Promise.resolve(onMove(eventId, date)).catch((err) => {
+            console.error("Failed to move calendar event:", err);
+          });
         }
 
         setDragState({
@@ -217,7 +221,6 @@ export function useDragDrop({
   const getTouchDragProps = useCallback(
     (eventId: string, date: string) => ({
       onTouchStart: (e: React.TouchEvent) => {
-        const touch = e.touches[0];
         const target = e.currentTarget as HTMLElement;
 
         longPressTimerRef.current = setTimeout(() => {

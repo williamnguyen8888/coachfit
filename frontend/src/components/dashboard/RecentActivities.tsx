@@ -1,7 +1,7 @@
 "use client";
 // src/components/dashboard/RecentActivities.tsx
 // Feed of last 3-5 activities: sport icon, name, date, distance, duration, TSS.
-// Mobile: slim list rows. Premium design with hover highlights and source tinting.
+// Mobile: slim list rows with source and training-load metadata.
 
 import React from "react";
 import { clsx } from "clsx";
@@ -121,18 +121,17 @@ function ActivityCardRow({ activity }: { activity: ActivitySummary }) {
   return (
     <Link
       href={`/activities/${activity.id}`}
-      className="flex items-center gap-3 p-3.5 rounded-[var(--radius-lg)] border border-[var(--border-subtle)] hover-elevation transition-all duration-[var(--duration-micro)] hover:bg-[rgba(255,255,255,0.02)] group"
+      className="flex items-center gap-3 p-3 rounded-[var(--radius-md)] border border-[var(--border-subtle)] hover-elevation transition-all duration-[var(--duration-micro)] group"
       style={{
-        background: `linear-gradient(135deg, var(--bg-elevated) 0%, rgba(0,0,0,0.15) 100%)`,
+        background: "var(--bg-elevated)",
       }}
     >
       {/* Sport icon container with colored glow */}
       <div
-        className="flex-shrink-0 rounded-full p-2.5 flex items-center justify-center transition-transform group-hover:scale-110"
+        className="flex-shrink-0 rounded-[var(--radius-sm)] p-2.5 flex items-center justify-center"
         style={{ 
           background: `color-mix(in srgb, ${color} 12%, var(--bg-elevated))`, 
           color,
-          boxShadow: `0 0 10px ${color}12`
         }}
       >
         <SportIcon sport={activity.sport} size={16} />
@@ -172,7 +171,7 @@ function ActivityCardRow({ activity }: { activity: ActivitySummary }) {
         {hasTss && (
           <div className="flex flex-col items-end">
             <span 
-              className="rounded-[var(--radius-sm)] px-2 py-0.5 font-metric font-bold text-glow"
+              className="rounded-[var(--radius-sm)] px-2 py-0.5 font-metric font-bold"
               style={{ 
                 fontSize: "11px", 
                 color: "var(--color-fatigue)", 
@@ -220,7 +219,7 @@ function EmptyState() {
       className="flex flex-col items-center justify-center gap-3 py-10 border border-dashed border-[var(--border-default)] rounded-[var(--radius-lg)]"
       style={{ color: "var(--text-muted)", background: "rgba(0,0,0,0.1)" }}
     >
-      <div className="rounded-full p-2.5 bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-[var(--text-muted)]">
+      <div className="rounded-[var(--radius-sm)] p-2.5 bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-[var(--text-muted)]">
         <TrendingUp size={24} strokeWidth={1.5} />
       </div>
       <div className="text-center">
@@ -238,7 +237,7 @@ function EmptyState() {
 export function RecentActivitiesSkeleton() {
   return (
     <div
-      className="rounded-[var(--radius-xl)] p-6 flex flex-col gap-4 glass-card"
+      className="rounded-[var(--radius-md)] p-5 flex flex-col gap-4 glass-card"
     >
       <Skeleton width="140px" height="22px" />
       {Array.from({ length: 3 }).map((_, i) => (
@@ -265,7 +264,7 @@ interface Props {
 export function RecentActivities({ activities, className }: Props) {
   return (
     <div
-      className={clsx("rounded-[var(--radius-xl)] p-6 flex flex-col gap-3 glass-card", className)}
+      className={clsx("rounded-[var(--radius-md)] p-5 flex flex-col gap-3 glass-card", className)}
     >
       {/* Header */}
       <div className="flex items-center justify-between mb-1">
@@ -273,7 +272,7 @@ export function RecentActivities({ activities, className }: Props) {
           className="font-bold tracking-tight"
           style={{ fontSize: "var(--text-lg)", color: "var(--text-primary)" }}
         >
-          Recent Ingested Workouts
+          Recent activities
         </h2>
         <Link
           href="/activities"

@@ -175,6 +175,14 @@ body {
   overscroll-behavior: none;
 }
 
+body {
+  overflow: hidden;
+}
+
+body > div:first-child {
+  height: 100%;
+}
+
 /* ---------- Tailwind v4 theme extension ---------- */
 @theme inline {
   /* Background colors */
@@ -432,6 +440,7 @@ body {
  */
 .app-shell-main {
   padding-bottom: calc(var(--tab-bar-height) + env(safe-area-inset-bottom, 0px));
+  overscroll-behavior: contain;
 }
 
 @media (min-width: 1024px) {
@@ -470,62 +479,49 @@ a, button {
   display: none; /* Chrome, Safari, Opera */
 }
 
-/* ---------- Premium Dashboard Redesign Utilities ---------- */
+/* ---------- Dashboard and panel utilities ---------- */
 
 .glass-card {
-  background: linear-gradient(
-    135deg,
-    rgba(20, 20, 32, 0.7) 0%,
-    rgba(10, 10, 15, 0.85) 100%
-  );
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-  transition: all var(--duration-standard) var(--ease-standard);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  box-shadow: none;
+  transition: border-color var(--duration-micro) var(--ease-standard),
+              background-color var(--duration-micro) var(--ease-standard);
 }
 
 [data-theme="light"] .glass-card {
-  background: linear-gradient(
-    135deg,
-    rgba(241, 245, 249, 0.7) 0%,
-    rgba(248, 250, 252, 0.85) 100%
-  );
-  border: 1px solid rgba(15, 23, 42, 0.05);
-  box-shadow: 0 8px 32px 0 rgba(15, 23, 42, 0.08);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  box-shadow: none;
 }
 
 .hover-elevation {
-  transition: transform var(--duration-standard) var(--ease-standard),
-              box-shadow var(--duration-standard) var(--ease-standard),
-              filter var(--duration-standard) var(--ease-standard);
+  transition: border-color var(--duration-micro) var(--ease-standard),
+              background-color var(--duration-micro) var(--ease-standard);
 }
 
 .hover-elevation:hover {
-  transform: translateY(-2px);
-  filter: brightness(1.05);
-  box-shadow: var(--shadow-lg), var(--shadow-glow);
+  border-color: var(--border-default);
+  background: var(--bg-elevated);
 }
 
 [data-theme="light"] .hover-elevation:hover {
-  box-shadow: var(--shadow-lg), 0 0 20px rgba(139, 92, 246, 0.08);
+  box-shadow: none;
 }
 
 .glow-accent {
-  box-shadow: 0 0 15px var(--color-accent-15);
+  box-shadow: none;
 }
 .glow-success {
-  box-shadow: 0 0 15px var(--color-success-10);
+  box-shadow: none;
 }
 .glow-warning {
-  box-shadow: 0 0 15px rgba(245, 158, 11, 0.1);
+  box-shadow: none;
 }
 .glow-danger {
-  box-shadow: 0 0 15px var(--color-danger-10);
+  box-shadow: none;
 }
 
 .text-glow {
-  text-shadow: 0 0 8px currentColor;
+  text-shadow: none;
 }
-
-

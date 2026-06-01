@@ -5,7 +5,15 @@ import type { Sport } from "./activity";
 
 // ─── Step building blocks ─────────────────────────────────────────────────────
 
-export type StepType = "warmup" | "work" | "rest" | "cooldown" | "repeat" | "other";
+export type StepType =
+  | "warmup"
+  | "work"
+  | "rest"
+  | "cooldown"
+  | "ramp"
+  | "free"
+  | "repeat"
+  | "other";
 
 export type DurationType = "time" | "distance" | "lap_button";
 
@@ -18,8 +26,13 @@ export interface StepDuration {
 export type TargetType =
   | "power_zone"
   | "power_pct"
+  | "power_watts"
   | "hr_zone"
+  | "hr_pct"
+  | "hr_bpm"
+  | "pace_zone"
   | "pace"
+  | "speed"
   | "cadence"
   | "rpe"
   | "open"

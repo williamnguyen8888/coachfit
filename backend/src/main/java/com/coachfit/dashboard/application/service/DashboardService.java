@@ -12,9 +12,10 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.DateTimeException;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.time.ZoneOffset;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -36,6 +37,7 @@ public class DashboardService
 
     /** Pro/Elite: max days for fitness trend. */
     public static final int MAX_TREND_DAYS = 365;
+    private static final ZoneId DEFAULT_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
 
     private final DashboardQueryPort query;
 
@@ -47,7 +49,7 @@ public class DashboardService
 
     @Override
     public TodayDashboard getToday(UUID userId) {
-        LocalDate today     = LocalDate.now(ZoneOffset.UTC);
+        LocalDate today     = LocalDate.now(userZone(userId));
         LocalDate weekStart = today.with(DayOfWeek.MONDAY);
         LocalDate weekEnd   = today.with(DayOfWeek.SUNDAY);
 
@@ -93,7 +95,7 @@ public class DashboardService
 
     @Override
     public WeeklySummary getWeeklySummary(UUID userId) {
-        LocalDate today     = LocalDate.now(ZoneOffset.UTC);
+        LocalDate today     = LocalDate.now(userZone(userId));
         LocalDate weekStart = today.with(DayOfWeek.MONDAY);
         LocalDate weekEnd   = today.with(DayOfWeek.SUNDAY);
 
@@ -122,7 +124,7 @@ public class DashboardService
     public FitnessTrend getFitnessTrend(UUID userId, int days) {
         int clampedDays = Math.min(Math.max(days, 1), MAX_TREND_DAYS);
 
-        LocalDate today = LocalDate.now(ZoneOffset.UTC);
+        LocalDate today = LocalDate.now(userZone(userId));
         LocalDate from  = today.minusDays(clampedDays - 1L);
 
         List<TrendPoint> points = query.findTrainingLoadRange(userId, from, today).stream()
@@ -133,6 +135,14 @@ public class DashboardService
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
+
+    private ZoneId userZone(UUID userId) {
+        try {
+            return ZoneId.of(query.findUserTimezone(userId));
+        } catch (DateTimeException ex) {
+            return DEFAULT_ZONE;
+        }
+    }
 
     private HealthSnapshot buildHealthSnapshot(UUID userId, LocalDate today) {
         String source = query.findPrimaryHealthSource(userId).orElse(null);

@@ -23,6 +23,7 @@ import { FitnessTrend, FitnessTrendSkeleton } from "./FitnessTrend";
 import { RecentActivities, RecentActivitiesSkeleton } from "./RecentActivities";
 import { FitnessStatusBadge } from "./FitnessStatusBadge";
 import { WellnessLastKnown, WellnessLastKnownSkeleton } from "@/components/wellness/WellnessLastKnown";
+import { toLocalDateString } from "@/lib/utils";
 import type { DashboardToday, WeeklySummary as WeeklySummaryType, FitnessTrendResponse } from "@/lib/types/dashboard";
 import type { WellnessEntry, WellnessListResponse } from "@/lib/types/wellness";
 
@@ -31,7 +32,7 @@ import type { WellnessEntry, WellnessListResponse } from "@/lib/types/wellness";
 function SectionError({ message }: { message: string }) {
   return (
     <div
-      className="rounded-[var(--radius-xl)] px-5 py-4 flex items-center gap-3"
+      className="rounded-[var(--radius-md)] px-4 py-3 flex items-center gap-3"
       style={{
         background: "var(--bg-surface)",
         border: "1px solid var(--color-danger)",
@@ -39,7 +40,7 @@ function SectionError({ message }: { message: string }) {
       }}
     >
       <span style={{ fontSize: "var(--text-sm)", color: "var(--color-danger)" }}>
-        ⚠️ {message}
+        {message}
       </span>
     </div>
   );
@@ -54,7 +55,7 @@ export function DashboardClient() {
 
   // Fetch today's wellness entry to power the WellnessLastKnown widget.
   // We also pick up lastWellness from today.data as a fallback.
-  const todayDate = new Date().toISOString().split("T")[0];
+  const todayDate = toLocalDateString(new Date());
   const wellnessQuery = useQuery<WellnessListResponse | WellnessEntry[]>(
     `/wellness?from=${todayDate}&to=${todayDate}`,
   );
@@ -78,7 +79,7 @@ export function DashboardClient() {
   const hasCheckedInToday = !!wellnessEntry;
 
   return (
-    <div className="px-3 lg:px-6 py-4 pb-safe">
+    <div className="mx-auto w-full max-w-[1480px] px-3 sm:px-4 lg:px-6 py-4 lg:py-5">
       {/*
         ── Mobile layout ──────────────────────────────────────────────
         Single column, stacked. Cards are full-width.
@@ -86,7 +87,7 @@ export function DashboardClient() {
         ── Desktop layout (lg+) ─────────────────────────────────────
         Two columns: left = morning + health, right = charts + activities.
       */}
-      <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] lg:gap-5 lg:items-start">
+      <div className="flex flex-col gap-4 xl:grid xl:grid-cols-[minmax(320px,0.85fr)_minmax(0,1.45fr)] xl:gap-5 xl:items-start">
 
         {/* ── LEFT COLUMN ─────────────────────────────────────────── */}
         <div className="flex flex-col gap-4">
@@ -102,7 +103,7 @@ export function DashboardClient() {
 
           {/* Fitness status badge (only on mobile, inline between briefing and health) */}
           {today.data?.fitnessStatus && (
-            <div className="lg:hidden">
+            <div className="xl:hidden">
               <FitnessStatusBadge data={today.data.fitnessStatus} />
             </div>
           )}

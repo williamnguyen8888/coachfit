@@ -11,6 +11,7 @@ import { WellnessCheckIn } from "./WellnessCheckIn";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { SmilePlus, TrendingUp } from "lucide-react";
 import type { WellnessEntry } from "@/lib/types/wellness";
+import { addLocalDays, toLocalDateString } from "@/lib/utils";
 
 /* ─── Color helpers ─────────────────────────────────────────────────────── */
 
@@ -87,8 +88,8 @@ function HistoryRow({ entry }: { entry: WellnessEntry }) {
 /* ─── Date range helper ──────────────────────────────────────────────────── */
 
 function getDateRange() {
-  const to = new Date().toISOString().split("T")[0];
-  const from = new Date(Date.now() - 30 * 86400000).toISOString().split("T")[0];
+  const to = toLocalDateString(new Date());
+  const from = addLocalDays(to, -30);
   return { from, to };
 }
 
@@ -107,7 +108,7 @@ export function WellnessPage() {
     return Array.isArray(wellnessQuery.data) ? wellnessQuery.data : [];
   }, [wellnessQuery.data]);
 
-  const today       = new Date().toISOString().split("T")[0];
+  const today       = toLocalDateString(new Date());
   const todayEntry  = entries.find((e) => e.date === today) ?? null;
   const lastKnown   = entries.find((e) => e.date !== today) ?? null;
   const history     = entries.filter((e) => e.date !== today).slice(0, 10);
@@ -124,15 +125,14 @@ export function WellnessPage() {
   React.useEffect(() => {
     let streak = 0;
     const all = [...entries].sort((a, b) => b.date.localeCompare(a.date));
-    const now = Date.now();
     for (let i = 0; i < all.length; i++) {
-      const expected = new Date(now - i * 86400000).toISOString().split("T")[0];
+      const expected = addLocalDays(today, -i);
       if (all[i]?.date === expected) streak++;
       else break;
     }
     const t = setTimeout(() => setStreakCount(streak), 0);
     return () => clearTimeout(t);
-  }, [entries]);
+  }, [entries, today]);
 
   return (
     <div

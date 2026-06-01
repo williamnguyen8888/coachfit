@@ -11,6 +11,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useCalendarStore } from "@/stores/calendar.store";
+import { toLocalDateString } from "@/lib/utils";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -250,7 +251,7 @@ export function WeekNavBar() {
     anchorDate,
   } = useCalendarStore();
 
-  const today     = new Date().toISOString().split("T")[0];
+  const today     = toLocalDateString(new Date());
   const { from, to } = viewMode === "week" ? getWeekRange() : getMonthRange();
 
   const isOnToday =

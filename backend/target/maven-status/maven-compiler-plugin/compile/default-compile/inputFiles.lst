@@ -184,6 +184,7 @@
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/calendar/application/port/in/SkipCalendarEventUseCase.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/calendar/application/port/in/UpdateCalendarEventUseCase.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/calendar/application/port/in/package-info.java
+/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/calendar/application/port/out/AutoLinkActivityCandidate.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/calendar/application/port/out/CalendarEventPersistencePort.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/calendar/application/port/out/package-info.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/calendar/application/service/CalendarActivityEventListener.java
@@ -276,6 +277,7 @@
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/shared/application/port/in/package-info.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/shared/application/port/out/package-info.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/shared/application/service/package-info.java
+/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/shared/domain/SportNormalizer.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/shared/domain/event/ActivityCreatedEvent.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/shared/domain/event/ActivityDeletedEvent.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/shared/domain/package-info.java

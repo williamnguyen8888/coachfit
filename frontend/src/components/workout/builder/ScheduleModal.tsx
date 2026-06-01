@@ -11,13 +11,14 @@ import * as React from "react";
 import { CalendarDays, X, Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { workoutsService } from "@/lib/services/workouts";
+import { toLocalDateString } from "@/lib/utils";
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                              */
 /* ------------------------------------------------------------------ */
 
 function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
+  return toLocalDateString(new Date());
 }
 
 /* ------------------------------------------------------------------ */

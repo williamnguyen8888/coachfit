@@ -21,8 +21,9 @@ import {
   Bike,
   PersonStanding,
   Waves,
+  Dumbbell,
+  Activity,
   Loader2,
-  ChevronDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import type { Sport } from "@/lib/types/activity";
@@ -35,6 +36,8 @@ const SPORT_OPTIONS: { value: Sport; label: string; icon: React.ReactNode }[] = 
   { value: "cycling", label: "Cycling", icon: <Bike size={14} /> },
   { value: "running", label: "Running", icon: <PersonStanding size={14} /> },
   { value: "swimming", label: "Swimming", icon: <Waves size={14} /> },
+  { value: "strength", label: "Strength", icon: <Dumbbell size={14} /> },
+  { value: "other", label: "Other", icon: <Activity size={14} /> },
 ];
 
 /* ------------------------------------------------------------------ */
@@ -90,7 +93,7 @@ export function BuilderHeader({
       }}
     >
       {/* Row 1: Name + Sport */}
-      <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "flex-start" }}>
         {/* Name */}
         <div style={{ flex: "1 1 240px", display: "flex", flexDirection: "column", gap: 4 }}>
           <label
@@ -126,47 +129,52 @@ export function BuilderHeader({
         </div>
 
         {/* Sport */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 140 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 300, flex: "1 1 320px" }}>
           <label
-            htmlFor="workout-sport"
+            id="workout-sport-label"
             style={{ fontSize: "var(--text-sm)", fontWeight: 500, color: "var(--text-secondary)" }}
           >
-            Sport
+            Activity
           </label>
-          <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
-            <select
-              id="workout-sport"
-              value={sport}
-              onChange={(e) => onSportChange(e.target.value as Sport)}
-              style={{
-                height: 40,
-                width: "100%",
-                appearance: "none",
-                borderRadius: "var(--radius-sm)",
-                border: "1px solid var(--border-default)",
-                background: "var(--bg-input)",
-                color: "var(--text-primary)",
-                padding: "0 32px 0 12px",
-                fontSize: "var(--text-base)",
-                outline: "none",
-                cursor: "pointer",
-              }}
-            >
-              {SPORT_OPTIONS.map((s) => (
-                <option key={s.value} value={s.value}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
-            <ChevronDown
-              size={14}
-              style={{
-                position: "absolute",
-                right: 10,
-                color: "var(--text-muted)",
-                pointerEvents: "none",
-              }}
-            />
+          <div
+            role="radiogroup"
+            aria-labelledby="workout-sport-label"
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(104px, 1fr))",
+              gap: 6,
+            }}
+          >
+            {SPORT_OPTIONS.map((option) => {
+              const active = sport === option.value;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  onClick={() => onSportChange(option.value)}
+                  style={{
+                    height: 38,
+                    borderRadius: "var(--radius-sm)",
+                    border: `1px solid ${active ? "var(--color-accent)" : "var(--border-default)"}`,
+                    background: active ? "var(--color-accent-12)" : "var(--bg-input)",
+                    color: active ? "var(--color-accent)" : "var(--text-secondary)",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 7,
+                    fontSize: "var(--text-sm)",
+                    fontWeight: active ? 600 : 500,
+                    cursor: active ? "default" : "pointer",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {option.icon}
+                  {option.label}
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>

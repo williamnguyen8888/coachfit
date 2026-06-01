@@ -15,6 +15,7 @@ import { getSportHex, getEstimatedLoad, formatDistance } from "./calendarUtils";
 import { WorkoutStepViz } from "./WorkoutStepViz";
 import { zonesService } from "@/lib/services/settings";
 import type { SportZones } from "@/lib/types/settings";
+import { toLocalDateString } from "@/lib/utils";
 
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -1077,7 +1078,7 @@ export function CalendarEventModal({
     event?.eventType ?? "workout",
   );
   const [date, setDate] = useState<string>(
-    event?.date ?? initialDate ?? new Date().toISOString().split("T")[0],
+    event?.date ?? initialDate ?? toLocalDateString(new Date()),
   );
   const [notes, setNotes] = useState<string>(initialData.initialNotes);
   const [title, setTitle] = useState<string>(

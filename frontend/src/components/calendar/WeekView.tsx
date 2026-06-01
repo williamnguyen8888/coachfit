@@ -22,6 +22,7 @@ import { CalendarEventChip } from "./CalendarEventChip";
 import { CalendarEventModal } from "./CalendarEventModal";
 import { DailyWellnessSummary } from "./DailyWellnessSummary";
 import { WeeklySummaryColumn } from "./WeeklySummaryColumn";
+import { addLocalDays, toLocalDateString } from "@/lib/utils";
 import type { WellnessEntry } from "@/lib/types/wellness";
 import type { DailyHealthSummary, SleepRecord } from "@/lib/services/health";
 import {
@@ -41,9 +42,7 @@ function getWeekNumber(dateStr: string): number {
 }
 
 function addDays(dateStr: string, days: number): string {
-  const d = new Date(dateStr + "T00:00:00");
-  d.setDate(d.getDate() + days);
-  return d.toISOString().split("T")[0];
+  return addLocalDays(dateStr, days);
 }
 
 function formatDayNum(dateStr: string): string {
@@ -51,7 +50,7 @@ function formatDayNum(dateStr: string): string {
 }
 
 function isToday(dateStr: string): boolean {
-  return dateStr === new Date().toISOString().split("T")[0];
+  return dateStr === toLocalDateString(new Date());
 }
 
 // ─── Drop line ────────────────────────────────────────────────────────────────

@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
 import type { WellnessEntry } from "@/lib/types/wellness";
+import { addLocalDays, toLocalDateString } from "@/lib/utils";
 
 /* ─── Helpers ────────────────────────────────────────────────────────────── */
 
@@ -45,8 +46,8 @@ function rpeColor(score: number): string {
 }
 
 function formatRelativeDate(dateStr: string): string {
-  const today = new Date().toISOString().split("T")[0];
-  const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0];
+  const today = toLocalDateString(new Date());
+  const yesterday = addLocalDays(today, -1);
   if (dateStr === today) return "Today";
   if (dateStr === yesterday) return "Yesterday";
   return new Date(dateStr + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" });
@@ -114,7 +115,7 @@ interface WellnessLastKnownProps {
 }
 
 export function WellnessLastKnown({ entry, hasCheckedInToday, className }: WellnessLastKnownProps) {
-  const today = new Date().toISOString().split("T")[0];
+  const today = toLocalDateString(new Date());
   const isToday = entry?.date === today;
 
   return (

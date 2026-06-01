@@ -76,11 +76,13 @@ class DashboardQueryAdapter implements DashboardQueryPort {
     @Override
     public double sumCompletedHoursInWeek(UUID userId, LocalDate weekStart, LocalDate weekEnd) {
         Double result = jdbcClient.sql("""
-                SELECT COALESCE(SUM(duration_seconds), 0) / 3600.0
-                  FROM activities
-                 WHERE user_id    = :userId
-                   AND deleted_at IS NULL
-                   AND started_at::date BETWEEN :weekStart AND :weekEnd
+                SELECT COALESCE(SUM(a.duration_seconds), 0) / 3600.0
+                  FROM activities a
+                  JOIN users u ON u.id = a.user_id AND u.deleted_at IS NULL
+                 WHERE a.user_id    = :userId
+                   AND a.deleted_at IS NULL
+                   AND date(a.started_at AT TIME ZONE COALESCE(NULLIF(u.settings->>'timezone', ''), 'Asia/Ho_Chi_Minh'))
+                       BETWEEN :weekStart AND :weekEnd
                 """)
                 .param("userId", userId)
                 .param("weekStart", weekStart)
@@ -94,10 +96,12 @@ class DashboardQueryAdapter implements DashboardQueryPort {
     public int countCompletedSessionsInWeek(UUID userId, LocalDate weekStart, LocalDate weekEnd) {
         Integer result = jdbcClient.sql("""
                 SELECT COUNT(*)::int
-                  FROM activities
-                 WHERE user_id    = :userId
-                   AND deleted_at IS NULL
-                   AND started_at::date BETWEEN :weekStart AND :weekEnd
+                  FROM activities a
+                  JOIN users u ON u.id = a.user_id AND u.deleted_at IS NULL
+                 WHERE a.user_id    = :userId
+                   AND a.deleted_at IS NULL
+                   AND date(a.started_at AT TIME ZONE COALESCE(NULLIF(u.settings->>'timezone', ''), 'Asia/Ho_Chi_Minh'))
+                       BETWEEN :weekStart AND :weekEnd
                 """)
                 .param("userId", userId)
                 .param("weekStart", weekStart)
@@ -137,16 +141,18 @@ class DashboardQueryAdapter implements DashboardQueryPort {
     @Override
     public List<SportVolumeRow> aggregateSportVolume(UUID userId, LocalDate from, LocalDate to) {
         return jdbcClient.sql("""
-                SELECT sport,
-                       COALESCE(SUM(duration_seconds), 0) / 3600.0   AS hours,
+                SELECT a.sport,
+                       COALESCE(SUM(a.duration_seconds), 0) / 3600.0 AS hours,
                        COUNT(*)::int                                   AS sessions,
-                       COALESCE(SUM(distance_meters), 0)              AS distance_meters,
-                       COALESCE(SUM(tss), 0)                          AS tss
-                  FROM activities
-                 WHERE user_id    = :userId
-                   AND deleted_at IS NULL
-                   AND started_at::date BETWEEN :from AND :to
-                 GROUP BY sport
+                       COALESCE(SUM(a.distance_meters), 0)            AS distance_meters,
+                       COALESCE(SUM(a.tss), 0)                        AS tss
+                  FROM activities a
+                  JOIN users u ON u.id = a.user_id AND u.deleted_at IS NULL
+                 WHERE a.user_id    = :userId
+                   AND a.deleted_at IS NULL
+                   AND date(a.started_at AT TIME ZONE COALESCE(NULLIF(u.settings->>'timezone', ''), 'Asia/Ho_Chi_Minh'))
+                       BETWEEN :from AND :to
+                 GROUP BY a.sport
                  ORDER BY hours DESC
                 """)
                 .param("userId", userId)
@@ -164,12 +170,14 @@ class DashboardQueryAdapter implements DashboardQueryPort {
     @Override
     public WeekTotals sumWeekTotals(UUID userId, LocalDate from, LocalDate to) {
         return jdbcClient.sql("""
-                SELECT COALESCE(SUM(distance_meters), 0) AS total_distance_meters,
-                       COALESCE(SUM(tss), 0)             AS total_tss
-                  FROM activities
-                 WHERE user_id    = :userId
-                   AND deleted_at IS NULL
-                   AND started_at::date BETWEEN :from AND :to
+                SELECT COALESCE(SUM(a.distance_meters), 0) AS total_distance_meters,
+                       COALESCE(SUM(a.tss), 0)             AS total_tss
+                  FROM activities a
+                  JOIN users u ON u.id = a.user_id AND u.deleted_at IS NULL
+                 WHERE a.user_id    = :userId
+                   AND a.deleted_at IS NULL
+                   AND date(a.started_at AT TIME ZONE COALESCE(NULLIF(u.settings->>'timezone', ''), 'Asia/Ho_Chi_Minh'))
+                       BETWEEN :from AND :to
                 """)
                 .param("userId", userId)
                 .param("from", from)
@@ -307,6 +315,20 @@ class DashboardQueryAdapter implements DashboardQueryPort {
                 .param("userId", userId)
                 .query(String.class)
                 .optional();
+    }
+
+    @Override
+    public String findUserTimezone(UUID userId) {
+        return jdbcClient.sql("""
+                SELECT COALESCE(NULLIF(settings->>'timezone', ''), 'Asia/Ho_Chi_Minh')
+                  FROM users
+                 WHERE id = :userId
+                   AND deleted_at IS NULL
+                """)
+                .param("userId", userId)
+                .query(String.class)
+                .optional()
+                .orElse("Asia/Ho_Chi_Minh");
     }
 
     // ── Wellness ──────────────────────────────────────────────────────────────

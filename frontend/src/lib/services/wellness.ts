@@ -9,6 +9,7 @@
 // NOT a paginated { content: [] } envelope.
 
 import { api } from "@/lib/api";
+import { toLocalDateString } from "@/lib/utils";
 import type {
   WellnessEntry,
   WellnessListResponse,
@@ -35,7 +36,7 @@ export const wellnessService = {
    * Handles both raw array and legacy { content: [] } shapes defensively.
    */
   getToday: (): Promise<WellnessEntry | null> => {
-    const today = new Date().toISOString().split("T")[0];
+    const today = toLocalDateString(new Date());
     return wellnessService
       .list({ from: today, to: today })
       .then((data) => {
@@ -70,7 +71,7 @@ export const wellnessService = {
    * Pass `date` separately so it can be included in the PUT URL path.
    */
   upsert: async (body: WellnessLogRequest, date?: string): Promise<WellnessEntry> => {
-    const targetDate = date ?? new Date().toISOString().split("T")[0];
+    const targetDate = date ?? toLocalDateString(new Date());
     try {
       return await wellnessService.log(body);
     } catch (e: unknown) {

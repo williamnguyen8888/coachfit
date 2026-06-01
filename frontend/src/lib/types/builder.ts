@@ -8,7 +8,7 @@ import type { StepDuration, StepTarget, StepType } from "./workout";
 
 // ─── Builder step ─────────────────────────────────────────────────────────────
 
-/** A leaf step (warmup / work / rest / cooldown). */
+/** A leaf step (warmup / work / rest / cooldown / ramp / free). */
 export interface BuilderLeafStep {
   uid: string; // local UUID — never sent to API
   type: Exclude<StepType, "repeat" | "other">;

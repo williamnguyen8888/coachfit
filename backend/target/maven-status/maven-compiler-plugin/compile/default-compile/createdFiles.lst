@@ -182,7 +182,6 @@ com/coachfit/sync/application/service/GarminActivitySyncService$StagedRow.class
 com/coachfit/calendar/application/port/in/ListCalendarEventsUseCase$CalendarEventView.class
 com/coachfit/athlete/adapter/in/AthleteExceptionHandler.class
 com/coachfit/subscription/domain/package-info.class
-com/coachfit/calendar/application/port/out/CalendarEventPersistencePort$SimpleActivityDetailsWithId.class
 com/coachfit/gear/application/port/in/GearUseCase.class
 com/coachfit/account/adapter/in/dto/AccountPrivacyResponse.class
 com/coachfit/wellness/adapter/in/package-info.class
@@ -299,6 +298,7 @@ com/coachfit/sync/application/port/out/GarminJobQueuePort.class
 com/coachfit/calendar/adapter/in/dto/ReorderRequest.class
 com/coachfit/auth/application/service/GoogleOAuthService.class
 com/coachfit/athlete/adapter/out/package-info.class
+com/coachfit/shared/domain/SportNormalizer.class
 com/coachfit/account/application/port/in/AccountUseCase$PrivacyStatus.class
 com/coachfit/shared/adapter/out/package-info.class
 com/coachfit/activity/domain/exception/FileParseException.class
@@ -393,6 +393,7 @@ com/coachfit/sync/application/service/StravaActivitySyncService$StravaStreamsRes
 com/coachfit/account/application/service/AccountService.class
 com/coachfit/sync/application/service/GarminHealthProcessingService.class
 com/coachfit/auth/application/service/StravaOAuthService$StravaTokenResponse.class
+com/coachfit/calendar/application/port/out/AutoLinkActivityCandidate.class
 com/coachfit/auth/application/port/in/GarminOAuthUseCase$AuthResult.class
 com/coachfit/sync/adapter/in/GarminWebhookController$HrvDto.class
 com/coachfit/athlete/application/port/in/UpsertSportZoneUseCase$ZoneBandInput.class

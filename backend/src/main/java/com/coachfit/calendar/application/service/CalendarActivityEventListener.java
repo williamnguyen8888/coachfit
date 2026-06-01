@@ -2,6 +2,7 @@ package com.coachfit.calendar.application.service;
 
 import com.coachfit.calendar.application.port.out.CalendarEventPersistencePort;
 import com.coachfit.calendar.application.port.out.CalendarEventPersistencePort.CalendarEventSummary;
+import com.coachfit.shared.domain.SportNormalizer;
 import com.coachfit.shared.domain.event.ActivityCreatedEvent;
 import com.coachfit.shared.domain.event.ActivityDeletedEvent;
 import org.slf4j.Logger;
@@ -38,6 +39,11 @@ public class CalendarActivityEventListener {
         log.info("Handling ActivityCreatedEvent: userId={} activityId={} sport={}",
                 event.userId(), event.activityId(), event.sport());
 
+        if (port.hasActiveEventForActivity(event.userId(), event.activityId())) {
+            log.info("Activity {} already has an active calendar event; skipping auto-link", event.activityId());
+            return;
+        }
+
         // 1. Get user's timezone & local date
         String tz = port.findUserTimezone(event.userId());
         ZoneId zoneId = ZoneId.of(tz);
@@ -48,35 +54,30 @@ public class CalendarActivityEventListener {
 
         // 3. Try to match by normalized sport
         CalendarEventSummary matchedWorkout = null;
+        BigDecimal matchedComplianceScore = null;
         for (CalendarEventSummary candidate : candidates) {
             if (candidate.workoutSport() != null && event.sport() != null
-                    && candidate.workoutSport().equalsIgnoreCase(event.sport())) {
-                matchedWorkout = candidate;
-                break;
+                    && SportNormalizer.sameSport(candidate.workoutSport(), event.sport())) {
+                BigDecimal complianceScore = calculateComplianceScore(
+                        candidate.workoutDuration(), event.durationSeconds());
+                if (matchedWorkout == null
+                        || complianceScore.compareTo(matchedComplianceScore) > 0
+                        || (complianceScore.compareTo(matchedComplianceScore) == 0
+                            && candidate.orderIndex() < matchedWorkout.orderIndex())) {
+                    matchedWorkout = candidate;
+                    matchedComplianceScore = complianceScore;
+                }
             }
         }
 
         if (matchedWorkout != null) {
             // 4. Calculate compliance score (Duration compliance)
-            BigDecimal complianceScore = BigDecimal.valueOf(100.0);
-            Integer plannedDuration = matchedWorkout.workoutDuration();
-            int actualDuration = event.durationSeconds();
-
-            if (plannedDuration != null && plannedDuration > 0) {
-                double ratio = (double) actualDuration / plannedDuration;
-                if (ratio >= 0.9 && ratio <= 1.1) {
-                    complianceScore = BigDecimal.valueOf(100.0);
-                } else if (ratio < 0.9) {
-                    complianceScore = BigDecimal.valueOf(Math.max(0.0, 100.0 * (ratio / 0.9)))
-                            .setScale(2, RoundingMode.HALF_UP);
-                } else {
-                    complianceScore = BigDecimal.valueOf(Math.max(0.0, 100.0 * (1.0 - (ratio - 1.1))))
-                            .setScale(2, RoundingMode.HALF_UP);
-                }
-            }
+            BigDecimal complianceScore = matchedComplianceScore != null
+                    ? matchedComplianceScore
+                    : BigDecimal.valueOf(100.0);
 
             // 5. Link activity to calendar event
-            port.linkActivity(matchedWorkout.id(), event.activityId(), complianceScore);
+            port.linkActivity(matchedWorkout.id(), event.userId(), event.activityId(), complianceScore);
             log.info("Linked activity {} to planned workout calendar event {} with compliance={}%",
                     event.activityId(), matchedWorkout.id(), complianceScore);
         } else {
@@ -126,5 +127,22 @@ public class CalendarActivityEventListener {
                 log.info("Unlinked calendar event {} because linked activity was deleted", eventId);
             }
         }
+    }
+
+    private static BigDecimal calculateComplianceScore(Integer plannedDuration, int actualDuration) {
+        if (plannedDuration == null || plannedDuration <= 0) {
+            return BigDecimal.valueOf(100.0);
+        }
+
+        double ratio = (double) actualDuration / plannedDuration;
+        if (ratio >= 0.9 && ratio <= 1.1) {
+            return BigDecimal.valueOf(100.0);
+        }
+        if (ratio < 0.9) {
+            return BigDecimal.valueOf(Math.max(0.0, 100.0 * (ratio / 0.9)))
+                    .setScale(2, RoundingMode.HALF_UP);
+        }
+        return BigDecimal.valueOf(Math.max(0.0, 100.0 * (1.0 - (ratio - 1.1))))
+                .setScale(2, RoundingMode.HALF_UP);
     }
 }

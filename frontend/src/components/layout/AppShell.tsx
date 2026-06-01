@@ -19,7 +19,7 @@ export function AppShell({ children }: AppShellProps) {
 
   return (
     <div
-      className="flex h-full min-h-screen"
+      className="flex h-dvh min-h-0 overflow-hidden"
       style={{ background: "var(--bg-primary)" }}
     >
       {/* Desktop Sidebar — hidden on mobile/tablet via lg:flex in Sidebar */}
@@ -31,7 +31,7 @@ export function AppShell({ children }: AppShellProps) {
       */}
       <main
         id="main-content"
-        className="app-shell-main flex-1 min-w-0 flex flex-col"
+        className="app-shell-main flex-1 min-w-0 h-dvh min-h-0 flex flex-col overflow-y-auto overflow-x-hidden"
       >
         {children}
       </main>

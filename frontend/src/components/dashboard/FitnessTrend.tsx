@@ -14,7 +14,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { TrendingUp, TrendingDown, Minus, Info } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
 import type { FitnessTrendResponse, FitnessTrend } from "@/lib/types/dashboard";
 
@@ -148,7 +148,7 @@ function CustomTooltip({ active, payload, label }: {
 export function FitnessTrendSkeleton() {
   return (
     <div
-      className="rounded-[var(--radius-xl)] p-6 flex flex-col gap-4 glass-card"
+      className="rounded-[var(--radius-md)] p-5 flex flex-col gap-4 glass-card"
     >
       <Skeleton width="130px" height="22px" />
       <div className="flex justify-around border border-[var(--border-subtle)] rounded-[var(--radius-md)] py-2">
@@ -199,7 +199,7 @@ export function FitnessTrend({ data, trend = "stable", className }: Props) {
 
   return (
     <div
-      className={clsx("rounded-[var(--radius-xl)] p-6 flex flex-col gap-4 glass-card", className)}
+      className={clsx("rounded-[var(--radius-md)] p-5 flex flex-col gap-4 glass-card", className)}
     >
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -209,7 +209,7 @@ export function FitnessTrend({ data, trend = "stable", className }: Props) {
         >
           Fitness Trend
         </h2>
-        <div className="flex items-center gap-1.5 rounded-full px-2.5 py-0.5 border border-accent/10 bg-[rgba(139,92,246,0.06)]">
+        <div className="flex items-center gap-1.5 rounded-[var(--radius-sm)] px-2.5 py-0.5 border border-[var(--border-subtle)] bg-[var(--bg-elevated)]">
           <TrendIcon trend={trend} />
           <span
             style={{
@@ -255,7 +255,7 @@ export function FitnessTrend({ data, trend = "stable", className }: Props) {
             </span>
           </div>
           <span
-            className="font-metric tabular-nums font-extrabold text-glow"
+            className="font-metric tabular-nums font-extrabold"
             style={{ fontSize: "var(--text-xl)", color: formColor }}
           >
             {tsb > 0 ? "+" : ""}

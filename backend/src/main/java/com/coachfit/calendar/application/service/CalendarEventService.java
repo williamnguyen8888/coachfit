@@ -7,9 +7,11 @@ import com.coachfit.calendar.application.port.in.ListCalendarEventsUseCase;
 import com.coachfit.calendar.application.port.in.ReorderCalendarEventsUseCase;
 import com.coachfit.calendar.application.port.in.SkipCalendarEventUseCase;
 import com.coachfit.calendar.application.port.in.UpdateCalendarEventUseCase;
+import com.coachfit.calendar.application.port.out.AutoLinkActivityCandidate;
 import com.coachfit.calendar.application.port.out.CalendarEventPersistencePort;
 import com.coachfit.calendar.application.port.out.CalendarEventPersistencePort.CalendarEventSummary;
 import com.coachfit.calendar.application.port.out.CalendarEventPersistencePort.ReorderEntry;
+import com.coachfit.shared.domain.SportNormalizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -18,8 +20,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.IntStream;
 
@@ -52,6 +56,8 @@ public class CalendarEventService
                    com.coachfit.calendar.application.port.in.LinkActivityToCalendarEventUseCase {
 
     private static final Logger log = LoggerFactory.getLogger(CalendarEventService.class);
+    private static final BigDecimal RESCHEDULE_AUTO_LINK_MIN_SCORE = BigDecimal.valueOf(50);
+    private static final BigDecimal RESCHEDULE_AUTO_LINK_MARGIN = BigDecimal.valueOf(15);
 
     private final CalendarEventPersistencePort port;
 
@@ -94,6 +100,13 @@ public class CalendarEventService
     public void update(UUID userId, UUID eventId, UpdateCommand command) {
         CalendarEventSummary existing = findOwnedEvent(userId, eventId);
         boolean dateChanged = !existing.date().equals(command.date());
+        boolean workoutChanged = !Objects.equals(existing.workoutId(), command.workoutId())
+                || !Objects.equals(existing.eventType(), command.eventType());
+
+        if (dateChanged && existing.activityId() != null && existing.workoutId() == null) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Standalone activity events cannot be rescheduled from the calendar");
+        }
 
         boolean found = port.update(
                 eventId, userId,
@@ -106,7 +119,6 @@ public class CalendarEventService
         }
 
         if (dateChanged) {
-            // 1. If it was linked to an activity, unlink it and move activity back as standalone event on old date
             if (existing.activityId() != null) {
                 port.unlinkActivity(eventId);
                 port.createStandaloneActivityEvent(
@@ -119,44 +131,44 @@ public class CalendarEventService
                 log.info("Moved event {} to {}. Unlinked activity {} and orphaned it back to old date {}.",
                         eventId, command.date(), existing.activityId(), existing.date());
             }
-
-            // 2. Try to match on the new date
-            if ("workout".equals(command.eventType()) && command.workoutId() != null) {
-                // Fetch the sport of the workout. We can get it from the database since findOwnedEvent (which now joins workouts) populated it
-                String workoutSport = existing.workoutSport();
-                if (workoutSport != null) {
-                    var unmatched = port.findUnmatchedActivityOnDate(userId, command.date(), workoutSport);
-                    if (unmatched.isPresent()) {
-                        var act = unmatched.get();
-
-                        // Calculate compliance score
-                        BigDecimal complianceScore = BigDecimal.valueOf(100.0);
-                        Integer plannedDuration = existing.workoutDuration();
-                        int actualDuration = act.durationSeconds();
-                        if (plannedDuration != null && plannedDuration > 0) {
-                            double ratio = (double) actualDuration / plannedDuration;
-                            if (ratio >= 0.9 && ratio <= 1.1) {
-                                complianceScore = BigDecimal.valueOf(100.0);
-                            } else if (ratio < 0.9) {
-                                complianceScore = BigDecimal.valueOf(Math.max(0.0, 100.0 * (ratio / 0.9)))
-                                        .setScale(2, java.math.RoundingMode.HALF_UP);
-                            } else {
-                                complianceScore = BigDecimal.valueOf(Math.max(0.0, 100.0 * (1.0 - (ratio - 1.1))))
-                                        .setScale(2, java.math.RoundingMode.HALF_UP);
-                            }
-                        }
-
-                        // Link activity to the updated calendar event
-                        port.linkActivity(eventId, act.id(), complianceScore);
-
-                        // Delete the standalone calendar event for the activity on the new date
-                        port.deleteStandaloneEventForActivity(act.id());
-
-                        log.info("Auto-matched workout event {} on new date {} with unmatched activity {}",
-                                eventId, command.date(), act.id());
-                    }
-                }
+            if ("skipped".equals(existing.status())) {
+                port.updateStatus(eventId, userId, "planned");
             }
+            CalendarEventSummary updated = findOwnedEvent(userId, eventId);
+            autoLinkAfterReschedule(userId, updated);
+        } else if (workoutChanged && existing.activityId() != null) {
+            CalendarEventSummary updated = findOwnedEvent(userId, eventId);
+            if ("workout".equals(updated.eventType()) && updated.workoutId() != null) {
+                var activityDetails = port.findActivityDetails(userId, existing.activityId())
+                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Activity not found"));
+                if (updated.workoutSport() != null && activityDetails.sport() != null
+                        && !SportNormalizer.sameSport(updated.workoutSport(), activityDetails.sport())) {
+                    port.unlinkActivity(eventId);
+                    port.createStandaloneActivityEvent(
+                            userId,
+                            existing.date(),
+                            existing.activityId(),
+                            existing.activityName(),
+                            existing.activitySport()
+                    );
+                } else {
+                    BigDecimal complianceScore = calculateComplianceScore(
+                            updated.workoutDuration(), activityDetails.durationSeconds());
+                    port.linkActivity(eventId, userId, existing.activityId(), complianceScore);
+                }
+            } else {
+                port.unlinkActivity(eventId);
+                port.createStandaloneActivityEvent(
+                        userId,
+                        existing.date(),
+                        existing.activityId(),
+                        existing.activityName(),
+                        existing.activitySport()
+                );
+            }
+        } else {
+            CalendarEventSummary updated = findOwnedEvent(userId, eventId);
+            autoLinkAfterReschedule(userId, updated);
         }
 
         log.debug("Calendar event updated: id={} user={}", eventId, userId);
@@ -245,27 +257,32 @@ public class CalendarEventService
         CalendarEventSummary event = findOwnedEvent(userId, eventId);
 
         // Fetch activity details (duration, sport)
-        var activityDetails = port.findActivityDetails(activityId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Activity not found"));
-
-        BigDecimal complianceScore = BigDecimal.valueOf(100.0);
-        Integer plannedDuration = event.workoutDuration();
-        int actualDuration = activityDetails.durationSeconds();
-
-        if (plannedDuration != null && plannedDuration > 0) {
-            double ratio = (double) actualDuration / plannedDuration;
-            if (ratio >= 0.9 && ratio <= 1.1) {
-                complianceScore = BigDecimal.valueOf(100.0);
-            } else if (ratio < 0.9) {
-                complianceScore = BigDecimal.valueOf(Math.max(0.0, 100.0 * (ratio / 0.9)))
-                        .setScale(2, java.math.RoundingMode.HALF_UP);
-            } else {
-                complianceScore = BigDecimal.valueOf(Math.max(0.0, 100.0 * (1.0 - (ratio - 1.1))))
-                        .setScale(2, java.math.RoundingMode.HALF_UP);
-            }
+        if (!"workout".equals(event.eventType()) || event.workoutId() == null) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Only workout events can be linked to activities");
         }
 
-        port.linkActivity(eventId, activityId, complianceScore);
+        var activityDetails = port.findActivityDetails(userId, activityId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Activity not found"));
+
+        if (event.workoutSport() != null && activityDetails.sport() != null
+                && !SportNormalizer.sameSport(event.workoutSport(), activityDetails.sport())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Activity sport does not match the workout sport");
+        }
+
+        BigDecimal complianceScore = calculateComplianceScore(
+                event.workoutDuration(), activityDetails.durationSeconds());
+        port.linkActivity(eventId, userId, activityId, complianceScore);
+        if (event.activityId() != null && !event.activityId().equals(activityId)) {
+            port.createStandaloneActivityEvent(
+                    userId,
+                    event.date(),
+                    event.activityId(),
+                    event.activityName(),
+                    event.activitySport()
+            );
+        }
         log.info("Manually linked activity {} to calendar event {} by user {}", activityId, eventId, userId);
     }
 
@@ -278,7 +295,18 @@ public class CalendarEventService
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Calendar event is not linked to any activity");
         }
 
-        port.unlinkActivity(eventId);
+        if (event.workoutId() == null) {
+            port.softDelete(eventId);
+        } else {
+            port.unlinkActivity(eventId);
+            port.createStandaloneActivityEvent(
+                    userId,
+                    event.date(),
+                    event.activityId(),
+                    event.activityName(),
+                    event.activitySport()
+            );
+        }
         log.info("Manually unlinked activity from calendar event {} by user {}", eventId, userId);
     }
 
@@ -298,6 +326,69 @@ public class CalendarEventService
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Calendar event not found");
         }
         return event;
+    }
+
+    private static BigDecimal calculateComplianceScore(Integer plannedDuration, int actualDuration) {
+        if (plannedDuration == null || plannedDuration <= 0) {
+            return BigDecimal.valueOf(100.0);
+        }
+
+        double ratio = (double) actualDuration / plannedDuration;
+        if (ratio >= 0.9 && ratio <= 1.1) {
+            return BigDecimal.valueOf(100.0);
+        }
+        if (ratio < 0.9) {
+            return BigDecimal.valueOf(Math.max(0.0, 100.0 * (ratio / 0.9)))
+                    .setScale(2, RoundingMode.HALF_UP);
+        }
+        return BigDecimal.valueOf(Math.max(0.0, 100.0 * (1.0 - (ratio - 1.1))))
+                .setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private void autoLinkAfterReschedule(UUID userId, CalendarEventSummary event) {
+        if (!"workout".equals(event.eventType())
+                || event.workoutId() == null
+                || event.activityId() != null
+                || event.workoutSport() == null) {
+            return;
+        }
+
+        List<AutoLinkActivityCandidate> candidates = port.findAutoLinkActivityCandidates(userId, event.date())
+                .stream()
+                .filter(candidate -> SportNormalizer.sameSport(event.workoutSport(), candidate.sport()))
+                .toList();
+        if (candidates.isEmpty()) {
+            return;
+        }
+
+        AutoLinkActivityCandidate best = null;
+        BigDecimal bestScore = null;
+        BigDecimal secondBestScore = null;
+
+        for (AutoLinkActivityCandidate candidate : candidates) {
+            BigDecimal score = calculateComplianceScore(event.workoutDuration(), candidate.durationSeconds());
+            if (bestScore == null || score.compareTo(bestScore) > 0) {
+                secondBestScore = bestScore;
+                bestScore = score;
+                best = candidate;
+            } else if (secondBestScore == null || score.compareTo(secondBestScore) > 0) {
+                secondBestScore = score;
+            }
+        }
+
+        if (best == null || bestScore.compareTo(RESCHEDULE_AUTO_LINK_MIN_SCORE) < 0) {
+            return;
+        }
+        if (secondBestScore != null
+                && bestScore.subtract(secondBestScore).compareTo(RESCHEDULE_AUTO_LINK_MARGIN) < 0) {
+            log.info("Skipped reschedule auto-link for event {} on {} because {} candidates were ambiguous",
+                    event.id(), event.date(), candidates.size());
+            return;
+        }
+
+        port.linkActivity(event.id(), userId, best.id(), bestScore);
+        log.info("Auto-linked rescheduled workout event {} to standalone activity {} with compliance={}%",
+                event.id(), best.id(), bestScore);
     }
 
     /**

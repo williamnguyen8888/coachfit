@@ -195,7 +195,7 @@ export function ActivityCard({
     paceOrPowerStr = formatPace(speedMs, sport);
   }
 
-  const handleClick = (e: React.MouseEvent) => {
+  const handleClick = () => {
     if (activityRef?.id) {
       router.push(`/activities/${activityRef.id}`);
     } else {
@@ -285,17 +285,17 @@ export function ActivityCard({
       style={{
         position: "relative",
         width: "100%",
-        opacity: isDragging && !hasPlanAndActual ? 0.3 : 1,
+        opacity: isDragging ? 0.3 : 1,
         transition: "opacity 150ms ease-out",
       }}
     >
       <div
-        draggable={draggable && !hasPlanAndActual}
-        onDragStart={!hasPlanAndActual ? onDragStart : undefined}
-        onDragEnd={!hasPlanAndActual ? onDragEnd : undefined}
-        onTouchStart={!hasPlanAndActual ? onTouchStart : undefined}
-        onTouchMove={!hasPlanAndActual ? onTouchMove : undefined}
-        onTouchEnd={!hasPlanAndActual ? onTouchEnd : undefined}
+        draggable={draggable}
+        onDragStart={onDragStart}
+        onDragEnd={onDragEnd}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
         className="cal-chip-btn-container"
         style={{
           display: "flex",
@@ -305,7 +305,7 @@ export function ActivityCard({
           background: "var(--bg-elevated)",
           border: `1px solid ${sportHex.primary}30`,
           borderRadius: "var(--radius-md)",
-          cursor: draggable && !hasPlanAndActual ? "grab" : "default",
+          cursor: draggable ? "grab" : "default",
           textAlign: "center",
           transition: "box-shadow 150ms ease-out, transform 120ms ease-out, border-color 150ms ease",
           overflow: "hidden",
@@ -331,7 +331,7 @@ export function ActivityCard({
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === " ") {
               e.preventDefault();
-              handleClick(e as any);
+              handleClick();
             }
           }}
           style={{

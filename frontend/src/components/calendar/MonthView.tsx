@@ -21,6 +21,7 @@ import { CalendarEventChip } from "./CalendarEventChip";
 import { CalendarEventModal } from "./CalendarEventModal";
 import { DailyWellnessSummary } from "./DailyWellnessSummary";
 import { WeeklySummaryColumn } from "./WeeklySummaryColumn";
+import { parseLocalDateString, toLocalDateString } from "@/lib/utils";
 import type { WellnessEntry } from "@/lib/types/wellness";
 import type { DailyHealthSummary, SleepRecord } from "@/lib/services/health";
 
@@ -35,12 +36,8 @@ function getWeekNumber(dateStr: string): number {
   return Math.ceil((numberOfDays + oneJan.getDay() + 1) / 7);
 }
 
-function toISODate(d: Date): string {
-  return d.toISOString().split("T")[0];
-}
-
 function isToday(dateStr: string): boolean {
-  return dateStr === toISODate(new Date());
+  return dateStr === toLocalDateString(new Date());
 }
 
 function isCurrentMonth(dateStr: string, anchorDate: string): boolean {
@@ -48,7 +45,7 @@ function isCurrentMonth(dateStr: string, anchorDate: string): boolean {
 }
 
 function buildMonthGrid(anchorDate: string): string[] {
-  const anchor      = new Date(anchorDate + "T00:00:00");
+  const anchor      = parseLocalDateString(anchorDate);
   const firstOfMonth = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
   const lastOfMonth  = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0);
 
@@ -65,7 +62,7 @@ function buildMonthGrid(anchorDate: string): string[] {
   const dates: string[] = [];
   const cursor = new Date(gridStart);
   while (cursor <= gridEnd) {
-    dates.push(toISODate(cursor));
+    dates.push(toLocalDateString(cursor));
     cursor.setDate(cursor.getDate() + 1);
   }
   return dates;
@@ -411,7 +408,7 @@ export function MonthView() {
     sleepByDate,
   } = useCalendarStore();
 
-  const today = toISODate(new Date());
+  const today = toLocalDateString(new Date());
   const [selectedDate, setSelectedDate] = useState<string>(today);
   const [prevAnchorDate, setPrevAnchorDate] = useState(anchorDate);
 

@@ -63,6 +63,9 @@ public interface DashboardQueryPort {
     /** Returns the user's primary health source from athlete_profiles. */
     Optional<String> findPrimaryHealthSource(UUID userId);
 
+    /** Returns the user's configured timezone, falling back to the product demo timezone. */
+    String findUserTimezone(UUID userId);
+
     // ── Wellness ──────────────────────────────────────────────────────────────
 
     /**

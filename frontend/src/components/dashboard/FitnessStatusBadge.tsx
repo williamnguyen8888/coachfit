@@ -59,7 +59,7 @@ export function FitnessStatusBadge({ data, className }: Props) {
   return (
     <div
       className={clsx(
-        "flex flex-col gap-4 rounded-[var(--radius-xl)] px-4 py-4 glass-card",
+        "flex flex-col gap-4 rounded-[var(--radius-md)] px-4 py-4 glass-card",
         className
       )}
     >
@@ -110,7 +110,7 @@ export function FitnessStatusBadge({ data, className }: Props) {
             </span>
           </div>
           <span
-            className="font-metric tabular-nums font-extrabold text-glow"
+            className="font-metric tabular-nums font-extrabold"
             style={{ fontSize: "var(--text-2xl)", color: formColor }}
           >
             {data.tsb > 0 ? "+" : ""}
@@ -162,7 +162,7 @@ export function FitnessStatusBadge({ data, className }: Props) {
               style={{
                 left: `${Math.min((acwr / 2.0) * 100, 98)}%`,
                 background: acwrInfo.color,
-                boxShadow: `0 0 8px ${acwrInfo.color}`
+                boxShadow: "none"
               }}
             />
           </div>

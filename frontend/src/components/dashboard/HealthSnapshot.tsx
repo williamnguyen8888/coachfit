@@ -14,7 +14,6 @@ import {
   Footprints,
   Wind,
   WifiOff,
-  Info,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
 import type { HealthSnapshot as HealthSnapshotType } from "@/lib/types/dashboard";
@@ -93,20 +92,20 @@ function calculateReadiness(data: HealthSnapshotType | null): ReadinessResult | 
 
   let label = "Moderate";
   let color = "var(--color-warning)";
-  let desc = "Recovery in progress. Good for moderate workouts.";
+  let desc = "Recovery is still building. Moderate work is appropriate.";
 
   if (score >= 85) {
     label = "Prime";
     color = "var(--color-success)";
-    desc = "Excellent recovery. You are primed for high-intensity training.";
+    desc = "Recovery markers support high-intensity work.";
   } else if (score >= 70) {
     label = "Good";
     color = "var(--color-info)";
-    desc = "Ready for solid training. Monitor hydration and effort.";
+    desc = "Ready for regular training. Watch hydration and effort.";
   } else if (score < 50) {
     label = "Fatigued";
     color = "var(--color-danger)";
-    desc = "High stress or poor sleep. Consider active recovery or rest.";
+    desc = "Stress or sleep markers suggest recovery or rest.";
   }
 
   return { score, label, color, desc };
@@ -138,7 +137,7 @@ function MetricChip({
       className="flex flex-col gap-1 rounded-[var(--radius-lg)] p-3 transition-all duration-[var(--duration-micro)] hover:scale-[1.02] border border-[var(--border-subtle)] relative overflow-hidden"
       style={{
         background: bgTint 
-          ? `linear-gradient(135deg, var(--bg-elevated) 0%, color-mix(in srgb, ${bgTint} 8%, var(--bg-elevated)) 100%)`
+          ? `color-mix(in srgb, ${bgTint} 8%, var(--bg-elevated))`
           : "var(--bg-elevated)",
       }}
     >
@@ -241,7 +240,7 @@ function SleepStagesBar({
 export function HealthSnapshotSkeleton() {
   return (
     <div
-      className="rounded-[var(--radius-xl)] p-6 flex flex-col gap-5 glass-card"
+      className="rounded-[var(--radius-md)] p-5 flex flex-col gap-4 glass-card"
     >
       <div className="flex items-center justify-between">
         <Skeleton width="120px" height="22px" />
@@ -277,20 +276,20 @@ export function HealthSnapshot({ data, className }: Props) {
     return (
       <div
         className={clsx(
-          "rounded-[var(--radius-xl)] p-6 flex flex-col items-center justify-center gap-3 glass-card",
+          "rounded-[var(--radius-md)] p-5 flex flex-col items-center justify-center gap-3 glass-card",
           className
         )}
         style={{ minHeight: 180 }}
       >
-        <div className="rounded-full p-3 bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-[var(--text-muted)]">
+        <div className="rounded-[var(--radius-sm)] p-3 bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-[var(--text-muted)]">
           <WifiOff size={28} strokeWidth={1.5} />
         </div>
         <div className="text-center">
           <p style={{ fontSize: "var(--text-sm)", color: "var(--text-secondary)", fontWeight: 500 }}>
-            Biometric Sync Pending
+            Biometric sync pending
           </p>
           <p style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", marginTop: 2, maxWidth: 220 }}>
-            Connect Garmin, Polar or Apple Health in your profile settings.
+            Connect a supported source in settings to populate this panel.
           </p>
         </div>
       </div>
@@ -301,7 +300,7 @@ export function HealthSnapshot({ data, className }: Props) {
 
   return (
     <div
-      className={clsx("rounded-[var(--radius-xl)] p-6 flex flex-col gap-5 glass-card", className)}
+      className={clsx("rounded-[var(--radius-md)] p-5 flex flex-col gap-4 glass-card", className)}
     >
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -312,11 +311,8 @@ export function HealthSnapshot({ data, className }: Props) {
           Biometric Snapshot
         </h2>
         {data.source && (
-          <div className="flex items-center gap-1.5 rounded-full px-2.5 py-0.5 border border-success/10 bg-success-8" style={{ background: "var(--color-success-8)" }}>
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75" style={{ background: "var(--color-success)" }} />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-success" style={{ background: "var(--color-success)" }} />
-            </span>
+          <div className="flex items-center gap-1.5 rounded-[var(--radius-sm)] px-2.5 py-0.5 border border-[var(--border-subtle)]" style={{ background: "var(--color-success-8)" }}>
+            <span className="h-2 w-2 rounded-full" style={{ background: "var(--color-success)" }} />
             <span
               style={{
                 fontSize: "10px",
@@ -326,7 +322,7 @@ export function HealthSnapshot({ data, className }: Props) {
                 letterSpacing: "0.05em",
               }}
             >
-              {data.source} Connected
+              {data.source} connected
             </span>
           </div>
         )}
@@ -335,13 +331,13 @@ export function HealthSnapshot({ data, className }: Props) {
       {/* Training Readiness Ring Widget */}
       {readiness && (
         <div 
-          className="flex items-center gap-4 p-3.5 rounded-[var(--radius-lg)] border border-[var(--border-subtle)]"
+          className="flex items-center gap-4 p-3.5 rounded-[var(--radius-md)] border border-[var(--border-subtle)]"
           style={{
-            background: `linear-gradient(135deg, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0) 100%)`,
+            background: "var(--bg-elevated)",
           }}
         >
           {/* Radial SVG Ring */}
-          <div className="relative flex-shrink-0 w-[64px] height-[64px]">
+          <div className="relative flex-shrink-0 w-[64px] h-[64px]">
             <svg className="w-full h-full transform -rotate-95" viewBox="0 0 36 36">
               <path
                 className="text-[var(--bg-elevated)]"
@@ -372,9 +368,9 @@ export function HealthSnapshot({ data, className }: Props) {
 
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
-              <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", fontWeight: 500 }}>Training Readiness:</span>
+              <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", fontWeight: 500 }}>Training readiness</span>
               <span 
-                className="rounded-full px-2 py-0.5 text-[10px] font-bold text-glow" 
+                className="rounded-[var(--radius-sm)] px-2 py-0.5 text-[10px] font-bold" 
                 style={{ color: readiness.color, background: `color-mix(in srgb, ${readiness.color} 12%, transparent)` }}
               >
                 {readiness.label}
