@@ -213,7 +213,16 @@ public class WorkoutService
                 .findFirst()
                 .orElse(160);
 
-        return new ZoneContext(ftp, lthr);
+        int thresholdPace = zones.stream()
+                .filter(z -> sport != null
+                        && sport.equalsIgnoreCase(z.sport())
+                        && "pace".equalsIgnoreCase(z.zoneType())
+                        && z.ftp() != null)
+                .mapToInt(z -> z.ftp())
+                .findFirst()
+                .orElse(300);
+
+        return new ZoneContext(ftp, lthr, thresholdPace);
     }
 
 

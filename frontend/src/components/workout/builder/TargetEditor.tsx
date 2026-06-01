@@ -29,9 +29,9 @@ interface TargetMeta {
 
 const TARGET_TYPES: TargetMeta[] = [
   { type: "power_zone", label: "Power Zone", sports: ["cycling"] },
-  { type: "power_pct", label: "% FTP", sports: ["cycling"] },
+  { type: "power_pct", label: "% FTP", sports: ["cycling", "running", "swimming"] },
   { type: "hr_zone", label: "HR Zone", sports: "all" },
-  { type: "pace", label: "Pace (sec/km)", sports: ["running"] },
+  { type: "pace", label: "Pace", sports: ["running"] },
   { type: "cadence", label: "RPE (1–10)", sports: "all" }, // repurposed as RPE
   { type: "open", label: "Open / No target", sports: "all" },
 ];
@@ -119,6 +119,107 @@ function NumInput({
 }
 
 /* ------------------------------------------------------------------ */
+/*  Pace input helper (MM:SS)                                            */
+/* ------------------------------------------------------------------ */
+
+function PaceInput({
+  label,
+  id,
+  value,
+  onChange,
+}: {
+  label: string;
+  id: string;
+  value: number;
+  onChange: (v: number) => void;
+}) {
+  const mins = Math.floor(value / 60);
+  const secs = value % 60;
+  const [minStr, setMinStr] = React.useState(mins.toString());
+  const [secStr, setSecStr] = React.useState(secs.toString().padStart(2, "0"));
+
+  const [prevValue, setPrevValue] = React.useState(value);
+  if (value !== prevValue) {
+    setPrevValue(value);
+    setMinStr(mins.toString());
+    setSecStr(secs.toString().padStart(2, "0"));
+  }
+
+  const handleMinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setMinStr(val);
+    const m = parseInt(val, 10) || 0;
+    const s = parseInt(secStr, 10) || 0;
+    onChange(m * 60 + s);
+  };
+
+  const handleSecChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let val = e.target.value;
+    const sVal = parseInt(val, 10) || 0;
+    if (sVal >= 60) val = "59";
+    setSecStr(val);
+    const m = parseInt(minStr, 10) || 0;
+    const s = parseInt(val, 10) || 0;
+    onChange(m * 60 + s);
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1 }}>
+      <label htmlFor={id} style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", fontWeight: 500 }}>
+        {label}
+      </label>
+      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+        <input
+          id={id}
+          type="number"
+          min={0}
+          max={99}
+          value={minStr}
+          onChange={handleMinChange}
+          placeholder="min"
+          style={{
+            height: 36,
+            width: "60px",
+            borderRadius: "var(--radius-sm)",
+            border: "1px solid var(--border-default)",
+            background: "var(--bg-input)",
+            color: "var(--text-primary)",
+            padding: "0 8px",
+            fontSize: "var(--text-sm)",
+            fontFamily: "var(--font-mono, monospace)",
+            textAlign: "center",
+            outline: "none",
+          }}
+        />
+        <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>:</span>
+        <input
+          type="number"
+          min={0}
+          max={59}
+          value={secStr}
+          onChange={handleSecChange}
+          placeholder="sec"
+          style={{
+            height: 36,
+            width: "60px",
+            borderRadius: "var(--radius-sm)",
+            border: "1px solid var(--border-default)",
+            background: "var(--bg-input)",
+            color: "var(--text-primary)",
+            padding: "0 8px",
+            fontSize: "var(--text-sm)",
+            fontFamily: "var(--font-mono, monospace)",
+            textAlign: "center",
+            outline: "none",
+          }}
+        />
+        <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", marginLeft: 4 }}>/km</span>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Component                                                            */
 /* ------------------------------------------------------------------ */
 
@@ -134,7 +235,15 @@ export function TargetEditor({ value, sport, onSave, onClose }: TargetEditorProp
 
   const availableTypes = TARGET_TYPES.filter(
     (t) => t.sports === "all" || t.sports.includes(sport)
-  );
+  ).map((t) => {
+    if (t.type === "power_pct") {
+      return {
+        ...t,
+        label: sport === "cycling" ? "% FTP" : "% Pace",
+      };
+    }
+    return t;
+  });
 
   function buildTarget(): StepTarget {
     switch (type) {
@@ -274,11 +383,11 @@ export function TargetEditor({ value, sport, onSave, onClose }: TargetEditorProp
           </div>
         )}
 
-        {/* Pace range (sec/km) */}
+        {/* Pace range */}
         {type === "pace" && (
           <div style={{ display: "flex", gap: 12 }}>
-            <NumInput label="Fast (sec/km)" id="pace-min" value={paceMin} min={60} max={900} onChange={setPaceMin} />
-            <NumInput label="Easy (sec/km)" id="pace-max" value={paceMax} min={60} max={900} onChange={setPaceMax} />
+            <PaceInput label="Fast Pace" id="pace-min" value={paceMin} onChange={setPaceMin} />
+            <PaceInput label="Easy Pace" id="pace-max" value={paceMax} onChange={setPaceMax} />
           </div>
         )}
 

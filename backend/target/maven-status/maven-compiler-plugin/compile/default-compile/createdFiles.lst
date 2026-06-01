@@ -191,6 +191,7 @@ com/coachfit/account/application/port/in/AccountUseCase.class
 com/coachfit/health/application/port/out/HealthSleepDataPersistencePort.class
 com/coachfit/activity/application/service/parser/TcxParser$LX.class
 com/coachfit/health/adapter/in/package-info.class
+com/coachfit/sync/application/service/GarminTrainingSyncService$1Profile.class
 com/coachfit/calendar/application/port/out/CalendarEventPersistencePort$CalendarEventSummary.class
 com/coachfit/activity/adapter/in/ActivityExceptionHandler.class
 com/coachfit/dashboard/application/port/out/DashboardQueryPort.class

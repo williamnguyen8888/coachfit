@@ -163,7 +163,7 @@ public class GarminTrainingSyncService implements SyncWorkoutToGarminUseCase {
             List<Map<String, Object>> garminSteps = new java.util.ArrayList<>();
             int order = 1;
             for (Map<String, Object> step : steps) {
-                garminSteps.add(convertStep(step, order++, zoneCtx));
+                garminSteps.add(convertStep(step, order++, zoneCtx, workout.sport()));
             }
 
             Map<String, Object> sportType = new LinkedHashMap<>();
@@ -190,7 +190,7 @@ public class GarminTrainingSyncService implements SyncWorkoutToGarminUseCase {
      * Converts a CoachFit workout step to Garmin Training API step format.
      */
     @SuppressWarnings("unchecked")
-    private Map<String, Object> convertStep(Map<String, Object> step, int order, ZoneContext zoneCtx) {
+    private Map<String, Object> convertStep(Map<String, Object> step, int order, ZoneContext zoneCtx, String sport) {
         Map<String, Object> garminStep = new LinkedHashMap<>();
         garminStep.put("stepOrder", order);
         garminStep.put("stepType",  toGarminStepType(getString(step, "type")));
@@ -207,13 +207,13 @@ public class GarminTrainingSyncService implements SyncWorkoutToGarminUseCase {
         // Target
         Object target = step.get("target");
         if (target instanceof Map<?,?> tgt) {
-            applyGarminTarget(garminStep, (Map<String,Object>) tgt, zoneCtx);
+            applyGarminTarget(garminStep, (Map<String,Object>) tgt, zoneCtx, sport);
         }
 
         return garminStep;
     }
 
-    private void applyGarminTarget(Map<String, Object> garminStep, Map<String, Object> target, ZoneContext zoneCtx) {
+    private void applyGarminTarget(Map<String, Object> garminStep, Map<String, Object> target, ZoneContext zoneCtx, String sport) {
         String type = getString(target, "type");
         if (type == null) return;
 
@@ -230,9 +230,17 @@ public class GarminTrainingSyncService implements SyncWorkoutToGarminUseCase {
             case "power_pct" -> {
                 double minPct = getDouble(target, "min");
                 double maxPct = getDouble(target, "max");
-                garminStep.put("targetType",       "power");
-                garminStep.put("targetValueLow",   Math.round(zoneCtx.ftpWatts() * minPct));
-                garminStep.put("targetValueHigh",  Math.round(zoneCtx.ftpWatts() * maxPct));
+                if (sport != null && (sport.equalsIgnoreCase("running") || sport.equalsIgnoreCase("swimming"))) {
+                    double thresholdPace = zoneCtx.thresholdPace();
+                    double thresholdSpeed = 1000.0 / (thresholdPace > 0 ? thresholdPace : 300.0);
+                    garminStep.put("targetType",       "speed");
+                    garminStep.put("targetValueLow",   thresholdSpeed * minPct);
+                    garminStep.put("targetValueHigh",  thresholdSpeed * maxPct);
+                } else {
+                    garminStep.put("targetType",       "power");
+                    garminStep.put("targetValueLow",   Math.round(zoneCtx.ftpWatts() * minPct));
+                    garminStep.put("targetValueHigh",  Math.round(zoneCtx.ftpWatts() * maxPct));
+                }
             }
             case "hr_zone" -> {
                 garminStep.put("targetType", "heart.rate.zone");
@@ -249,6 +257,13 @@ public class GarminTrainingSyncService implements SyncWorkoutToGarminUseCase {
                 garminStep.put("targetType",       "heart.rate");
                 garminStep.put("targetValueLow",   Math.round(zoneCtx.lthrBpm() * minPct));
                 garminStep.put("targetValueHigh",  Math.round(zoneCtx.lthrBpm() * maxPct));
+            }
+            case "pace" -> {
+                double minPace = getDouble(target, "min"); // fast (fewer seconds)
+                double maxPace = getDouble(target, "max"); // slow (more seconds)
+                garminStep.put("targetType",       "speed");
+                garminStep.put("targetValueLow",   maxPace > 0 ? 1000.0 / maxPace : 0.0);
+                garminStep.put("targetValueHigh",  minPace > 0 ? 1000.0 / minPace : 0.0);
             }
             default -> garminStep.put("targetType", "open");
         }
@@ -290,22 +305,40 @@ public class GarminTrainingSyncService implements SyncWorkoutToGarminUseCase {
     }
 
     /**
-     * Loads zone context (FTP, LTHR) from {@code athlete_profiles} for the user.
-     * Falls back to defaults if no profile exists.
+     * Loads zone context (FTP, LTHR, Running Threshold Pace) from athlete_profiles and sport_zones.
      */
     private ZoneContext loadZoneContext(UUID userId) {
-        var result = jdbcClient.sql("""
+        record Profile(int ftp, int lthr) {}
+        var profileOpt = jdbcClient.sql("""
                 SELECT ftp_watts, lthr_bpm
                   FROM athlete_profiles
                  WHERE user_id = :userId
                  LIMIT 1
                 """)
                 .param("userId", userId)
-                .query((rs, n) -> new ZoneContext(
+                .query((rs, n) -> new Profile(
                         rs.getInt("ftp_watts"),
                         rs.getInt("lthr_bpm")))
                 .optional();
-        return result.orElse(new ZoneContext(200, 160)); // sensible defaults
+
+        int ftp = profileOpt.map(p -> p.ftp).orElse(200);
+        int lthr = profileOpt.map(p -> p.lthr).orElse(160);
+
+        var paceOpt = jdbcClient.sql("""
+                SELECT ftp
+                  FROM sport_zones
+                 WHERE user_id = :userId
+                   AND sport = 'running'
+                   AND zone_type = 'pace'
+                 ORDER BY effective_date DESC
+                 LIMIT 1
+                """)
+                .param("userId", userId)
+                .query((rs, n) -> rs.getInt("ftp"))
+                .optional();
+        int thresholdPace = paceOpt.orElse(300);
+
+        return new ZoneContext(ftp, lthr, thresholdPace);
     }
 
     private void persistGarminIds(UUID calendarEventId, String garminWorkoutId, String garminScheduledId) {

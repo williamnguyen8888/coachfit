@@ -67,10 +67,9 @@ public class FitEncoder {
      * @param zoneContext FTP and LTHR values for resolving percentage-based targets
      * @return binary content of the encoded .FIT file
      * @throws WorkoutValidationException if the workout steps JSON cannot be parsed
-     */
-    public byte[] encode(WorkoutDetail workout, ZoneContext zoneContext) {
+     */    public byte[] encode(WorkoutDetail workout, ZoneContext zoneContext) {
         JsonNode stepsRoot = parseSteps(workout.stepsJson());
-        List<WorkoutStepMesg> flatSteps = flattenSteps(stepsRoot, zoneContext);
+        List<WorkoutStepMesg> flatSteps = flattenSteps(stepsRoot, zoneContext, workout.sport());
 
         BufferEncoder encoder = new BufferEncoder(Fit.ProtocolVersion.V2_0);
         encoder.open();
@@ -108,15 +107,15 @@ public class FitEncoder {
      * Flattens the step tree into a sequential list with repeat sentinels inserted.
      * Message indices are assigned after the full list is built (0-based).
      */
-    private List<WorkoutStepMesg> flattenSteps(JsonNode stepsArray, ZoneContext ctx) {
+    private List<WorkoutStepMesg> flattenSteps(JsonNode stepsArray, ZoneContext ctx, String sport) {
         List<WorkoutStepMesg> result = new ArrayList<>();
 
         for (JsonNode stepNode : stepsArray) {
             String type = stepNode.get("type").asText();
             if ("repeat".equals(type)) {
-                expandRepeat(stepNode, result, ctx);
+                expandRepeat(stepNode, result, ctx, sport);
             } else {
-                result.add(buildLeafStep(stepNode, ctx));
+                result.add(buildLeafStep(stepNode, ctx, sport));
             }
         }
 
@@ -129,22 +128,17 @@ public class FitEncoder {
 
     /**
      * Expands a {@code repeat} step: [inner steps…] + REPEAT sentinel.
-     *
-     * <p>The sentinel uses {@code REPEAT_UNTIL_STEPS_CMPLT} with:
-     * <ul>
-     *   <li>{@code durationValue} = message_index of the first inner step</li>
-     *   <li>{@code targetValue}   = repeat count</li>
-     * </ul>
      */
     private void expandRepeat(JsonNode repeatNode,
                                List<WorkoutStepMesg> result,
-                               ZoneContext ctx) {
+                               ZoneContext ctx,
+                               String sport) {
         int repeatCount   = repeatNode.get("count").asInt();
         int firstInnerIdx = result.size();
 
         // Inner steps — added before the sentinel
         for (JsonNode inner : repeatNode.get("steps")) {
-            result.add(buildLeafStep(inner, ctx));
+            result.add(buildLeafStep(inner, ctx, sport));
         }
 
         // Sentinel step (not a real workout step — just a "go back" instruction)
@@ -159,7 +153,7 @@ public class FitEncoder {
     }
 
     /** Builds a single non-repeat {@link WorkoutStepMesg} from a step JSON node. */
-    private WorkoutStepMesg buildLeafStep(JsonNode stepNode, ZoneContext ctx) {
+    private WorkoutStepMesg buildLeafStep(JsonNode stepNode, ZoneContext ctx, String sport) {
         WorkoutStepMesg step = new WorkoutStepMesg();
 
         step.setIntensity(toIntensity(stepNode.get("type").asText()));
@@ -167,7 +161,7 @@ public class FitEncoder {
 
         JsonNode target = stepNode.get("target");
         if (target != null && !target.isNull()) {
-            applyTarget(step, target, ctx);
+            applyTarget(step, target, ctx, sport);
         } else {
             step.setTargetType(WktStepTarget.OPEN);
             step.setTargetValue(0L);
@@ -234,12 +228,8 @@ public class FitEncoder {
 
     /**
      * Maps an internal target descriptor to FIT step target fields.
-     *
-     * <p>Zone targets use SDK convenience setters (e.g., {@code setTargetPowerZone}) which
-     * internally set both {@code targetType} and {@code targetValue}.
-     * Custom ranges use {@code customTargetValueLow}/{@code High}.
      */
-    private static void applyTarget(WorkoutStepMesg step, JsonNode target, ZoneContext ctx) {
+    private static void applyTarget(WorkoutStepMesg step, JsonNode target, ZoneContext ctx, String sport) {
         String type = target.get("type").asText();
 
         switch (type) {
@@ -256,13 +246,28 @@ public class FitEncoder {
                 step.setCustomTargetValueHigh(target.get("max").asLong());
             }
             case "power_pct" -> {
-                // Convert % of FTP to absolute watts
-                long minW = Math.round(ctx.ftpWatts() * target.get("min").asDouble());
-                long maxW = Math.round(ctx.ftpWatts() * target.get("max").asDouble());
-                step.setTargetType(WktStepTarget.POWER);
-                step.setTargetValue(0L);
-                step.setCustomTargetValueLow(minW);
-                step.setCustomTargetValueHigh(maxW);
+                if (sport != null && (sport.equalsIgnoreCase("running") || sport.equalsIgnoreCase("swimming"))) {
+                    // Convert % of Threshold Pace to absolute speed in mm/s
+                    double thresholdPace = ctx.thresholdPace();
+                    if (thresholdPace <= 0) thresholdPace = 300.0;
+                    double thresholdSpeedMmS = 1_000_000.0 / thresholdPace;
+
+                    long speedLow = Math.round(thresholdSpeedMmS * target.get("min").asDouble());
+                    long speedHigh = Math.round(thresholdSpeedMmS * target.get("max").asDouble());
+
+                    step.setTargetType(WktStepTarget.SPEED);
+                    step.setTargetValue(0L);
+                    step.setCustomTargetValueLow(speedLow);
+                    step.setCustomTargetValueHigh(speedHigh);
+                } else {
+                    // Convert % of FTP to absolute watts
+                    long minW = Math.round(ctx.ftpWatts() * target.get("min").asDouble());
+                    long maxW = Math.round(ctx.ftpWatts() * target.get("max").asDouble());
+                    step.setTargetType(WktStepTarget.POWER);
+                    step.setTargetValue(0L);
+                    step.setCustomTargetValueLow(minW);
+                    step.setCustomTargetValueHigh(maxW);
+                }
             }
             case "hr_zone" -> {
                 // SDK sets targetType=HEART_RATE + encodes zone number
