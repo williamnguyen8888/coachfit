@@ -92,6 +92,9 @@ public class CalendarEventService
     @Override
     @Transactional
     public void update(UUID userId, UUID eventId, UpdateCommand command) {
+        CalendarEventSummary existing = findOwnedEvent(userId, eventId);
+        boolean dateChanged = !existing.date().equals(command.date());
+
         boolean found = port.update(
                 eventId, userId,
                 command.date(), command.eventType(),
@@ -101,6 +104,61 @@ public class CalendarEventService
         if (!found) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Calendar event not found");
         }
+
+        if (dateChanged) {
+            // 1. If it was linked to an activity, unlink it and move activity back as standalone event on old date
+            if (existing.activityId() != null) {
+                port.unlinkActivity(eventId);
+                port.createStandaloneActivityEvent(
+                        userId,
+                        existing.date(),
+                        existing.activityId(),
+                        existing.activityName(),
+                        existing.activitySport()
+                );
+                log.info("Moved event {} to {}. Unlinked activity {} and orphaned it back to old date {}.",
+                        eventId, command.date(), existing.activityId(), existing.date());
+            }
+
+            // 2. Try to match on the new date
+            if ("workout".equals(command.eventType()) && command.workoutId() != null) {
+                // Fetch the sport of the workout. We can get it from the database since findOwnedEvent (which now joins workouts) populated it
+                String workoutSport = existing.workoutSport();
+                if (workoutSport != null) {
+                    var unmatched = port.findUnmatchedActivityOnDate(userId, command.date(), workoutSport);
+                    if (unmatched.isPresent()) {
+                        var act = unmatched.get();
+
+                        // Calculate compliance score
+                        BigDecimal complianceScore = BigDecimal.valueOf(100.0);
+                        Integer plannedDuration = existing.workoutDuration();
+                        int actualDuration = act.durationSeconds();
+                        if (plannedDuration != null && plannedDuration > 0) {
+                            double ratio = (double) actualDuration / plannedDuration;
+                            if (ratio >= 0.9 && ratio <= 1.1) {
+                                complianceScore = BigDecimal.valueOf(100.0);
+                            } else if (ratio < 0.9) {
+                                complianceScore = BigDecimal.valueOf(Math.max(0.0, 100.0 * (ratio / 0.9)))
+                                        .setScale(2, java.math.RoundingMode.HALF_UP);
+                            } else {
+                                complianceScore = BigDecimal.valueOf(Math.max(0.0, 100.0 * (1.0 - (ratio - 1.1))))
+                                        .setScale(2, java.math.RoundingMode.HALF_UP);
+                            }
+                        }
+
+                        // Link activity to the updated calendar event
+                        port.linkActivity(eventId, act.id(), complianceScore);
+
+                        // Delete the standalone calendar event for the activity on the new date
+                        port.deleteStandaloneEventForActivity(act.id());
+
+                        log.info("Auto-matched workout event {} on new date {} with unmatched activity {}",
+                                eventId, command.date(), act.id());
+                    }
+                }
+            }
+        }
+
         log.debug("Calendar event updated: id={} user={}", eventId, userId);
     }
 

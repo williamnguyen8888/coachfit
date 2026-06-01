@@ -182,6 +182,7 @@ com/coachfit/sync/application/service/GarminActivitySyncService$StagedRow.class
 com/coachfit/calendar/application/port/in/ListCalendarEventsUseCase$CalendarEventView.class
 com/coachfit/athlete/adapter/in/AthleteExceptionHandler.class
 com/coachfit/subscription/domain/package-info.class
+com/coachfit/calendar/application/port/out/CalendarEventPersistencePort$SimpleActivityDetailsWithId.class
 com/coachfit/gear/application/port/in/GearUseCase.class
 com/coachfit/account/adapter/in/dto/AccountPrivacyResponse.class
 com/coachfit/wellness/adapter/in/package-info.class

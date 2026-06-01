@@ -285,17 +285,17 @@ export function ActivityCard({
       style={{
         position: "relative",
         width: "100%",
-        opacity: isDragging ? 0.3 : 1,
+        opacity: isDragging && !hasPlanAndActual ? 0.3 : 1,
         transition: "opacity 150ms ease-out",
       }}
     >
       <div
-        draggable={draggable}
-        onDragStart={onDragStart}
-        onDragEnd={onDragEnd}
-        onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
-        onTouchEnd={onTouchEnd}
+        draggable={draggable && !hasPlanAndActual}
+        onDragStart={!hasPlanAndActual ? onDragStart : undefined}
+        onDragEnd={!hasPlanAndActual ? onDragEnd : undefined}
+        onTouchStart={!hasPlanAndActual ? onTouchStart : undefined}
+        onTouchMove={!hasPlanAndActual ? onTouchMove : undefined}
+        onTouchEnd={!hasPlanAndActual ? onTouchEnd : undefined}
         className="cal-chip-btn-container"
         style={{
           display: "flex",
@@ -305,7 +305,7 @@ export function ActivityCard({
           background: "var(--bg-elevated)",
           border: `1px solid ${sportHex.primary}30`,
           borderRadius: "var(--radius-md)",
-          cursor: draggable ? "grab" : "default",
+          cursor: draggable && !hasPlanAndActual ? "grab" : "default",
           textAlign: "center",
           transition: "box-shadow 150ms ease-out, transform 120ms ease-out, border-color 150ms ease",
           overflow: "hidden",
@@ -505,7 +505,7 @@ export function ActivityCard({
         {hasPlanAndActual && (
           <div
             style={{
-              display: "flex",
+              display: isDragging ? "none" : "flex",
               alignItems: "center",
               justifyContent: "center",
               position: "relative",
@@ -557,6 +557,12 @@ export function ActivityCard({
           <div
             role="button"
             tabIndex={0}
+            draggable={draggable}
+            onDragStart={onDragStart}
+            onDragEnd={onDragEnd}
+            onTouchStart={onTouchStart}
+            onTouchMove={onTouchMove}
+            onTouchEnd={onTouchEnd}
             onClick={(e) => {
               e.stopPropagation();
               onClick?.(event);
@@ -572,11 +578,11 @@ export function ActivityCard({
               width: "100%",
               background: `color-mix(in srgb, ${sportHex.primary} 3%, transparent)`,
               padding: "6px 10px 10px",
-              display: "flex",
+              display: isDragging ? "none" : "flex",
               flexDirection: "column",
               gap: 4,
               position: "relative",
-              cursor: "pointer",
+              cursor: draggable ? "grab" : "pointer",
               transition: "background 150ms ease",
             }}
             onMouseEnter={(e) => {

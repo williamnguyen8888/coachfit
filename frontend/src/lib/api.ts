@@ -107,7 +107,13 @@ export async function apiFetch<T>(
   if (res.ok) {
     // 204 No Content
     if (res.status === 204) return undefined as T;
-    return (await res.json()) as T;
+    const text = await res.text();
+    if (!text) return undefined as T;
+    try {
+      return JSON.parse(text) as T;
+    } catch {
+      return undefined as T;
+    }
   }
 
   // ── Parse error body ──
@@ -190,7 +196,13 @@ export async function apiUpload<T>(
 
   if (res.ok) {
     if (res.status === 204) return undefined as T;
-    return (await res.json()) as T;
+    const text = await res.text();
+    if (!text) return undefined as T;
+    try {
+      return JSON.parse(text) as T;
+    } catch {
+      return undefined as T;
+    }
   }
 
   let errorCode = "UNKNOWN";

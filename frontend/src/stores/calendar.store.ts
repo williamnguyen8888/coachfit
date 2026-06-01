@@ -94,7 +94,7 @@ interface CalendarState {
   prevPeriod: () => void;
 
   // Data fetching
-  fetchCurrentRange: () => Promise<void>;
+  fetchCurrentRange: (silent?: boolean) => Promise<void>;
 
   // CRUD
   createEvent: (payload: CreateCalendarPayload) => Promise<CalendarEvent>;
@@ -187,12 +187,16 @@ export const useCalendarStore = create<CalendarState>()(
       },
 
       // ── Data fetching ─────────────────────────────────────────────────────
-      fetchCurrentRange: async () => {
+      fetchCurrentRange: async (silent = false) => {
         const { viewMode, getWeekRange, getMonthRange } = get();
         const { from, to } =
           viewMode === "week" ? getWeekRange() : getMonthRange();
 
-        set({ isLoading: true, error: null });
+        if (!silent) {
+          set({ isLoading: true, error: null });
+        } else {
+          set({ error: null });
+        }
         try {
           const [events, wellnessRes, healthDailyRes, sleepRes] = await Promise.all([
             calendarService.list(from, to),
@@ -266,30 +270,95 @@ export const useCalendarStore = create<CalendarState>()(
           workoutId: payload.workoutId !== undefined ? payload.workoutId : (existing.workout?.id ?? undefined),
         };
 
-        // Backend returns void — optimistically update from local state + payload
-        await calendarService.update(id, fullPayload);
-        set((state) => {
-          const target = state.events.find((e) => e.id === id);
-          if (!target) return {};
-          const updated = {
-            ...target,
-            date: fullPayload.date!,
-            eventType: fullPayload.eventType!,
-            title: fullPayload.title!,
-            notes: fullPayload.notes ?? null,
-            workout: fullPayload.workoutId
-              ? {
-                  id: fullPayload.workoutId,
-                  sport: target.workout?.sport ?? "other",
-                  estimatedDuration: target.workout?.estimatedDuration ?? null,
-                  estimatedTss: target.workout?.estimatedTss ?? null,
-                  estimatedDistance: target.workout?.estimatedDistance ?? null,
+        const dateChanged = fullPayload.date !== existing.date;
+        const previousEvents = get().events;
+        const previousById = get().eventsByDate;
+
+        if (dateChanged) {
+          // Optimistic update for date change
+          set((state) => {
+            let nextEvents = state.events.map((e) => {
+              if (e.id === id) {
+                if (e.workout && e.activity) {
+                  return {
+                    ...e,
+                    date: fullPayload.date!,
+                    title: fullPayload.title!,
+                    notes: fullPayload.notes ?? null,
+                    activity: null,
+                    complianceScore: null,
+                    status: "planned" as const,
+                  };
                 }
-              : null,
-          };
-          const next = state.events.map((e) => e.id === id ? updated : e);
-          return { events: next, eventsByDate: groupByDate(next) };
-        });
+                return {
+                  ...e,
+                  date: fullPayload.date!,
+                  title: fullPayload.title!,
+                  notes: fullPayload.notes ?? null,
+                };
+              }
+              return e;
+            });
+
+            if (existing.workout && existing.activity) {
+              const tempActivityEvent: CalendarEvent = {
+                id: `activity-event-temp-${existing.activity.id}`,
+                date: existing.date,
+                eventType: "workout",
+                title: existing.activity.name || existing.title || "Activity",
+                status: "completed",
+                workout: null,
+                activity: existing.activity,
+                complianceScore: null,
+                orderIndex: 999,
+                assignedBy: null,
+                notes: null,
+                garminWorkoutId: null,
+                garminScheduledId: null,
+                garminSyncedAt: null,
+              };
+              nextEvents.push(tempActivityEvent);
+            }
+
+            return {
+              events: nextEvents,
+              eventsByDate: groupByDate(nextEvents),
+            };
+          });
+        } else {
+          // Standard optimistic update
+          set((state) => {
+            const target = state.events.find((e) => e.id === id);
+            if (!target) return {};
+            const updated = {
+              ...target,
+              date: fullPayload.date!,
+              eventType: fullPayload.eventType!,
+              title: fullPayload.title!,
+              notes: fullPayload.notes ?? null,
+              workout: fullPayload.workoutId
+                ? {
+                    id: fullPayload.workoutId,
+                    sport: target.workout?.sport ?? "other",
+                    estimatedDuration: target.workout?.estimatedDuration ?? null,
+                    estimatedTss: target.workout?.estimatedTss ?? null,
+                    estimatedDistance: target.workout?.estimatedDistance ?? null,
+                  }
+                : null,
+            };
+            const next = state.events.map((e) => e.id === id ? updated : e);
+            return { events: next, eventsByDate: groupByDate(next) };
+          });
+        }
+
+        try {
+          await calendarService.update(id, fullPayload);
+          await get().fetchCurrentRange(true);
+        } catch (err) {
+          // Rollback on error
+          set({ events: previousEvents, eventsByDate: previousById });
+          throw err;
+        }
       },
 
       deleteEvent: async (id) => {
@@ -360,12 +429,50 @@ export const useCalendarStore = create<CalendarState>()(
         const newOrderIndex = targetDayEvents.length;
 
         set((state) => {
-          const updated = state.events.map((e) =>
-            e.id === eventId ? { ...e, date: toDate, orderIndex: newOrderIndex } : e,
-          );
+          let nextEvents = state.events.map((e) => {
+            if (e.id === eventId) {
+              // If it's a workout with a linked activity, moving it unlinks the activity
+              if (e.workout && e.activity) {
+                return {
+                  ...e,
+                  date: toDate,
+                  orderIndex: newOrderIndex,
+                  activity: null,
+                  complianceScore: null,
+                  status: "planned" as const,
+                };
+              }
+              return { ...e, date: toDate, orderIndex: newOrderIndex };
+            }
+            return e;
+          });
+
+          // If the moved event was a workout and had a linked activity,
+          // create a temporary standalone activity event on the old date so the user
+          // immediately sees the activity stay behind!
+          if (event.workout && event.activity) {
+            const tempActivityEvent: CalendarEvent = {
+              id: `activity-event-temp-${event.activity.id}`,
+              date: event.date,
+              eventType: "workout",
+              title: event.activity.name || event.title || "Activity",
+              status: "completed",
+              workout: null,
+              activity: event.activity,
+              complianceScore: null,
+              orderIndex: 999,
+              assignedBy: null,
+              notes: null,
+              garminWorkoutId: null,
+              garminScheduledId: null,
+              garminSyncedAt: null,
+            };
+            nextEvents.push(tempActivityEvent);
+          }
+
           return {
-            events: updated,
-            eventsByDate: groupByDate(updated),
+            events: nextEvents,
+            eventsByDate: groupByDate(nextEvents),
           };
         });
 
@@ -379,7 +486,8 @@ export const useCalendarStore = create<CalendarState>()(
             notes: event.notes ?? undefined,
             workoutId: event.workout?.id ?? undefined,
           });
-          // No need to upsert — optimistic state is already correct
+          // Fetch the updated calendar from the backend to replace temporary IDs with actuals & resolve auto-matching
+          await get().fetchCurrentRange(true);
         } catch {
           // Rollback
           set({ events: previousEvents, eventsByDate: previousById });
