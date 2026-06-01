@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import type { WorkoutStep, StepType, StepDuration, StepTarget } from "@/lib/types/workout";
+import type { SportZones } from "@/lib/types/settings";
 
 // ─── Color & Icon Maps ────────────────────────────────────────────────────────
 
@@ -19,12 +20,25 @@ function getZoneColor(zone: number): string {
   return ZONE_COLORS[Math.max(1, Math.min(7, zone))] ?? "#8B8B9E";
 }
 
+const ZONE_BACKGROUNDS: Record<number, { min: number; max: number; color: string; label: string }> = {
+  1: { min: 0, max: 0.55, color: "#60A5FA", label: "Z1" },
+  2: { min: 0.55, max: 0.75, color: "#34D399", label: "Z2" },
+  3: { min: 0.75, max: 0.87, color: "#FBBF24", label: "Z3" },
+  4: { min: 0.87, max: 1.0, color: "#FB923C", label: "Z4" },
+  5: { min: 1.0, max: 1.12, color: "#F87171", label: "Z5" },
+  6: { min: 1.12, max: 1.3, color: "#C084FC", label: "Z6" },
+  7: { min: 1.3, max: 1.5, color: "#F472B6", label: "Z7" },
+};
+
 // ─── Component Props ──────────────────────────────────────────────────────────
 
 export interface InteractiveWorkoutChartProps {
   steps: WorkoutStep[];
   sport: string;
+  athleteZones?: SportZones;
 }
+
+// ─── Chart Segment Interface ──────────────────────────────────────────────────
 
 // ─── Chart Segment Interface ──────────────────────────────────────────────────
 
@@ -32,7 +46,8 @@ interface ChartSegment {
   index: number;
   type: StepType;
   durationSeconds: number;
-  intensity: number; // 0.0 - 1.5 (intensity factor speed representation)
+  startIntensity: number; // 0.0 - 1.5 (intensity factor speed representation)
+  endIntensity: number;   // 0.0 - 1.5
   color: string;
   label: string;
   startTime: number;
@@ -42,7 +57,7 @@ interface ChartSegment {
   originalStep: WorkoutStep;
 }
 
-export function InteractiveWorkoutChart({ steps, sport }: InteractiveWorkoutChartProps) {
+export function InteractiveWorkoutChart({ steps, sport, athleteZones }: InteractiveWorkoutChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [showPercent, setShowPercent] = useState(false);
   const [hoverData, setHoverData] = useState<{
@@ -63,7 +78,17 @@ export function InteractiveWorkoutChart({ steps, sport }: InteractiveWorkoutChar
       case "power_zone":
       case "hr_zone": {
         const z = target.zone ?? 2;
-        return { intensity: z / 5.5, color: getZoneColor(z), text: `Z${z}` };
+        const zoneMidpoints: Record<number, number> = {
+          1: 0.275,
+          2: 0.65,
+          3: 0.81,
+          4: 0.935,
+          5: 1.06,
+          6: 1.21,
+          7: 1.40,
+        };
+        const intensity = zoneMidpoints[z] ?? 0.65;
+        return { intensity, color: getZoneColor(z), text: `Z${z}` };
       }
       case "power_pct": {
         const mid = ((target.min ?? 0.5) + (target.max ?? 0.8)) / 2;
@@ -74,7 +99,7 @@ export function InteractiveWorkoutChart({ steps, sport }: InteractiveWorkoutChar
         if (target.min != null && target.max != null) {
           const mid = (target.min + target.max) / 2;
           const zone = Math.max(1, Math.min(6, Math.round(mid * 5.5)));
-          return { intensity: mid, color: getZoneColor(zone), text: `${Math.round(target.min * 100)}-${Math.round(target.max * 100)}% Pace` };
+          return { intensity: mid, color: getZoneColor(zone), text: `${Math.round(target.min * 100)}–${Math.round(target.max * 100)}% Pace` };
         }
         return { intensity: 0.7, color: getZoneColor(2), text: "Pace" };
       }
@@ -98,12 +123,53 @@ export function InteractiveWorkoutChart({ steps, sport }: InteractiveWorkoutChar
         const dur = step.duration?.value ?? 300;
         const { intensity, color, text: targetText } = intensityFromTarget(step.target);
         
-        let overrideIntensity = intensity;
-        if (step.type === "warmup" || step.type === "cooldown") {
-          overrideIntensity = Math.min(intensity, 0.6);
-        } else if (step.type === "rest") {
-          overrideIntensity = 0.4;
+        let startIntensity = intensity;
+        let endIntensity = intensity;
+
+        // Resolve precise ramp ranges if available
+        if (step.target) {
+          const t = step.target;
+          if (t.type === "power_pct" && t.min != null && t.max != null) {
+            if (step.type === "warmup") {
+              startIntensity = t.min;
+              endIntensity = t.max;
+            } else if (step.type === "cooldown") {
+              startIntensity = t.max;
+              endIntensity = t.min;
+            } else {
+              const mid = (t.min + t.max) / 2;
+              startIntensity = mid;
+              endIntensity = mid;
+            }
+          } else if (t.type === "pace" && t.min != null && t.max != null) {
+            if (step.type === "warmup") {
+              startIntensity = t.min;
+              endIntensity = t.max;
+            } else if (step.type === "cooldown") {
+              startIntensity = t.max;
+              endIntensity = t.min;
+            } else {
+              const mid = (t.min + t.max) / 2;
+              startIntensity = mid;
+              endIntensity = mid;
+            }
+          }
         }
+
+        // Apply standard visual fallbacks for warmups/cooldowns if they have flat targets
+        if (step.type === "rest") {
+          startIntensity = 0.4;
+          endIntensity = 0.4;
+        } else if (step.type === "warmup" && startIntensity === endIntensity) {
+          startIntensity = 0.4;
+          endIntensity = 0.6;
+        } else if (step.type === "cooldown" && startIntensity === endIntensity) {
+          startIntensity = 0.6;
+          endIntensity = 0.4;
+        }
+
+        startIntensity = Math.min(startIntensity, 1.5);
+        endIntensity = Math.min(endIntensity, 1.5);
 
         const label = step.type[0].toUpperCase() + step.type.slice(1);
         const desc = step.description || label;
@@ -112,7 +178,8 @@ export function InteractiveWorkoutChart({ steps, sport }: InteractiveWorkoutChar
           index: segments.length,
           type: step.type,
           durationSeconds: dur,
-          intensity: overrideIntensity,
+          startIntensity,
+          endIntensity,
           color: step.type === "rest" ? "#5A5A6E" : color,
           label,
           startTime: currentTime,
@@ -134,14 +201,49 @@ export function InteractiveWorkoutChart({ steps, sport }: InteractiveWorkoutChar
   // In swimming, CSS threshold pace = 2:47 per 100m (167 seconds)
   // In running, threshold pace = 4:30 per km (270 seconds)
   // In cycling, threshold power = 250 W
-  const THRESHOLD_PACES: Record<string, { value: number; label: string }> = {
-    swimming: { value: 167, label: "2:47" },
-    running: { value: 270, label: "4:30" },
-    cycling: { value: 250, label: "250W" },
-    other: { value: 100, label: "100" },
-  };
 
-  const threshold = THRESHOLD_PACES[sport] ?? THRESHOLD_PACES.other;
+  function parsePaceToSeconds(paceStr: string): number {
+    if (!paceStr) return 0;
+    const parts = paceStr.split(":");
+    if (parts.length === 2) {
+      const mins = parseInt(parts[0], 10);
+      const secs = parseInt(parts[1], 10);
+      if (!isNaN(mins) && !isNaN(secs)) {
+        return mins * 60 + secs;
+      }
+    }
+    return parseInt(paceStr, 10) || 0;
+  }
+
+  function formatSecondsToPace(totalSecs: number): string {
+    if (totalSecs <= 0 || isNaN(totalSecs) || !isFinite(totalSecs)) return "--:--";
+    const m = Math.floor(totalSecs / 60);
+    const s = Math.round(totalSecs % 60);
+    return `${m}:${s.toString().padStart(2, "0")}`;
+  }
+
+  let userFtp = 250;
+  let userThresholdPaceSecs = 270;
+  if (sport === "swimming") {
+    userThresholdPaceSecs = 167; // 2:47 default
+  }
+
+  if (athleteZones) {
+    if (sport === "cycling" && athleteZones.ftp && athleteZones.ftp > 0) {
+      userFtp = athleteZones.ftp;
+    } else if (sport === "running" && athleteZones.thresholdPace) {
+      const parsed = parsePaceToSeconds(athleteZones.thresholdPace);
+      if (parsed > 0) userThresholdPaceSecs = parsed;
+    } else if (sport === "swimming" && athleteZones.thresholdPace) {
+      const parsed = parsePaceToSeconds(athleteZones.thresholdPace);
+      if (parsed > 0) userThresholdPaceSecs = parsed;
+    }
+  }
+
+  const threshold = {
+    value: sport === "cycling" ? userFtp : userThresholdPaceSecs,
+    label: sport === "cycling" ? `${userFtp}W` : formatSecondsToPace(userThresholdPaceSecs),
+  };
 
   // ─── Format time string ─────────────────────────────────────────────────────
   function formatMinutesSeconds(seconds: number): string {
@@ -151,8 +253,7 @@ export function InteractiveWorkoutChart({ steps, sport }: InteractiveWorkoutChar
   }
 
   // ─── Calculate Absolute Target Value under hover ──────────────────────────
-  function getAbsoluteTargetLabel(segment: ChartSegment): string {
-    const intensity = segment.intensity;
+  function getAbsoluteTargetLabel(intensity: number): string {
     if (sport === "swimming") {
       // Pace (seconds/100m) = CSS / intensity
       const paceSec = Math.round(threshold.value / (intensity || 1));
@@ -172,6 +273,49 @@ export function InteractiveWorkoutChart({ steps, sport }: InteractiveWorkoutChar
     }
     return `${Math.round(intensity * 100)}%`;
   }
+
+  // ─── Format Duration for tooltip ───────────────────────────────────────────
+  function formatDurationMinutes(seconds: number): string {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = Math.round(seconds % 60);
+    if (h > 0) {
+      return `${h}h${m > 0 ? `${m}m` : ""}`;
+    }
+    if (m > 0) {
+      return `${m}m${s > 0 ? `${s}s` : ""}`;
+    }
+    return `${s}s`;
+  }
+
+  // ─── Touch Event Handlers for Mobile responsiveness ─────────────────────────
+  const handleTouchMove = (e: React.TouchEvent<SVGSVGElement>) => {
+    if (totalDuration === 0 || segments.length === 0) return;
+    const svg = e.currentTarget;
+    const rect = svg.getBoundingClientRect();
+    const touch = e.touches[0];
+    if (!touch) return;
+
+    const SVG_W = 750;
+    const PADDING_L = 55;
+    const PADDING_R = 20;
+    const chartW = SVG_W - PADDING_L - PADDING_R;
+
+    const relativeFraction = (touch.clientX - rect.left) / rect.width;
+    const svgX = relativeFraction * SVG_W;
+
+    const chartX = svgX - PADDING_L;
+    const fraction = chartX / chartW;
+    const time = Math.max(0, Math.min(totalDuration, fraction * totalDuration));
+
+    const segment = segments.find((s) => time >= s.startTime && time <= s.endTime) ?? segments[segments.length - 1];
+
+    setHoverData({
+      x: svgX,
+      time,
+      segment,
+    });
+  };
 
   // ─── Hover Event Handlers ───────────────────────────────────────────────────
   const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
@@ -267,30 +411,53 @@ export function InteractiveWorkoutChart({ steps, sport }: InteractiveWorkoutChar
       <div style={{ position: "relative", width: "100%", height: "auto" }}>
         <svg
           viewBox={`0 0 ${SVG_W} ${SVG_H}`}
-          style={{ width: "100%", height: "auto", overflow: "visible", cursor: "crosshair" }}
+          style={{ width: "100%", height: "auto", overflow: "visible", cursor: "crosshair", touchAction: "none" }}
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}
+          onTouchStart={handleTouchMove}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleMouseLeave}
         >
-          {/* Background Grid Lines */}
-          {[0.33, 0.67, 1.0, 1.33].map((intensity, idx) => {
-            // Y-coordinate: top is PADDING_T, bottom is SVG_H - PADDING_B
+          {/* Background Grid Lines & Zone Boundaries */}
+          {[
+            { value: 0.55, label: "Z1/Z2" },
+            { value: 0.75, label: "Z2/Z3" },
+            { value: 1.00, label: "Threshold" },
+            { value: 1.30, label: "Z6/Z7" }
+          ].map((grid, idx) => {
+            const intensity = grid.value;
             const y = PADDING_T + chartH * (1.0 - intensity / 1.5);
             return (
-              <line
-                key={idx}
-                x1={PADDING_L}
-                y1={y}
-                x2={SVG_W - PADDING_R}
-                y2={y}
-                stroke="var(--border-subtle)"
-                strokeWidth={1}
-                strokeDasharray={intensity === 1.0 ? "none" : "3,3"}
-              />
+              <g key={idx}>
+                {/* Dashed grid line */}
+                <line
+                  x1={PADDING_L}
+                  y1={y}
+                  x2={SVG_W - PADDING_R}
+                  y2={y}
+                  stroke="var(--border-subtle)"
+                  strokeWidth={1}
+                  strokeDasharray={intensity === 1.00 ? "none" : "3,3"}
+                />
+                {/* Right zone boundary label */}
+                <text
+                  x={SVG_W - PADDING_R - 6}
+                  y={y - 4}
+                  textAnchor="end"
+                  fontSize="8"
+                  fill="var(--text-muted)"
+                  fillOpacity={0.6}
+                  fontWeight="700"
+                  fontFamily="var(--font-mono, monospace)"
+                >
+                  {grid.label}
+                </text>
+              </g>
             );
           })}
 
           {/* Y-Axis Labels (Left) */}
-          {[0.67, 1.0, 1.33].map((intensity, idx) => {
+          {[0.55, 0.75, 1.00, 1.30].map((intensity, idx) => {
             const y = PADDING_T + chartH * (1.0 - intensity / 1.5) + 4;
             let label = "";
             if (showPercent) {
@@ -307,7 +474,7 @@ export function InteractiveWorkoutChart({ steps, sport }: InteractiveWorkoutChar
                 const paceSec = Math.round(threshold.value / intensity);
                 const m = Math.floor(paceSec / 60);
                 const s = Math.round(paceSec % 60);
-                label = `${m}:${s}`;
+                label = `${m}:${s.toString().padStart(2, "0")}`;
               } else {
                 label = `${Math.round(intensity * 100)}%`;
               }
@@ -347,25 +514,35 @@ export function InteractiveWorkoutChart({ steps, sport }: InteractiveWorkoutChar
             const x = PADDING_L + (seg.startTime / totalDuration) * chartW;
             const barW = (seg.durationSeconds / totalDuration) * chartW;
             
-            // Bar height: proportional to intensity (capped at 1.5 max grid height)
-            const barH = chartH * (seg.intensity / 1.5);
-            const y = PADDING_T + chartH - barH;
+            const yStart = PADDING_T + chartH - chartH * (seg.startIntensity / 1.5);
+            const yEnd = PADDING_T + chartH - chartH * (seg.endIntensity / 1.5);
+            const yBase = PADDING_T + chartH;
 
             // Rest steps: render a base recovery line + tiny block, other steps standard heights
             const isRest = seg.type === "rest";
+            const isRamp = seg.startIntensity !== seg.endIntensity;
 
             return (
               <g key={i}>
-                {/* Main Step Bar */}
-                <rect
-                  x={x}
-                  y={y}
-                  width={barW}
-                  height={barH}
-                  fill={seg.color}
-                  fillOpacity={isRest ? 0.35 : 0.85}
-                  rx={2}
-                />
+                {isRamp ? (
+                  /* Ramp step drawn as sloped polygon (no outline stroke to avoid clutter) */
+                  <polygon
+                    points={`${x},${yBase} ${x},${yStart} ${x + barW},${yEnd} ${x + barW},${yBase}`}
+                    fill={seg.color}
+                    fillOpacity={0.8}
+                  />
+                ) : (
+                  /* Flat step drawn as clean rounded rectangle */
+                  <rect
+                    x={x}
+                    y={yStart}
+                    width={barW}
+                    height={yBase - yStart}
+                    fill={seg.color}
+                    fillOpacity={isRest ? 0.35 : 0.85}
+                    rx={2}
+                  />
+                )}
                 
                 {/* Tiny Blue-Green Rest indicator at bottom (like intervals.icu) */}
                 {isRest && (
@@ -463,43 +640,57 @@ export function InteractiveWorkoutChart({ steps, sport }: InteractiveWorkoutChar
         </svg>
 
         {/* Floating Tooltip Card */}
-        {hoverData && (
-          <div
-            style={{
-              position: "absolute",
-              left: `${(hoverData.x / SVG_W) * 100}%`,
-              top: `${PADDING_T - 5}px`,
-              transform: "translate(-50%, -100%)",
-              background: "var(--bg-elevated)",
-              border: "1.5px solid var(--border-default)",
-              borderRadius: "var(--radius-sm)",
-              padding: "6px 12px",
-              boxShadow: "var(--shadow-md)",
-              pointerEvents: "none",
-              fontSize: "12px",
-              fontWeight: 600,
-              color: "var(--text-primary)",
-              whiteSpace: "nowrap",
-              zIndex: 10,
-              display: "flex",
-              flexDirection: "column",
-              gap: "2px",
-              textAlign: "center",
-            }}
-          >
-            {/* Tooltip Content e.g. "20s 4:56 (50%)" */}
-            <div style={{ color: "var(--text-primary)", fontSize: "12.5px" }}>
-              {hoverData.segment.durationSeconds}s {getAbsoluteTargetLabel(hoverData.segment)}{" "}
-              <span style={{ color: "var(--text-muted)", fontSize: "11px", fontWeight: 500 }}>
-                ({Math.round(hoverData.segment.intensity * 100)}%)
-              </span>
+        {hoverData && (() => {
+          const pct = (hoverData.x / SVG_W) * 100;
+          let translateOffset = "-50%";
+          if (pct < 15) {
+            translateOffset = "-10%";
+          } else if (pct > 85) {
+            translateOffset = "-90%";
+          }
+
+          const seg = hoverData.segment;
+          const timeInSegment = hoverData.time - seg.startTime;
+          const progress = timeInSegment / (seg.durationSeconds || 1);
+          const currentIntensity = seg.startIntensity + progress * (seg.endIntensity - seg.startIntensity);
+
+          return (
+            <div
+              style={{
+                position: "absolute",
+                left: `${(hoverData.x / SVG_W) * 100}%`,
+                top: `${PADDING_T - 5}px`,
+                transform: `translate(${translateOffset}, -100%)`,
+                background: "var(--bg-elevated)",
+                border: "1.5px solid var(--border-default)",
+                borderRadius: "var(--radius-sm)",
+                padding: "6px 12px",
+                boxShadow: "var(--shadow-md)",
+                pointerEvents: "none",
+                fontSize: "12px",
+                fontWeight: 600,
+                color: "var(--text-primary)",
+                whiteSpace: "nowrap",
+                zIndex: 10,
+                display: "flex",
+                flexDirection: "column",
+                gap: "2px",
+                textAlign: "center",
+              }}
+            >
+              <div style={{ color: "var(--text-primary)", fontSize: "12.5px" }}>
+                {formatDurationMinutes(seg.durationSeconds)} {getAbsoluteTargetLabel(currentIntensity)}{" "}
+                <span style={{ color: "var(--text-muted)", fontSize: "11px", fontWeight: 500 }}>
+                  ({Math.round(currentIntensity * 100)}%)
+                </span>
+              </div>
+              {/* Step label / Description */}
+              <div style={{ fontSize: "10px", color: seg.color, textTransform: "uppercase", letterSpacing: "0.04em", fontWeight: 700 }}>
+                {seg.description}
+              </div>
             </div>
-            {/* Step label / Description */}
-            <div style={{ fontSize: "10px", color: hoverData.segment.color, textTransform: "uppercase", letterSpacing: "0.04em", fontWeight: 700 }}>
-              {hoverData.segment.description}
-            </div>
-          </div>
-        )}
+          );
+        })()}
       </div>
 
       {/* Footer Settings (% Checkbox) */}

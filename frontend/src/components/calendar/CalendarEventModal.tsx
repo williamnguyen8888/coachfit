@@ -13,6 +13,8 @@ import { useCalendarStore } from "@/stores/calendar.store";
 import { InteractiveWorkoutChart } from "@/components/workout/InteractiveWorkoutChart";
 import { getSportHex, getEstimatedLoad, formatDistance } from "./calendarUtils";
 import { WorkoutStepViz } from "./WorkoutStepViz";
+import { zonesService } from "@/lib/services/settings";
+import type { SportZones } from "@/lib/types/settings";
 
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -458,10 +460,66 @@ function calculateWorkoutDistance(steps: WorkoutStep[], sport: string): number {
   return 0;
 }
 
-function calculateWorkoutIntensity(steps: WorkoutStep[], sport: string): number {
-  let totalIntensityWeighted = 0;
+function calculateStepIntensityFactor(step: WorkoutStep, sport: string, zones?: SportZones): number {
+  let intensity = 0.7; // Default fallback
+
+  if (step.target) {
+    if (step.target.type === "power_pct") {
+      const min = step.target.min ?? 0.5;
+      const max = step.target.max ?? 0.8;
+      intensity = (min + max) / 2;
+    } else if (step.target.type === "power_zone") {
+      const zNum = step.target.zone ?? 2;
+      if (zones?.ftp && zones.ftp > 0 && zones.zones) {
+        const zDef = zones.zones.find((z) => z.zone === zNum);
+        if (zDef && zDef.min != null && zDef.max != null) {
+          const midW = (zDef.min + zDef.max) / 2;
+          intensity = midW / zones.ftp;
+        } else {
+          const pct = DEFAULT_CYCLING_PCT_RANGES[zNum];
+          if (pct) intensity = (pct[0] + pct[1]) / 2;
+        }
+      } else {
+        const pct = DEFAULT_CYCLING_PCT_RANGES[zNum];
+        if (pct) intensity = (pct[0] + pct[1]) / 2;
+      }
+    } else if (step.target.type === "hr_zone") {
+      const zNum = step.target.zone ?? 2;
+      if (zones?.lthr && zones.lthr > 0 && zones.zones) {
+        const zDef = zones.zones.find((z) => z.zone === zNum);
+        if (zDef && zDef.min != null && zDef.max != null) {
+          const midBpm = (zDef.min + zDef.max) / 2;
+          intensity = midBpm / zones.lthr; // HR fraction of LTHR
+        } else {
+          const pct = DEFAULT_HR_PCT_RANGES[zNum];
+          if (pct) intensity = (pct[0] + pct[1]) / 2;
+        }
+      } else {
+        const pct = DEFAULT_HR_PCT_RANGES[zNum];
+        if (pct) intensity = (pct[0] + pct[1]) / 2;
+      }
+    } else if (step.target.type === "pace") {
+      const min = step.target.min ?? 0.7;
+      const max = step.target.max ?? 0.9;
+      intensity = (min + max) / 2;
+    }
+  } else {
+    if (step.type === "warmup" || step.type === "cooldown" || step.type === "rest") {
+      intensity = 0.50; // Zone 1
+    } else if (step.type === "work") {
+      intensity = 0.75; // Zone 2-3 transition
+    } else {
+      intensity = 0.65; // Zone 2
+    }
+  }
+
+  return intensity;
+}
+
+function calculateDetailedWorkoutLoad(steps: WorkoutStep[], sport: string, zones?: SportZones): number {
+  let totalLoad = 0;
   let totalDuration = 0;
-  
+
   function process(step: WorkoutStep, mult = 1) {
     if (step.type === "repeat" && step.steps) {
       const count = step.count ?? 1;
@@ -473,38 +531,103 @@ function calculateWorkoutIntensity(steps: WorkoutStep[], sport: string): number 
       if (dur > 0) {
         const stepSec = dur * mult;
         totalDuration += stepSec;
+        const ifactor = calculateStepIntensityFactor(step, sport, zones);
         
-        let intensity = 0.7;
-        if (step.target) {
-          if (step.target.type === "power_zone" || step.target.type === "hr_zone") {
-            const z = step.target.zone ?? 2;
-            intensity = z / 5.5;
-          } else if (step.target.type === "power_pct") {
-            intensity = ((step.target.min ?? 0.5) + (step.target.max ?? 0.8)) / 2;
-          } else if (step.target.type === "pace") {
-            if (step.target.min != null && step.target.max != null) {
-              intensity = (step.target.min + step.target.max) / 2;
-            }
-          }
+        // Standard TSS/Load formula: (t * IF^2) / 36
+        let stepLoad = (stepSec * ifactor * ifactor) / 36;
+        if (sport === "strength" || sport === "other") {
+          stepLoad = stepLoad * 0.7;
         }
-        totalIntensityWeighted += intensity * stepSec;
+        totalLoad += stepLoad;
       }
     }
   }
-  
+
   for (const step of steps) {
     process(step);
   }
-  
+
+  if (totalDuration > 0) {
+    return Math.round(totalLoad);
+  }
+
+  return 0;
+}
+
+function calculateWorkoutIntensity(steps: WorkoutStep[], sport: string, zones?: SportZones): number {
+  let totalIntensityWeighted = 0;
+  let totalDuration = 0;
+
+  function process(step: WorkoutStep, mult = 1) {
+    if (step.type === "repeat" && step.steps) {
+      const count = step.count ?? 1;
+      for (const sub of step.steps) {
+        process(sub, mult * count);
+      }
+    } else {
+      const dur = step.duration?.value ?? 0;
+      if (dur > 0) {
+        const stepSec = dur * mult;
+        totalDuration += stepSec;
+        const ifactor = calculateStepIntensityFactor(step, sport, zones);
+        totalIntensityWeighted += ifactor * stepSec;
+      }
+    }
+  }
+
+  for (const step of steps) {
+    process(step);
+  }
+
   if (totalDuration > 0) {
     return Math.round((totalIntensityWeighted / totalDuration) * 100);
   }
-  
+
   const factor = INTENSITY_FACTOR[sport] ?? 0.7;
   return Math.round(factor * 100);
 }
 
-function formatStepToReadableText(step: WorkoutStep, sport: string): string {
+function parsePaceToSeconds(paceStr: string): number {
+  if (!paceStr) return 0;
+  const parts = paceStr.split(":");
+  if (parts.length === 2) {
+    const mins = parseInt(parts[0], 10);
+    const secs = parseInt(parts[1], 10);
+    if (!isNaN(mins) && !isNaN(secs)) {
+      return mins * 60 + secs;
+    }
+  }
+  return parseInt(paceStr, 10) || 0;
+}
+
+function formatSecondsToPace(totalSecs: number): string {
+  if (totalSecs <= 0 || isNaN(totalSecs) || !isFinite(totalSecs)) return "--:--";
+  const m = Math.floor(totalSecs / 60);
+  const s = Math.round(totalSecs % 60);
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
+const DEFAULT_CYCLING_PCT_RANGES: Record<number, [number, number]> = {
+  1: [0, 0.55],
+  2: [0.55, 0.75],
+  3: [0.75, 0.87],
+  4: [0.87, 1.0],
+  5: [1.0, 1.12],
+  6: [1.12, 1.3],
+  7: [1.3, 2.0],
+};
+
+const DEFAULT_HR_PCT_RANGES: Record<number, [number, number]> = {
+  1: [0, 0.80],
+  2: [0.80, 0.89],
+  3: [0.89, 0.93],
+  4: [0.93, 0.99],
+  5: [0.99, 1.02],
+  6: [1.02, 1.05],
+  7: [1.05, 1.20],
+};
+
+function formatStepToReadableText(step: WorkoutStep, sport: string, zones?: SportZones): string {
   let desc = step.description || "";
   
   if (!desc) {
@@ -545,20 +668,97 @@ function formatStepToReadableText(step: WorkoutStep, sport: string): string {
       const min = step.target.min != null ? Math.round(step.target.min * 100) : null;
       const max = step.target.max != null ? Math.round(step.target.max * 100) : null;
       const metricName = sport === "cycling" ? "FTP" : "Pace";
+      
+      let absStr = "";
+      if (zones?.ftp && zones.ftp > 0) {
+        if (step.target.min != null && step.target.max != null) {
+          const minW = Math.round(step.target.min * zones.ftp);
+          const maxW = Math.round(step.target.max * zones.ftp);
+          absStr = ` (${minW}-${maxW}W)`;
+        } else if (step.target.min != null) {
+          const minW = Math.round(step.target.min * zones.ftp);
+          absStr = ` (${minW}W)`;
+        }
+      }
+      
       if (min != null && max != null) {
-        tgtStr = `${min}-${max}% ${metricName}`;
+        tgtStr = `${min}-${max}% ${metricName}${absStr}`;
       } else if (min != null) {
-        tgtStr = `${min}% ${metricName}`;
+        tgtStr = `${min}% ${metricName}${absStr}`;
       }
     } else if (step.target.type === "power_zone") {
-      tgtStr = `Z${step.target.zone ?? 2}`;
+      const zNum = step.target.zone ?? 2;
+      let absStr = "";
+      if (zones) {
+        const zDef = zones.zones?.find((z) => z.zone === zNum);
+        if (zDef && zDef.min != null && zDef.max != null) {
+          if (zDef.min === 0) {
+            absStr = ` (<${zDef.max}W)`;
+          } else {
+            absStr = ` (${zDef.min}-${zDef.max}W)`;
+          }
+        } else if (zones.ftp && zones.ftp > 0) {
+          const pct = DEFAULT_CYCLING_PCT_RANGES[zNum];
+          if (pct) {
+            const minW = Math.round(pct[0] * zones.ftp);
+            const maxW = Math.round(pct[1] * zones.ftp);
+            if (minW === 0) {
+              absStr = ` (<${maxW}W)`;
+            } else {
+              absStr = ` (${minW}-${maxW}W)`;
+            }
+          }
+        }
+      }
+      tgtStr = `Z${zNum}${absStr}`;
     } else if (step.target.type === "hr_zone") {
-      tgtStr = `HR Z${step.target.zone ?? 2}`;
+      const zNum = step.target.zone ?? 2;
+      let absStr = "";
+      if (zones) {
+        const zDef = zones.zones?.find((z) => z.zone === zNum);
+        if (zDef && zDef.min != null && zDef.max != null) {
+          if (zDef.min === 0) {
+            absStr = ` (<${zDef.max} bpm)`;
+          } else {
+            absStr = ` (${zDef.min}-${zDef.max} bpm)`;
+          }
+        } else if (zones.lthr && zones.lthr > 0) {
+          const pct = DEFAULT_HR_PCT_RANGES[zNum];
+          if (pct) {
+            const minBpm = Math.round(pct[0] * zones.lthr);
+            const maxBpm = Math.round(pct[1] * zones.lthr);
+            if (minBpm === 0) {
+              absStr = ` (<${maxBpm} bpm)`;
+            } else {
+              absStr = ` (${minBpm}-${maxBpm} bpm)`;
+            }
+          }
+        }
+      }
+      tgtStr = `HR Z${zNum}${absStr}`;
     } else if (step.target.type === "pace") {
       if (step.target.min != null && step.target.max != null) {
         const minPct = Math.round(step.target.min * 100);
         const maxPct = Math.round(step.target.max * 100);
-        tgtStr = `${minPct}-${maxPct}% Pace`;
+        
+        let absStr = "";
+        if (zones?.thresholdPace && sport === "running") {
+          const thresholdSecs = parsePaceToSeconds(zones.thresholdPace);
+          if (thresholdSecs > 0) {
+            const maxPaceSecs = Math.round(thresholdSecs / step.target.max);
+            const minPaceSecs = Math.round(thresholdSecs / step.target.min);
+            absStr = ` (${formatSecondsToPace(maxPaceSecs)}-${formatSecondsToPace(minPaceSecs)}/km)`;
+          }
+        } else if (zones?.thresholdPace && sport === "swimming") {
+          const thresholdSecs = parsePaceToSeconds(zones.thresholdPace);
+          if (thresholdSecs > 0) {
+            const maxPaceSecs = Math.round(thresholdSecs / step.target.max);
+            const minPaceSecs = Math.round(thresholdSecs / step.target.min);
+            absStr = ` (${formatSecondsToPace(maxPaceSecs)}-${formatSecondsToPace(minPaceSecs)}/100m)`;
+          }
+        }
+        
+        tgtStr = `${minPct}-${maxPct}% Pace${absStr}`;
       } else if (step.target.value != null) {
         tgtStr = `${step.target.value} min/km`;
       } else {
@@ -581,7 +781,7 @@ function formatStepToReadableText(step: WorkoutStep, sport: string): string {
   return text;
 }
 
-function renderWorkoutStepInstructions(step: WorkoutStep, sport: string, index: number): React.ReactNode {
+function renderWorkoutStepInstructions(step: WorkoutStep, sport: string, index: number, zones?: SportZones): React.ReactNode {
   if (step.type === "repeat" && step.steps) {
     return (
       <div key={index} style={{ marginBottom: "12px" }}>
@@ -602,7 +802,7 @@ function renderWorkoutStepInstructions(step: WorkoutStep, sport: string, index: 
               }}
             >
               <span style={{ color: "var(--text-muted)" }}>•</span>
-              <span>{formatStepToReadableText(subStep, sport)}</span>
+              <span>{formatStepToReadableText(subStep, sport, zones)}</span>
             </div>
           ))}
         </div>
@@ -624,7 +824,7 @@ function renderWorkoutStepInstructions(step: WorkoutStep, sport: string, index: 
       }}
     >
       <span style={{ color: "var(--text-muted)" }}>•</span>
-      <span>{formatStepToReadableText(step, sport)}</span>
+      <span>{formatStepToReadableText(step, sport, zones)}</span>
     </div>
   );
 }
@@ -1004,6 +1204,16 @@ export function CalendarEventModal({
   const { createEvent, updateEvent, deleteEvent, markComplete, markSkipped } =
     useCalendarStore();
 
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   // Form and view state
   const [viewMode, setViewMode] = useState<"detail" | "edit">(
     mode === "edit" && event?.eventType === "workout" ? "detail" : "edit"
@@ -1011,6 +1221,13 @@ export function CalendarEventModal({
   const [workoutDetail, setWorkoutDetail] = useState<WorkoutDetail | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
+  const [athleteZones, setAthleteZones] = useState<SportZones[]>([]);
+
+  useEffect(() => {
+    zonesService.listAll()
+      .then((res) => setAthleteZones(res))
+      .catch((err) => console.error("Failed to load athlete zones:", err));
+  }, []);
 
   useEffect(() => {
     if (viewMode === "detail" && event?.workout?.id) {
@@ -1206,6 +1423,7 @@ export function CalendarEventModal({
 
   if (viewMode === "detail" && event && event.eventType === "workout" && event.workout) {
     const sport = event.workout.sport ?? "other";
+    const activeZones = athleteZones.find((z) => z.sport === sport);
     const sportHex = getSportHex(sport);
     const dateLabel = new Date(event.date + "T00:00:00").toLocaleDateString("en-US", {
       weekday: "long",
@@ -1217,8 +1435,8 @@ export function CalendarEventModal({
     
     const workoutDuration = workoutDetail?.estimatedDuration ?? event.workout.estimatedDuration ?? 0;
     const workoutDistance = workoutDetail ? calculateWorkoutDistance(steps, sport) : 0;
-    const workoutLoad = workoutDetail ? calculateWorkoutLoad(workoutDuration, sport) : getEstimatedLoad(event);
-    const workoutIntensity = workoutDetail ? calculateWorkoutIntensity(steps, sport) : Math.round((INTENSITY_FACTOR[sport] ?? 0.7) * 100);
+    const workoutLoad = workoutDetail ? calculateDetailedWorkoutLoad(steps, sport, activeZones) : getEstimatedLoad(event);
+    const workoutIntensity = workoutDetail ? calculateWorkoutIntensity(steps, sport, activeZones) : Math.round((INTENSITY_FACTOR[sport] ?? 0.7) * 100);
 
     const { zones: zoneSecs, totalSeconds: totalZoneSecs } = calculateWorkoutZoneDurations(steps);
     
@@ -1266,11 +1484,11 @@ export function CalendarEventModal({
         if (step.type === "repeat" && step.steps) {
           lines.push(`${step.count}x`);
           step.steps.forEach((sub) => {
-            lines.push(`  • ${formatStepToReadableText(sub, workoutDetail.sport)}`);
+            lines.push(`  • ${formatStepToReadableText(sub, workoutDetail.sport, activeZones)}`);
           });
           lines.push("");
         } else {
-          lines.push(`• ${formatStepToReadableText(step, workoutDetail.sport)}`);
+          lines.push(`• ${formatStepToReadableText(step, workoutDetail.sport, activeZones)}`);
         }
       });
 
@@ -1309,7 +1527,7 @@ export function CalendarEventModal({
             display: "flex",
             alignItems: "flex-start",
             justifyContent: "space-between",
-            padding: "20px 24px",
+            padding: isMobile ? "16px" : "20px 24px",
             borderBottom: "1px solid var(--border-subtle)",
           }}
         >
@@ -1333,7 +1551,7 @@ export function CalendarEventModal({
               <h2
                 style={{
                   margin: 0,
-                  fontSize: "18px",
+                  fontSize: isMobile ? "16px" : "18px",
                   fontWeight: 700,
                   color: "var(--text-primary)",
                   lineHeight: "1.3",
@@ -1375,35 +1593,35 @@ export function CalendarEventModal({
             display: "flex",
             justifyContent: "space-around",
             background: "var(--bg-surface)",
-            padding: "12px 24px",
+            padding: isMobile ? "12px 8px" : "12px 24px",
             borderBottom: "1px solid var(--border-subtle)",
             textAlign: "center",
           }}
         >
           <div>
             <div style={{ fontSize: "11px", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 600, letterSpacing: "0.05em" }}>Duration</div>
-            <div style={{ fontSize: "16px", fontWeight: 700, color: "var(--text-primary)", marginTop: "4px" }}>
+            <div style={{ fontSize: isMobile ? "14px" : "16px", fontWeight: 700, color: "var(--text-primary)", marginTop: "4px" }}>
               {workoutDuration > 0 ? formatDuration(workoutDuration) : "--"}
             </div>
           </div>
           <div style={{ borderLeft: "1px solid var(--border-subtle)", height: "32px", alignSelf: "center" }} />
           <div>
             <div style={{ fontSize: "11px", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 600, letterSpacing: "0.05em" }}>Distance</div>
-            <div style={{ fontSize: "16px", fontWeight: 700, color: "var(--text-primary)", marginTop: "4px" }}>
+            <div style={{ fontSize: isMobile ? "14px" : "16px", fontWeight: 700, color: "var(--text-primary)", marginTop: "4px" }}>
               {workoutDistance > 0 ? (workoutDistance >= 1000 ? `${(workoutDistance / 1000).toFixed(1)} km` : `${Math.round(workoutDistance)} m`) : "--"}
             </div>
           </div>
           <div style={{ borderLeft: "1px solid var(--border-subtle)", height: "32px", alignSelf: "center" }} />
           <div>
             <div style={{ fontSize: "11px", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 600, letterSpacing: "0.05em" }}>Load</div>
-            <div style={{ fontSize: "16px", fontWeight: 700, color: "var(--text-primary)", marginTop: "4px" }}>
+            <div style={{ fontSize: isMobile ? "14px" : "16px", fontWeight: 700, color: "var(--text-primary)", marginTop: "4px" }}>
               {workoutLoad}
             </div>
           </div>
           <div style={{ borderLeft: "1px solid var(--border-subtle)", height: "32px", alignSelf: "center" }} />
           <div>
             <div style={{ fontSize: "11px", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 600, letterSpacing: "0.05em" }}>Intensity</div>
-            <div style={{ fontSize: "16px", fontWeight: 700, color: "var(--text-primary)", marginTop: "4px" }}>
+            <div style={{ fontSize: isMobile ? "14px" : "16px", fontWeight: 700, color: "var(--text-primary)", marginTop: "4px" }}>
               {workoutIntensity}%
             </div>
           </div>
@@ -1413,33 +1631,45 @@ export function CalendarEventModal({
           style={{
             flex: 1,
             overflowY: "auto",
-            padding: "24px",
+            padding: isMobile ? "16px" : "24px",
             display: "flex",
             flexDirection: "column",
-            gap: "24px",
+            gap: isMobile ? "16px" : "24px",
           }}
         >
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "1.1fr 0.9fr",
-              gap: "24px",
+              gridTemplateColumns: isMobile ? "1fr" : "1.1fr 0.9fr",
+              gap: isMobile ? "16px" : "24px",
             }}
           >
             <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+              {isMobile && steps.length > 0 && !loadingDetail && (
+                <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "4px" }}>
+                  Workout Steps
+                </div>
+              )}
               {loadingDetail ? (
                 <div style={{ color: "var(--text-muted)", fontSize: "13px", padding: "20px 0" }}>Loading steps...</div>
               ) : steps.length === 0 ? (
                 <div style={{ color: "var(--text-muted)", fontSize: "13px", fontStyle: "italic" }}>No specific workout steps defined.</div>
               ) : (
-                <div style={{ background: "var(--bg-surface)", borderRadius: "var(--radius-md)", padding: "16px", border: "1px solid var(--border-subtle)", maxHeight: "280px", overflowY: "auto" }}>
+                <div style={{
+                  background: isMobile ? "transparent" : "var(--bg-surface)",
+                  borderRadius: isMobile ? "0px" : "var(--radius-md)",
+                  padding: isMobile ? "0px" : "16px",
+                  border: isMobile ? "none" : "1px solid var(--border-subtle)",
+                  maxHeight: isMobile ? "none" : "280px",
+                  overflowY: isMobile ? "visible" : "auto"
+                }}>
                   {sport === "swimming" && (
                     <div style={{ fontSize: "13px", color: "var(--text-muted)", marginBottom: "12px", fontFamily: "var(--font-mono, monospace)" }}>
                       pool length: 25m
                     </div>
                   )}
                   <div style={{ display: "flex", flexDirection: "column" }}>
-                    {steps.map((step, idx) => renderWorkoutStepInstructions(step, sport, idx))}
+                    {steps.map((step, idx) => renderWorkoutStepInstructions(step, sport, idx, activeZones))}
                   </div>
                 </div>
               )}
@@ -1447,10 +1677,10 @@ export function CalendarEventModal({
               {event.notes && (
                 <div
                   style={{
-                    padding: "12px 16px",
-                    background: "var(--bg-surface)",
+                    padding: isMobile ? "8px 0 8px 12px" : "12px 16px",
+                    background: isMobile ? "transparent" : "var(--bg-surface)",
                     borderLeft: `4px solid ${sportHex.primary}`,
-                    borderRadius: "var(--radius-sm)",
+                    borderRadius: isMobile ? "0px" : "var(--radius-sm)",
                     fontSize: "13px",
                     color: "var(--text-secondary)",
                     lineHeight: "1.5",
@@ -1464,7 +1694,12 @@ export function CalendarEventModal({
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-              <div style={{ background: "var(--bg-surface)", borderRadius: "var(--radius-md)", padding: "16px", border: "1px solid var(--border-subtle)" }}>
+              <div style={{
+                background: isMobile ? "transparent" : "var(--bg-surface)",
+                borderRadius: isMobile ? "0px" : "var(--radius-md)",
+                padding: isMobile ? "0px" : "16px",
+                border: isMobile ? "none" : "1px solid var(--border-subtle)"
+              }}>
                 <div
                   style={{
                     display: "flex",
@@ -1510,7 +1745,7 @@ export function CalendarEventModal({
 
           {steps.length > 0 && (
             <div style={{ marginTop: "8px" }}>
-              <InteractiveWorkoutChart steps={steps} sport={sport} />
+              <InteractiveWorkoutChart steps={steps} sport={sport} athleteZones={activeZones} />
             </div>
           )}
         </div>
@@ -1518,14 +1753,22 @@ export function CalendarEventModal({
         <div
           style={{
             display: "flex",
-            alignItems: "center",
+            flexDirection: isMobile ? "column" : "row",
+            gap: isMobile ? "16px" : "12px",
+            alignItems: isMobile ? "stretch" : "center",
             justifyContent: "space-between",
             padding: "16px 24px",
             borderTop: "1px solid var(--border-subtle)",
             background: "var(--bg-surface)",
           }}
         >
-          <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+          <div style={{
+            display: "flex",
+            gap: "12px",
+            alignItems: "center",
+            justifyContent: isMobile ? "center" : "flex-start",
+            order: isMobile ? 2 : 1,
+          }}>
             <button
               type="button"
               onClick={handleDelete}
@@ -1599,7 +1842,14 @@ export function CalendarEventModal({
             </button>
           </div>
 
-          <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+          <div style={{
+            display: "flex",
+            gap: "8px",
+            alignItems: "center",
+            justifyContent: isMobile ? "stretch" : "flex-end",
+            width: isMobile ? "100%" : "auto",
+            order: isMobile ? 1 : 2,
+          }}>
             {event.status === "planned" && (
               <button
                 type="button"
@@ -1607,6 +1857,7 @@ export function CalendarEventModal({
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
+                  justifyContent: "center",
                   gap: "6px",
                   background: "var(--color-success-10)",
                   border: "1px solid var(--color-success-30)",
@@ -1616,6 +1867,7 @@ export function CalendarEventModal({
                   padding: "8px 16px",
                   borderRadius: "var(--radius-sm)",
                   cursor: "pointer",
+                  flex: isMobile ? 1 : "initial",
                 }}
               >
                 <CheckIcon size={14} color="var(--color-success)" />
@@ -1635,6 +1887,9 @@ export function CalendarEventModal({
                 padding: "8px 16px",
                 borderRadius: "var(--radius-sm)",
                 cursor: "pointer",
+                flex: isMobile ? 1 : "initial",
+                textAlign: "center",
+                justifyContent: "center",
               }}
             >
               EDIT
@@ -1652,6 +1907,9 @@ export function CalendarEventModal({
                 padding: "8px 16px",
                 borderRadius: "var(--radius-sm)",
                 cursor: "pointer",
+                flex: isMobile ? 1 : "initial",
+                textAlign: "center",
+                justifyContent: "center",
               }}
             >
               CLOSE
@@ -2371,125 +2629,132 @@ export function CalendarEventModal({
           </div>
 
           {/* RIGHT COLUMN: WORKOUT PREVIEW PANEL */}
-          {showPreview && (
-            <div
-              style={{
-                background: "rgba(255, 255, 255, 0.01)",
-                borderRadius: "var(--radius-lg)",
-                border: "1.5px dashed rgba(255, 255, 255, 0.08)",
-                padding: "20px",
-                display: "flex",
-                flexDirection: "column",
-                gap: "16px",
-                maxHeight: "680px",
-                overflowY: "auto",
-                backdropFilter: "blur(8px)",
-                animation: "scaleIn 0.22s ease-out",
-              }}
-            >
-              {/* Header */}
-              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                <div style={{
-                  width: "42px",
-                  height: "42px",
-                  borderRadius: "50%",
-                  background: `${getSportHex(previewWorkout.sport).primary}15`,
-                  border: `1.5px solid ${getSportHex(previewWorkout.sport).primary}30`,
+          {showPreview && (() => {
+            const previewZones = athleteZones.find((z) => z.sport === previewWorkout.sport);
+            return (
+              <div
+                style={{
+                  background: "rgba(255, 255, 255, 0.01)",
+                  borderRadius: "var(--radius-lg)",
+                  border: "1.5px dashed rgba(255, 255, 255, 0.08)",
+                  padding: "20px",
                   display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: "20px"
-                }}>
-                  <SportIcon sport={previewWorkout.sport} size={20} color={getSportHex(previewWorkout.sport).primary} />
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {previewWorkout.name}
-                  </h3>
-                  <span style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.05em" }}>
-                    Structured {previewWorkout.sport} Plan
-                  </span>
-                </div>
-              </div>
-
-              {/* Metrics Grid */}
-              <div style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(4, 1fr)",
-                gap: "8px",
-                background: "rgba(255, 255, 255, 0.02)",
-                border: "1px solid var(--border-subtle)",
-                borderRadius: "var(--radius-md)",
-                padding: "10px 8px",
-                textAlign: "center"
-              }}>
-                <div>
-                  <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 600 }}>Duration</div>
-                  <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", marginTop: "2px" }}>
-                    {previewWorkout.estimatedDuration ? formatDuration(previewWorkout.estimatedDuration) : "--"}
-                  </div>
-                </div>
-                <div>
-                  <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 600 }}>Distance</div>
-                  <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", marginTop: "2px" }}>
-                    {calculateWorkoutDistance(previewWorkout.steps, previewWorkout.sport) > 0
-                      ? formatDistance(calculateWorkoutDistance(previewWorkout.steps, previewWorkout.sport))
-                      : "--"}
-                  </div>
-                </div>
-                <div>
-                  <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 600 }}>Est. Load</div>
-                  <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", marginTop: "2px" }}>
-                    {calculateWorkoutLoad(previewWorkout.estimatedDuration ?? 0, previewWorkout.sport)}
-                  </div>
-                </div>
-                <div>
-                  <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 600 }}>Intensity</div>
-                  <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", marginTop: "2px" }}>
-                    {calculateWorkoutIntensity(previewWorkout.steps, previewWorkout.sport)}%
-                  </div>
-                </div>
-              </div>
-
-              {/* Step Viz Bar */}
-              <div>
-                <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-secondary)", marginBottom: "6px" }}>Zone Distribution</div>
-                <WorkoutStepViz
-                  sport={previewWorkout.sport}
-                  zoneDistribution={Object.values(calculateWorkoutZoneDurations(previewWorkout.steps).zones)}
-                  height={16}
-                />
-              </div>
-
-              {/* Chart timeline */}
-              <div style={{ marginTop: "4px" }}>
-                <InteractiveWorkoutChart steps={previewWorkout.steps} sport={previewWorkout.sport} />
-              </div>
-
-              {/* Steps Instructions */}
-              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-secondary)" }}>Workout Profile Steps</div>
-                <div style={{
-                  maxHeight: "120px",
+                  flexDirection: "column",
+                  gap: "16px",
+                  maxHeight: "680px",
                   overflowY: "auto",
+                  backdropFilter: "blur(8px)",
+                  animation: "scaleIn 0.22s ease-out",
+                }}
+              >
+                {/* Header */}
+                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                  <div style={{
+                    width: "42px",
+                    height: "42px",
+                    borderRadius: "50%",
+                    background: `${getSportHex(previewWorkout.sport).primary}15`,
+                    border: `1.5px solid ${getSportHex(previewWorkout.sport).primary}30`,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "20px"
+                  }}>
+                    <SportIcon sport={previewWorkout.sport} size={20} color={getSportHex(previewWorkout.sport).primary} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {previewWorkout.name}
+                    </h3>
+                    <span style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.05em" }}>
+                      Structured {previewWorkout.sport} Plan
+                    </span>
+                  </div>
+                </div>
+
+                {/* Metrics Grid */}
+                <div style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(4, 1fr)",
+                  gap: "8px",
                   background: "rgba(255, 255, 255, 0.02)",
                   border: "1px solid var(--border-subtle)",
                   borderRadius: "var(--radius-md)",
-                  padding: "10px",
-                  fontSize: "11px",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "6px"
+                  padding: "10px 8px",
+                  textAlign: "center"
                 }}>
-                  {previewWorkout.steps.map((step, idx) => (
-                    <div key={idx}>
-                      {renderWorkoutStepInstructions(step, previewWorkout.sport, idx)}
+                  <div>
+                    <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 600 }}>Duration</div>
+                    <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", marginTop: "2px" }}>
+                      {previewWorkout.estimatedDuration ? formatDuration(previewWorkout.estimatedDuration) : "--"}
                     </div>
-                  ))}
+                  </div>
+                  <div>
+                    <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 600 }}>Distance</div>
+                    <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", marginTop: "2px" }}>
+                      {calculateWorkoutDistance(previewWorkout.steps, previewWorkout.sport) > 0
+                        ? formatDistance(calculateWorkoutDistance(previewWorkout.steps, previewWorkout.sport))
+                        : "--"}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 600 }}>Est. Load</div>
+                    <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", marginTop: "2px" }}>
+                      {calculateDetailedWorkoutLoad(previewWorkout.steps, previewWorkout.sport, previewZones)}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 600 }}>Intensity</div>
+                    <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", marginTop: "2px" }}>
+                      {calculateWorkoutIntensity(previewWorkout.steps, previewWorkout.sport, previewZones)}%
+                    </div>
+                  </div>
+                </div>
+
+                {/* Step Viz Bar */}
+                <div>
+                  <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-secondary)", marginBottom: "6px" }}>Zone Distribution</div>
+                  <WorkoutStepViz
+                    sport={previewWorkout.sport}
+                    zoneDistribution={Object.values(calculateWorkoutZoneDurations(previewWorkout.steps).zones)}
+                    height={16}
+                  />
+                </div>
+
+                {/* Chart timeline */}
+                <div style={{ marginTop: "4px" }}>
+                  <InteractiveWorkoutChart
+                    steps={previewWorkout.steps}
+                    sport={previewWorkout.sport}
+                    athleteZones={previewZones}
+                  />
+                </div>
+
+                {/* Steps Instructions */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                  <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-secondary)" }}>Workout Profile Steps</div>
+                  <div style={{
+                    maxHeight: "120px",
+                    overflowY: "auto",
+                    background: "rgba(255, 255, 255, 0.02)",
+                    border: "1px solid var(--border-subtle)",
+                    borderRadius: "var(--radius-md)",
+                    padding: "10px",
+                    fontSize: "11px",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "6px"
+                  }}>
+                    {previewWorkout.steps.map((step, idx) => (
+                      <div key={idx}>
+                        {renderWorkoutStepInstructions(step, previewWorkout.sport, idx, previewZones)}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
         </div>
       </div>
 

@@ -13,7 +13,6 @@ import {
   Brain,
   Footprints,
   Wind,
-  Wifi,
   WifiOff,
   Info,
 } from "lucide-react";
