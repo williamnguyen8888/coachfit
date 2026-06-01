@@ -41,6 +41,11 @@ public interface CalendarEventPersistencePort {
     void linkActivity(UUID eventId, UUID activityId, BigDecimal complianceScore);
 
     /**
+     * Unlinks an activity from an event, resetting status to 'planned'.
+     */
+    void unlinkActivity(UUID eventId);
+
+    /**
      * Reassigns {@code order_index} values in batch.
      * Each entry: (eventId, newOrderIndex). Only updates rows owned by userId.
      */
@@ -55,10 +60,35 @@ public interface CalendarEventPersistencePort {
     List<CalendarEventSummary> findByUserAndDateRange(UUID userId, LocalDate from, LocalDate to);
 
     /**
+     * Finds planned uncompleted workout events for a user on a specific date.
+     */
+    List<CalendarEventSummary> findPlannedWorkoutsByDate(UUID userId, LocalDate date);
+
+    /**
+     * Finds the user's timezone from their settings, defaulting to Asia/Ho_Chi_Minh or UTC.
+     */
+    String findUserTimezone(UUID userId);
+
+    /**
      * Auto-skip: find all planned events with date < today and mark them skipped.
      * Called by the nightly scheduler.
      */
     int autoSkipPastPlanned();
+
+    /**
+     * Finds duration and sport details of an activity.
+     */
+    Optional<SimpleActivityDetails> findActivityDetails(UUID activityId);
+
+    record SimpleActivityDetails(Integer durationSeconds, String sport) {}
+
+    record SimpleActivityDetailsWithId(UUID id, int durationSeconds, String sport) {}
+
+    void createStandaloneActivityEvent(UUID userId, LocalDate date, UUID activityId, String name, String sport);
+
+    Optional<SimpleActivityDetailsWithId> findUnmatchedActivityOnDate(UUID userId, LocalDate date, String sport);
+
+    void deleteStandaloneEventForActivity(UUID activityId);
 
     // ── Read model ─────────────────────────────────────────────────────────────
 
@@ -79,7 +109,14 @@ public interface CalendarEventPersistencePort {
             BigDecimal   workoutTss,
             String       workoutSteps,
             BigDecimal   activityTss,
-            Integer      activityDuration
+            Integer      activityDuration,
+            String       activitySport,
+            String       activityName,
+            BigDecimal   activityDistance,
+            Integer      activityAvgHr,
+            Integer      activityMaxHr,
+            Integer      activityAvgPower,
+            String       activitySource
     ) {}
 
     record ReorderEntry(UUID eventId, short newOrderIndex) {}

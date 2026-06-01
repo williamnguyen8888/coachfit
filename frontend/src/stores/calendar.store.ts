@@ -5,7 +5,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { calendarService } from "@/lib/services/calendar";
-import { activitiesService } from "@/lib/services/activities";
 import { wellnessService } from "@/lib/services/wellness";
 import { healthService } from "@/lib/services/health";
 import type {
@@ -195,12 +194,8 @@ export const useCalendarStore = create<CalendarState>()(
 
         set({ isLoading: true, error: null });
         try {
-          const [events, activitiesRes, wellnessRes, healthDailyRes, sleepRes] = await Promise.all([
+          const [events, wellnessRes, healthDailyRes, sleepRes] = await Promise.all([
             calendarService.list(from, to),
-            activitiesService.list({ from, to, size: 100 }).catch((err) => {
-              console.error("Failed to load activities for calendar:", err);
-              return { content: [], page: 0, size: 100, totalElements: 0, totalPages: 0 };
-            }),
             wellnessService.list({ from, to }).catch((err) => {
               console.error("Failed to load wellness for calendar:", err);
               return [];
@@ -214,72 +209,6 @@ export const useCalendarStore = create<CalendarState>()(
               return [];
             }),
           ]);
-
-          // Extract the IDs of activities that are already matched to a calendar event in the database
-          const matchedActivityIds = new Set<string>();
-          events.forEach((evt) => {
-            if (evt.activity?.id) {
-              matchedActivityIds.add(evt.activity.id);
-            }
-          });
-
-          // Synthesize pseudo calendar events ONLY for activities that are NOT matched (standalone)
-          const pseudoEvents = activitiesRes.content
-            .filter((act) => !matchedActivityIds.has(act.id))
-            .map((act) => {
-              const dateStr = act.startedAt.split("T")[0];
-              const pseudoEvent: CalendarEvent = {
-                id: `activity-event-${act.id}`,
-                date: dateStr,
-                eventType: "workout", // route to rich cards
-                title: act.name,
-                status: "completed", // route to ActivityCard
-                workout: null,
-                activity: {
-                  id: act.id,
-                  tss: act.tss,
-                  durationSeconds: act.durationSeconds,
-                  sport: act.sport,
-                  name: act.name,
-                  distanceMeters: act.distanceMeters,
-                  avgHeartRate: act.avgHeartRate,
-                  maxHeartRate: act.avgHeartRate, // Fallback/estimation
-                  avgPower: act.avgPower,
-                  rpe: null,
-                  source: act.source,
-                },
-                complianceScore: null,
-                orderIndex: 999, // Render after planned workouts
-                assignedBy: null,
-                notes: null,
-                garminWorkoutId: null,
-                garminScheduledId: null,
-                garminSyncedAt: null,
-              };
-              return pseudoEvent;
-            });
-
-          // Enrich matched activities with full summary details from activitiesRes
-          const enrichedEvents = events.map((evt) => {
-            if (evt.activity) {
-              const matchedAct = activitiesRes.content.find((a) => a.id === evt.activity?.id);
-              if (matchedAct) {
-                evt.activity = {
-                  ...evt.activity,
-                  source: matchedAct.source,
-                  sport: matchedAct.sport,
-                  name: matchedAct.name,
-                  distanceMeters: matchedAct.distanceMeters,
-                  avgHeartRate: matchedAct.avgHeartRate,
-                  maxHeartRate: matchedAct.avgHeartRate, // Fallback/estimation
-                  avgPower: matchedAct.avgPower,
-                };
-              }
-            }
-            return evt;
-          });
-
-          const mergedEvents = [...enrichedEvents, ...pseudoEvents];
 
           // Map wellness entries by date
           const wellnessByDate: Record<string, WellnessEntry> = {};
@@ -300,8 +229,8 @@ export const useCalendarStore = create<CalendarState>()(
           });
 
           set({
-            events: mergedEvents,
-            eventsByDate: groupByDate(mergedEvents),
+            events,
+            eventsByDate: groupByDate(events),
             wellnessByDate,
             healthSummaryByDate,
             sleepByDate,

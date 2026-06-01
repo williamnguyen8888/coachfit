@@ -249,7 +249,7 @@ class WorkoutPersistenceAdapter implements WorkoutPersistencePort {
     private WorkoutListItem toListItem(ResultSet rs) throws SQLException {
         String sport = rs.getString("sport");
         String steps = rs.getString("steps");
-        var calc = com.coachfit.workout.domain.WorkoutCalculator.calculate(steps, sport);
+        var calc = com.coachfit.shared.domain.workout.WorkoutCalculator.calculate(steps, sport);
         double distance = calc.distanceMeters();
         int intensity = calc.averageIntensity();
         return new WorkoutListItem(
@@ -273,7 +273,7 @@ class WorkoutPersistenceAdapter implements WorkoutPersistencePort {
     private TemplateListItem toTemplateItem(ResultSet rs) throws SQLException {
         String sport = rs.getString("sport");
         String steps = rs.getString("steps");
-        var calc = com.coachfit.workout.domain.WorkoutCalculator.calculate(steps, sport);
+        var calc = com.coachfit.shared.domain.workout.WorkoutCalculator.calculate(steps, sport);
         double distance = calc.distanceMeters();
         int intensity = calc.averageIntensity();
         return new TemplateListItem(

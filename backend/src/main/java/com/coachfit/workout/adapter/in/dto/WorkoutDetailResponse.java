@@ -1,7 +1,7 @@
 package com.coachfit.workout.adapter.in.dto;
 
 import com.coachfit.workout.application.port.in.GetWorkoutUseCase.WorkoutDetail;
-import com.coachfit.workout.domain.WorkoutCalculator;
+import com.coachfit.shared.domain.workout.WorkoutCalculator;
 import com.fasterxml.jackson.annotation.JsonRawValue;
 
 import java.math.BigDecimal;

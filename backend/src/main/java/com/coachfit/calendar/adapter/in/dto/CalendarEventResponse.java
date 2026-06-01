@@ -54,10 +54,32 @@ public record CalendarEventResponse(
         }
     }
 
-    public record ActivityPayload(UUID id, Double tss, Integer durationSeconds) {
+    public record ActivityPayload(
+            UUID id,
+            Double tss,
+            Integer durationSeconds,
+            String sport,
+            String name,
+            Double distanceMeters,
+            Integer avgHeartRate,
+            Integer maxHeartRate,
+            Integer avgPower,
+            String source
+    ) {
         static ActivityPayload from(ActivitySummary s) {
             return s == null ? null
-                    : new ActivityPayload(s.id(), s.tss(), s.durationSeconds());
+                    : new ActivityPayload(
+                            s.id(),
+                            s.tss(),
+                            s.durationSeconds(),
+                            s.sport(),
+                            s.name(),
+                            s.distanceMeters(),
+                            s.avgHeartRate(),
+                            s.maxHeartRate(),
+                            s.avgPower(),
+                            s.source()
+                      );
         }
     }
 

@@ -66,6 +66,7 @@ public class StravaActivitySyncService {
     private final ActivityLapPersistencePort     lapPort;
     private final SyncLogPersistencePort         syncLogPort;
     private final RestClient                     restClient;
+    private final org.springframework.context.ApplicationEventPublisher eventPublisher;
 
     public StravaActivitySyncService(StravaTokenPort stravaTokenPort,
                                      OAuthConnectionPersistencePort oauthPort,
@@ -75,7 +76,8 @@ public class StravaActivitySyncService {
                                      ActivityStreamPersistencePort streamPort,
                                      ActivityLapPersistencePort lapPort,
                                      SyncLogPersistencePort syncLogPort,
-                                     RestClient restClient) {
+                                     RestClient restClient,
+                                     org.springframework.context.ApplicationEventPublisher eventPublisher) {
         this.stravaTokenPort  = stravaTokenPort;
         this.oauthPort        = oauthPort;
         this.encryptionUtil   = encryptionUtil;
@@ -85,6 +87,7 @@ public class StravaActivitySyncService {
         this.lapPort          = lapPort;
         this.syncLogPort      = syncLogPort;
         this.restClient       = restClient;
+        this.eventPublisher   = eventPublisher;
     }
 
     // ── Public API ────────────────────────────────────────────────────────────
@@ -121,6 +124,7 @@ public class StravaActivitySyncService {
                         activityPort.softDelete(id);
                         log.info("Soft-deleted Strava activity: userId={} activityId={}", userId, stravaActivityId);
                         syncLogPort.complete(logId, "success", id, null);
+                        eventPublisher.publishEvent(new com.coachfit.shared.domain.event.ActivityDeletedEvent(userId, id));
                     });
             if (activityPort.findIdByUserSourceAndSourceId(userId, PROVIDER, stravaActivityId).isEmpty()) {
                 log.debug("Delete event for unknown activity: userId={} activityId={}", userId, stravaActivityId);
@@ -241,6 +245,22 @@ public class StravaActivitySyncService {
 
         syncLogPort.complete(logId, "success", activityId, null);
         log.info("Strava activity synced: userId={} activityId={} stravaId={}", userId, activityId, stravaActivityId);
+
+        eventPublisher.publishEvent(new com.coachfit.shared.domain.event.ActivityCreatedEvent(
+                userId,
+                activityId,
+                normalizeSport(activity.type(), activity.sportType()),
+                activity.name() != null ? activity.name() : "Strava Activity",
+                activity.description(),
+                activity.startDateLocal() != null
+                        ? Instant.parse(activity.startDateLocal().endsWith("Z")
+                                ? activity.startDateLocal()
+                                : activity.startDateLocal() + "Z")
+                        : Instant.now(),
+                activity.movingTime() != null ? activity.movingTime() : 0,
+                activity.distance() != null ? BigDecimal.valueOf(activity.distance()) : null,
+                tss
+        ));
     }
 
     // ── Token refresh ─────────────────────────────────────────────────────────

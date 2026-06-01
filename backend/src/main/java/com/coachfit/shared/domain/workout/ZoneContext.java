@@ -1,4 +1,4 @@
-package com.coachfit.workout.domain;
+package com.coachfit.shared.domain.workout;
 
 /**
  * Zone configuration context for FIT export target resolution.
@@ -7,8 +7,7 @@ package com.coachfit.workout.domain;
  * into {@link FitEncoder} so that domain code has no dependency on the athlete module.
  *
  * @param ftpWatts  functional threshold power in watts (used for power_pct targets);
- * @param ftpWatts      functional threshold power in watts (used for power_pct targets);
- *                      defaults to 200W when not configured
+ *                  defaults to 200W when not configured
  * @param lthrBpm       lactate threshold heart rate in bpm (used for hr_pct targets);
  *                      defaults to 160 bpm when not configured
  * @param thresholdPace threshold pace in seconds per km or per 100m;

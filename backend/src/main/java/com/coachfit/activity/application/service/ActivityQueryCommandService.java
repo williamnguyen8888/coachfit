@@ -54,15 +54,18 @@ public class ActivityQueryCommandService
     private final ActivityStreamPersistencePort streamPort;
     private final ActivityLapPersistencePort    lapPort;
     private final ActivityStoragePort           storagePort;
+    private final org.springframework.context.ApplicationEventPublisher eventPublisher;
 
     public ActivityQueryCommandService(ActivityPersistencePort activityPort,
                                        ActivityStreamPersistencePort streamPort,
                                        ActivityLapPersistencePort lapPort,
-                                       ActivityStoragePort storagePort) {
+                                       ActivityStoragePort storagePort,
+                                       org.springframework.context.ApplicationEventPublisher eventPublisher) {
         this.activityPort = activityPort;
         this.streamPort   = streamPort;
         this.lapPort      = lapPort;
         this.storagePort  = storagePort;
+        this.eventPublisher = eventPublisher;
     }
 
     // ── ListActivitiesUseCase ─────────────────────────────────────────────────
@@ -163,6 +166,8 @@ public class ActivityQueryCommandService
 
         activityPort.softDelete(activityId);
         log.info("Activity soft-deleted: id={} user={}", activityId, userId);
+
+        eventPublisher.publishEvent(new com.coachfit.shared.domain.event.ActivityDeletedEvent(userId, activityId));
     }
 
     // ── DownloadActivityUseCase ───────────────────────────────────────────────

@@ -178,6 +178,7 @@
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/calendar/application/port/in/CompleteCalendarEventUseCase.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/calendar/application/port/in/CreateCalendarEventUseCase.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/calendar/application/port/in/DeleteCalendarEventUseCase.java
+/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/calendar/application/port/in/LinkActivityToCalendarEventUseCase.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/calendar/application/port/in/ListCalendarEventsUseCase.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/calendar/application/port/in/ReorderCalendarEventsUseCase.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/calendar/application/port/in/SkipCalendarEventUseCase.java
@@ -185,6 +186,7 @@
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/calendar/application/port/in/package-info.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/calendar/application/port/out/CalendarEventPersistencePort.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/calendar/application/port/out/package-info.java
+/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/calendar/application/service/CalendarActivityEventListener.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/calendar/application/service/CalendarAutoSkipScheduler.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/calendar/application/service/CalendarEventService.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/calendar/application/service/package-info.java
@@ -274,7 +276,11 @@
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/shared/application/port/in/package-info.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/shared/application/port/out/package-info.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/shared/application/service/package-info.java
+/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/shared/domain/event/ActivityCreatedEvent.java
+/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/shared/domain/event/ActivityDeletedEvent.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/shared/domain/package-info.java
+/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/shared/domain/workout/WorkoutCalculator.java
+/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/shared/domain/workout/ZoneContext.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/shared/package-info.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/subscription/adapter/in/SubscriptionController.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/subscription/adapter/in/package-info.java
@@ -288,11 +294,13 @@
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/subscription/application/service/package-info.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/subscription/domain/package-info.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/subscription/package-info.java
+/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/sync/adapter/in/GarminFilterConfig.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/sync/adapter/in/GarminJobConsumer.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/sync/adapter/in/GarminSignatureVerifier.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/sync/adapter/in/GarminStagedDetailsReconciler.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/sync/adapter/in/GarminWebhookController.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/sync/adapter/in/GarminWebhookSignatureFilter.java
+/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/sync/adapter/in/GarminWorkoutSyncController.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/sync/adapter/in/StravaJobConsumer.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/sync/adapter/in/StravaWebhookController.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/sync/adapter/in/SyncController.java
@@ -379,9 +387,7 @@
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/workout/application/service/WorkoutService.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/workout/application/service/package-info.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/workout/domain/FitEncoder.java
-/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/workout/domain/WorkoutCalculator.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/workout/domain/WorkoutStepsValidator.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/workout/domain/WorkoutValidationException.java
-/Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/workout/domain/ZoneContext.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/workout/domain/package-info.java
 /Users/williamnguyen/coachfit/backend/src/main/java/com/coachfit/workout/package-info.java

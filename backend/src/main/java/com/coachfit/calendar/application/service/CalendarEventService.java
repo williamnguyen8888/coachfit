@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
@@ -47,7 +48,8 @@ public class CalendarEventService
                    DeleteCalendarEventUseCase,
                    CompleteCalendarEventUseCase,
                    SkipCalendarEventUseCase,
-                   ReorderCalendarEventsUseCase {
+                   ReorderCalendarEventsUseCase,
+                   com.coachfit.calendar.application.port.in.LinkActivityToCalendarEventUseCase {
 
     private static final Logger log = LoggerFactory.getLogger(CalendarEventService.class);
 
@@ -177,6 +179,51 @@ public class CalendarEventService
         log.debug("Calendar events reordered: user={} count={}", userId, eventIds.size());
     }
 
+    // ── LinkActivityToCalendarEventUseCase ────────────────────────────────────
+
+    @Override
+    @Transactional
+    public void link(UUID userId, UUID eventId, UUID activityId) {
+        CalendarEventSummary event = findOwnedEvent(userId, eventId);
+
+        // Fetch activity details (duration, sport)
+        var activityDetails = port.findActivityDetails(activityId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Activity not found"));
+
+        BigDecimal complianceScore = BigDecimal.valueOf(100.0);
+        Integer plannedDuration = event.workoutDuration();
+        int actualDuration = activityDetails.durationSeconds();
+
+        if (plannedDuration != null && plannedDuration > 0) {
+            double ratio = (double) actualDuration / plannedDuration;
+            if (ratio >= 0.9 && ratio <= 1.1) {
+                complianceScore = BigDecimal.valueOf(100.0);
+            } else if (ratio < 0.9) {
+                complianceScore = BigDecimal.valueOf(Math.max(0.0, 100.0 * (ratio / 0.9)))
+                        .setScale(2, java.math.RoundingMode.HALF_UP);
+            } else {
+                complianceScore = BigDecimal.valueOf(Math.max(0.0, 100.0 * (1.0 - (ratio - 1.1))))
+                        .setScale(2, java.math.RoundingMode.HALF_UP);
+            }
+        }
+
+        port.linkActivity(eventId, activityId, complianceScore);
+        log.info("Manually linked activity {} to calendar event {} by user {}", activityId, eventId, userId);
+    }
+
+    @Override
+    @Transactional
+    public void unlink(UUID userId, UUID eventId) {
+        CalendarEventSummary event = findOwnedEvent(userId, eventId);
+
+        if (event.activityId() == null) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Calendar event is not linked to any activity");
+        }
+
+        port.unlinkActivity(eventId);
+        log.info("Manually unlinked activity from calendar event {} by user {}", eventId, userId);
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     /**
@@ -206,7 +253,7 @@ public class CalendarEventService
             Double distance = null;
             java.math.BigDecimal tss = s.workoutTss();
             if (s.workoutSteps() != null && !s.workoutSteps().isBlank()) {
-                var calc = com.coachfit.workout.domain.WorkoutCalculator.calculate(s.workoutSteps(), s.workoutSport());
+                var calc = com.coachfit.shared.domain.workout.WorkoutCalculator.calculate(s.workoutSteps(), s.workoutSport());
                 distance = calc.distanceMeters();
                 if (tss == null || tss.compareTo(java.math.BigDecimal.ZERO) == 0) {
                     tss = calc.tss();
@@ -215,7 +262,18 @@ public class CalendarEventService
             workout = new WorkoutSummary(s.workoutId(), s.workoutSport(), s.workoutDuration(), tss, distance);
         }
         ActivitySummary activity = s.activityId() != null
-                ? new ActivitySummary(s.activityId(), s.activityTss() != null ? s.activityTss().doubleValue() : null, s.activityDuration())
+                ? new ActivitySummary(
+                        s.activityId(),
+                        s.activityTss() != null ? s.activityTss().doubleValue() : null,
+                        s.activityDuration(),
+                        s.activitySport(),
+                        s.activityName(),
+                        s.activityDistance() != null ? s.activityDistance().doubleValue() : null,
+                        s.activityAvgHr(),
+                        s.activityMaxHr(),
+                        s.activityAvgPower(),
+                        s.activitySource()
+                  )
                 : null;
 
         return new CalendarEventView(

@@ -47,6 +47,7 @@ public class ActivityUploadService implements UploadActivityUseCase {
     private final ActivityPersistencePort     activityPort;
     private final ActivityStreamPersistencePort streamPort;
     private final ActivityLapPersistencePort  lapPort;
+    private final org.springframework.context.ApplicationEventPublisher eventPublisher;
 
     public ActivityUploadService(FileFormatDetector detector,
                                  FitParser fitParser,
@@ -55,7 +56,8 @@ public class ActivityUploadService implements UploadActivityUseCase {
                                  ActivityStoragePort storagePort,
                                  ActivityPersistencePort activityPort,
                                  ActivityStreamPersistencePort streamPort,
-                                 ActivityLapPersistencePort lapPort) {
+                                 ActivityLapPersistencePort lapPort,
+                                 org.springframework.context.ApplicationEventPublisher eventPublisher) {
         this.detector     = detector;
         this.fitParser    = fitParser;
         this.tcxParser    = tcxParser;
@@ -64,6 +66,7 @@ public class ActivityUploadService implements UploadActivityUseCase {
         this.activityPort = activityPort;
         this.streamPort   = streamPort;
         this.lapPort      = lapPort;
+        this.eventPublisher = eventPublisher;
     }
 
     // ── UploadActivityUseCase ─────────────────────────────────────────────────
@@ -120,7 +123,21 @@ public class ActivityUploadService implements UploadActivityUseCase {
         log.info("Upload complete: activityId={} format={}", activityId, formatStr);
 
         // Step 8: Return summary for the HTTP 201 response
-        return activityPort.findById(activityId);
+        ActivitySummary summary = activityPort.findById(activityId);
+
+        eventPublisher.publishEvent(new com.coachfit.shared.domain.event.ActivityCreatedEvent(
+                userId,
+                activityId,
+                summary.sport(),
+                summary.name(),
+                null, // description
+                summary.startedAt(),
+                summary.durationSeconds(),
+                summary.distanceMeters() != null ? java.math.BigDecimal.valueOf(summary.distanceMeters()) : null,
+                null // TSS is computed in sync engine or later in PMCs
+        ));
+
+        return summary;
     }
 
     // ── Conversion helpers ────────────────────────────────────────────────────

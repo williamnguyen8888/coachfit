@@ -1,4 +1,4 @@
-package com.coachfit.workout.domain;
+package com.coachfit.shared.domain.workout;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;

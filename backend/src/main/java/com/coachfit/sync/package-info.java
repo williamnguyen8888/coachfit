@@ -18,6 +18,8 @@
         displayName = "Sync",
         allowedDependencies = {
                 "shared",
+                "workout",
+                "workout::api",
                 "activity::activity-persistence-ports",
                 "health::health-persistence-ports",
                 "wellness::wellness-persistence-ports",

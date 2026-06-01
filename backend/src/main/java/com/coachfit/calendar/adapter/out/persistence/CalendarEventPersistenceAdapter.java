@@ -114,6 +114,23 @@ class CalendarEventPersistenceAdapter implements CalendarEventPersistencePort {
                 .update();
     }
 
+    // ── unlinkActivity ────────────────────────────────────────────────────────
+
+    @Override
+    @Transactional
+    public void unlinkActivity(UUID eventId) {
+        jdbcClient.sql("""
+                UPDATE calendar_events
+                   SET activity_id      = null,
+                       compliance_score = null,
+                       status           = 'planned',
+                       updated_at       = now()
+                 WHERE id = :id AND deleted_at IS NULL
+                """)
+                .param("id", eventId)
+                .update();
+    }
+
     // ── reorder ───────────────────────────────────────────────────────────────
 
     @Override
@@ -167,7 +184,11 @@ class CalendarEventPersistenceAdapter implements CalendarEventPersistencePort {
                        c.title, c.description, c.status, c.order_index, c.compliance_score,
                        w.sport AS workout_sport, w.estimated_duration_seconds AS workout_duration,
                        w.estimated_tss AS workout_tss, w.steps AS workout_steps,
-                       a.tss AS activity_tss, a.duration_seconds AS activity_duration
+                       a.tss AS activity_tss, a.duration_seconds AS activity_duration,
+                       a.sport AS activity_sport, a.name AS activity_name,
+                       a.distance_meters AS activity_distance, a.avg_heart_rate AS activity_avg_hr,
+                       a.max_heart_rate AS activity_max_hr, a.avg_power AS activity_avg_power,
+                       a.source AS activity_source
                   FROM calendar_events c
                   LEFT JOIN workouts w ON w.id = c.workout_id AND w.deleted_at IS NULL
                   LEFT JOIN activities a ON a.id = c.activity_id AND a.deleted_at IS NULL
@@ -197,9 +218,69 @@ class CalendarEventPersistenceAdapter implements CalendarEventPersistencePort {
                         rs.getBigDecimal("workout_tss"),
                         rs.getString("workout_steps"),
                         rs.getBigDecimal("activity_tss"),
-                        nullableInt(rs, "activity_duration")
+                        nullableInt(rs, "activity_duration"),
+                        rs.getString("activity_sport"),
+                        rs.getString("activity_name"),
+                        rs.getBigDecimal("activity_distance"),
+                        nullableInt(rs, "activity_avg_hr"),
+                        nullableInt(rs, "activity_max_hr"),
+                        nullableInt(rs, "activity_avg_power"),
+                        rs.getString("activity_source")
                 ))
                 .list();
+    }
+
+    @Override
+    public List<CalendarEventSummary> findPlannedWorkoutsByDate(UUID userId, LocalDate date) {
+        return jdbcClient.sql("""
+                SELECT c.id, c.user_id, c.date, c.event_type, c.workout_id, c.activity_id,
+                       c.title, c.description, c.status, c.order_index, c.compliance_score,
+                       w.sport AS workout_sport, w.estimated_duration_seconds AS workout_duration,
+                       w.estimated_tss AS workout_tss, w.steps AS workout_steps
+                  FROM calendar_events c
+                  JOIN workouts w ON w.id = c.workout_id AND w.deleted_at IS NULL
+                 WHERE c.user_id = :userId
+                   AND c.date = :date
+                   AND c.event_type = 'workout'
+                   AND c.status = 'planned'
+                   AND c.deleted_at IS NULL
+                 ORDER BY c.order_index ASC
+                """)
+                .param("userId", userId)
+                .param("date",   date)
+                .query((rs, rowNum) -> new CalendarEventSummary(
+                        rs.getObject("id", UUID.class),
+                        rs.getObject("user_id", UUID.class),
+                        rs.getObject("date", LocalDate.class),
+                        rs.getString("event_type"),
+                        rs.getObject("workout_id", UUID.class),
+                        rs.getObject("activity_id", UUID.class),
+                        rs.getString("title"),
+                        rs.getString("description"),
+                        rs.getString("status"),
+                        rs.getShort("order_index"),
+                        rs.getBigDecimal("compliance_score"),
+                        rs.getString("workout_sport"),
+                        nullableInt(rs, "workout_duration"),
+                        rs.getBigDecimal("workout_tss"),
+                        rs.getString("workout_steps"),
+                        null, null, null, null, null, null, null, null, null
+                ))
+                .list();
+    }
+
+    @Override
+    public String findUserTimezone(UUID userId) {
+        return jdbcClient.sql("""
+                SELECT COALESCE(settings->>'timezone', 'Asia/Ho_Chi_Minh')
+                  FROM users
+                 WHERE id = :userId
+                   AND deleted_at IS NULL
+                """)
+                .param("userId", userId)
+                .query(String.class)
+                .optional()
+                .orElse("Asia/Ho_Chi_Minh");
     }
 
     // ── autoSkipPastPlanned ───────────────────────────────────────────────────
@@ -218,6 +299,20 @@ class CalendarEventPersistenceAdapter implements CalendarEventPersistencePort {
                 .update();
     }
 
+    @Override
+    public Optional<SimpleActivityDetails> findActivityDetails(UUID activityId) {
+        return jdbcClient.sql("""
+                SELECT duration_seconds, sport FROM activities
+                 WHERE id = :activityId AND deleted_at IS NULL
+                """)
+                .param("activityId", activityId)
+                .query((rs, rowNum) -> new SimpleActivityDetails(
+                        rs.getInt("duration_seconds"),
+                        rs.getString("sport")
+                ))
+                .optional();
+    }
+
     // ── Mapping ───────────────────────────────────────────────────────────────
 
     private CalendarEventSummary toSummary(CalendarEventEntity e) {
@@ -226,7 +321,8 @@ class CalendarEventPersistenceAdapter implements CalendarEventPersistencePort {
                 e.workoutId, e.activityId,
                 e.title, e.description,
                 e.status, e.orderIndex, e.complianceScore,
-                null, null, null, null, null, null
+                null, null, null, null, null, null,
+                null, null, null, null, null, null, null
         );
     }
 

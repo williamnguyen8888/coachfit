@@ -14,7 +14,6 @@ import com.coachfit.calendar.application.port.in.SkipCalendarEventUseCase;
 import com.coachfit.calendar.application.port.in.UpdateCalendarEventUseCase;
 import com.coachfit.calendar.application.port.in.UpdateCalendarEventUseCase.UpdateCommand;
 import com.coachfit.shared.adapter.in.security.jwt.UserPrincipal;
-import com.coachfit.sync.application.port.in.SyncWorkoutToGarminUseCase;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -63,7 +62,7 @@ public class CalendarController {
     private final CompleteCalendarEventUseCase completeUseCase;
     private final SkipCalendarEventUseCase   skipUseCase;
     private final ReorderCalendarEventsUseCase reorderUseCase;
-    private final SyncWorkoutToGarminUseCase garminSyncUseCase;
+    private final com.coachfit.calendar.application.port.in.LinkActivityToCalendarEventUseCase linkActivityUseCase;
 
     public CalendarController(
             ListCalendarEventsUseCase    listUseCase,
@@ -73,7 +72,7 @@ public class CalendarController {
             CompleteCalendarEventUseCase completeUseCase,
             SkipCalendarEventUseCase     skipUseCase,
             ReorderCalendarEventsUseCase reorderUseCase,
-            SyncWorkoutToGarminUseCase   garminSyncUseCase) {
+            com.coachfit.calendar.application.port.in.LinkActivityToCalendarEventUseCase linkActivityUseCase) {
         this.listUseCase       = listUseCase;
         this.createUseCase     = createUseCase;
         this.updateUseCase     = updateUseCase;
@@ -81,7 +80,7 @@ public class CalendarController {
         this.completeUseCase   = completeUseCase;
         this.skipUseCase       = skipUseCase;
         this.reorderUseCase    = reorderUseCase;
-        this.garminSyncUseCase = garminSyncUseCase;
+        this.linkActivityUseCase = linkActivityUseCase;
     }
 
     // ── GET /calendar?from=...&to=... ─────────────────────────────────────────
@@ -205,6 +204,25 @@ public class CalendarController {
         return ResponseEntity.ok().build();
     }
 
+    // ── PUT /calendar/{id}/link-activity ─────────────────────────────────────
+    @PutMapping("/{id}/link-activity")
+    public ResponseEntity<Void> linkActivity(
+            @PathVariable UUID id,
+            @RequestParam UUID activityId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        linkActivityUseCase.link(principal.getUserId(), id, activityId);
+        return ResponseEntity.ok().build();
+    }
+
+    // ── PUT /calendar/{id}/unlink-activity ───────────────────────────────────
+    @PutMapping("/{id}/unlink-activity")
+    public ResponseEntity<Void> unlinkActivity(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        linkActivityUseCase.unlink(principal.getUserId(), id);
+        return ResponseEntity.ok().build();
+    }
+
     // ── PUT /calendar/{id}/skip ───────────────────────────────────────────────
 
     /**
@@ -246,87 +264,6 @@ public class CalendarController {
         reorderUseCase.reorder(principal.getUserId(), req.eventIds());
         return ResponseEntity.ok().build();
     }
-
-    // ── POST /calendar/{id}/sync-garmin ───────────────────────────────────────
-
-    /**
-     * Pushes a workout calendar event to the user's Garmin Connect calendar.
-     *
-     * <p>Pre-conditions:
-     * <ul>
-     *   <li>The event must be a {@code workout} event with an attached {@code workout_id}.</li>
-     *   <li>The user must have an active Garmin OAuth connection.</li>
-     *   <li>CoachFit must have Garmin Training API access.</li>
-     * </ul>
-     *
-     * <p>Response 200 with Garmin IDs:
-     * <pre>{@code
-     * {
-     *   "garminWorkoutId":   "12345",
-     *   "garminScheduledId": "67890",
-     *   "scheduledDate":     "2025-03-20"
-     * }
-     * }</pre>
-     *
-     * <p>Returns 400 if the event has no workout. Returns 503 if Garmin API is unavailable.
-     */
-    @PostMapping("/{id}/sync-garmin")
-    public ResponseEntity<GarminSyncResponse> syncToGarmin(
-            @PathVariable UUID id,
-            @AuthenticationPrincipal UserPrincipal principal) {
-
-        try {
-            SyncWorkoutToGarminUseCase.SyncResult result =
-                    garminSyncUseCase.syncToGarmin(id, principal.getUserId());
-
-            return ResponseEntity.ok(new GarminSyncResponse(
-                    result.garminWorkoutId(),
-                    result.garminScheduledId(),
-                    result.scheduledDate().toString()
-            ));
-        } catch (SyncWorkoutToGarminUseCase.GarminSyncException e) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
-        } catch (com.coachfit.sync.application.port.out.GarminTrainingPort.GarminTrainingException e) {
-            if (e.getHttpStatus() == 401) {
-                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED,
-                        "User has no active Garmin connection. Please reconnect Garmin.");
-            }
-            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
-                    "Garmin Training API unavailable: " + e.getMessage());
-        }
-    }
-
-    // ── DELETE /calendar/{id}/sync-garmin ─────────────────────────────────────
-
-    /**
-     * Removes a previously synced workout from the user's Garmin Connect calendar.
-     *
-     * <p>No-op (200 OK) if the event was never synced to Garmin.
-     */
-    @DeleteMapping("/{id}/sync-garmin")
-    public ResponseEntity<Void> removeFromGarmin(
-            @PathVariable UUID id,
-            @AuthenticationPrincipal UserPrincipal principal) {
-
-        try {
-            garminSyncUseCase.removeFromGarmin(id, principal.getUserId());
-            return ResponseEntity.ok().build();
-        } catch (SyncWorkoutToGarminUseCase.GarminSyncException e) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
-        } catch (com.coachfit.sync.application.port.out.GarminTrainingPort.GarminTrainingException e) {
-            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
-                    "Garmin Training API error: " + e.getMessage());
-        }
-    }
-
-    // ── Garmin sync response DTO ──────────────────────────────────────────────
-
-    record GarminSyncResponse(
-            String garminWorkoutId,
-            String garminScheduledId,
-            String scheduledDate
-    ) {}
-
     // ── Validation helpers ────────────────────────────────────────────────────
 
     private static final List<String> VALID_EVENT_TYPES =

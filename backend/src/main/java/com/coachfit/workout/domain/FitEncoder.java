@@ -1,6 +1,7 @@
 package com.coachfit.workout.domain;
 
 import com.coachfit.workout.application.port.in.GetWorkoutUseCase.WorkoutDetail;
+import com.coachfit.shared.domain.workout.ZoneContext;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.garmin.fit.BufferEncoder;

@@ -5,7 +5,7 @@ import com.coachfit.sync.application.port.out.GarminTrainingPort;
 import com.coachfit.workout.application.port.in.GetWorkoutUseCase;
 import com.coachfit.workout.application.port.in.GetWorkoutUseCase.WorkoutDetail;
 import com.coachfit.workout.domain.FitEncoder;
-import com.coachfit.workout.domain.ZoneContext;
+import com.coachfit.shared.domain.workout.ZoneContext;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;

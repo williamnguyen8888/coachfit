@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.coachfit.athlete.adapter.in.AthleteControllerTest
+-------------------------------------------------------------------------------
+Tests run: 14, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.487 s -- in com.coachfit.athlete.adapter.in.AthleteControllerTest

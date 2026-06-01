@@ -34,7 +34,6 @@ import java.io.IOException;
  *
  * <p>See docs/06-sync-engine-spec.md §Garmin Push Callback Verification.
  */
-@Component
 class GarminWebhookSignatureFilter extends OncePerRequestFilter {
 
     private static final Logger log = LoggerFactory.getLogger(GarminWebhookSignatureFilter.class);

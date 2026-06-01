@@ -97,19 +97,22 @@ public class GarminActivitySyncService {
     private final SyncLogPersistencePort        syncLogPort;
     private final ObjectMapper                  objectMapper;
     private final JdbcClient                    jdbcClient;
+    private final org.springframework.context.ApplicationEventPublisher eventPublisher;
 
     public GarminActivitySyncService(ActivityPersistencePort activityPort,
                                      ActivityStreamPersistencePort streamPort,
                                      ActivityLapPersistencePort lapPort,
                                      SyncLogPersistencePort syncLogPort,
                                      ObjectMapper objectMapper,
-                                     JdbcClient jdbcClient) {
+                                     JdbcClient jdbcClient,
+                                     org.springframework.context.ApplicationEventPublisher eventPublisher) {
         this.activityPort = activityPort;
         this.streamPort   = streamPort;
         this.lapPort      = lapPort;
         this.syncLogPort  = syncLogPort;
         this.objectMapper = objectMapper;
         this.jdbcClient   = jdbcClient;
+        this.eventPublisher = eventPublisher;
     }
 
     // ── Activity summary ──────────────────────────────────────────────────────
@@ -199,6 +202,18 @@ public class GarminActivitySyncService {
             syncLogPort.complete(logId, "success", activityId, null);
             log.info("Garmin activity synced: userId={} activityId={} summaryId={} sport={}",
                     userId, activityId, summaryId, sport);
+
+            eventPublisher.publishEvent(new com.coachfit.shared.domain.event.ActivityCreatedEvent(
+                    userId,
+                    activityId,
+                    sport,
+                    name,
+                    null, // description
+                    startedAt,
+                    durationSec,
+                    distMeters,
+                    null // TSS
+            ));
 
         } catch (Exception e) {
             log.error("Garmin activity failed: userId={} logId={} error={}", userId, logId, e.getMessage(), e);
