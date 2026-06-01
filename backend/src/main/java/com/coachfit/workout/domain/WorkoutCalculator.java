@@ -6,39 +6,58 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 
 /**
- * Utility to parse steps JSON and calculate estimated duration and training load (TSS).
+ * Utility to parse steps JSON and calculate estimated duration, training load (TSS), and distance.
  */
 public class WorkoutCalculator {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
-    public record CalculationResult(int durationSeconds, BigDecimal tss) {}
+    public record CalculationResult(int durationSeconds, java.math.BigDecimal tss, double distanceMeters, int averageIntensity) {}
 
     public static CalculationResult calculate(String stepsJson, String sport) {
         if (stepsJson == null || stepsJson.isBlank()) {
-            return new CalculationResult(0, BigDecimal.ZERO);
+            return new CalculationResult(0, BigDecimal.ZERO, 0.0, 70);
         }
         try {
             JsonNode root = MAPPER.readTree(stepsJson);
             if (!root.isArray()) {
-                return new CalculationResult(0, BigDecimal.ZERO);
+                return new CalculationResult(0, BigDecimal.ZERO, 0.0, 70);
             }
             double totalDuration = 0;
             double totalTss = 0;
+            double totalDistance = 0;
+            double totalIntensityWeighted = 0;
+            boolean hasDistanceStep = false;
 
             for (JsonNode step : root) {
                 CalculationResult stepRes = calculateStep(step, sport);
                 totalDuration += stepRes.durationSeconds();
                 totalTss += stepRes.tss().doubleValue();
+                totalIntensityWeighted += stepRes.averageIntensity() * stepRes.durationSeconds();
+                
+                // Track if we had any explicit distance-based steps
+                if (stepRes.distanceMeters() > 0) {
+                    totalDistance += stepRes.distanceMeters();
+                    hasDistanceStep = true;
+                }
             }
+
+            // If no step had an explicit distance, use duration heuristic matching the frontend
+            if (!hasDistanceStep && totalDuration > 0) {
+                totalDistance = getHeuristicDistance(totalDuration, sport);
+            }
+
+            int avgIntensity = totalDuration > 0 ? (int) Math.round(totalIntensityWeighted / totalDuration) : 70;
 
             return new CalculationResult(
                     (int) Math.round(totalDuration),
-                    BigDecimal.valueOf(totalTss).setScale(2, RoundingMode.HALF_UP)
+                    BigDecimal.valueOf(totalTss).setScale(2, RoundingMode.HALF_UP),
+                    totalDistance,
+                    avgIntensity
             );
         } catch (Exception e) {
             // Fallback on JSON parse errors
-            return new CalculationResult(0, BigDecimal.ZERO);
+            return new CalculationResult(0, BigDecimal.ZERO, 0.0, 70);
         }
     }
 
@@ -48,30 +67,39 @@ public class WorkoutCalculator {
             int count = step.has("count") ? step.get("count").asInt() : 1;
             double innerDuration = 0;
             double innerTss = 0;
+            double innerDistance = 0;
+            double innerIntensityWeighted = 0;
             if (step.has("steps") && step.get("steps").isArray()) {
                 for (JsonNode inner : step.get("steps")) {
                     CalculationResult innerRes = calculateStep(inner, sport);
                     innerDuration += innerRes.durationSeconds();
                     innerTss += innerRes.tss().doubleValue();
+                    innerDistance += innerRes.distanceMeters();
+                    innerIntensityWeighted += innerRes.averageIntensity() * innerRes.durationSeconds();
                 }
             }
+            double stepDur = innerDuration * count;
+            int stepAvgIntensity = innerDuration > 0 ? (int) Math.round(innerIntensityWeighted / innerDuration) : 70;
             return new CalculationResult(
-                    (int) Math.round(innerDuration * count),
-                    BigDecimal.valueOf(innerTss * count)
+                    (int) Math.round(stepDur),
+                    BigDecimal.valueOf(innerTss * count),
+                    innerDistance * count,
+                    stepAvgIntensity
             );
         }
 
-        // Leaf step duration
+        // Leaf step duration and distance
         double duration = 0;
+        double distance = 0;
         if (step.has("duration") && !step.get("duration").isNull()) {
             JsonNode dur = step.get("duration");
             String durType = dur.has("type") ? dur.get("type").asText() : "time";
             if ("time".equals(durType)) {
                 duration = dur.has("value") && !dur.get("value").isNull() ? dur.get("value").asDouble() : 300.0;
             } else if ("distance".equals(durType)) {
-                double meters = dur.has("value") && !dur.get("value").isNull() ? dur.get("value").asDouble() : 1000.0;
+                distance = dur.has("value") && !dur.get("value").isNull() ? dur.get("value").asDouble() : 1000.0;
                 double speed = getDefaultSpeed(sport);
-                duration = meters / speed;
+                duration = distance / speed;
             } else {
                 duration = 300.0; // default for calories or other lap_button steps
             }
@@ -96,11 +124,19 @@ public class WorkoutCalculator {
                 }
                 default -> ifValue = 0.70;
             }
+        } else {
+            if ("warmup".equals(type) || "cooldown".equals(type) || "rest".equals(type)) {
+                ifValue = 0.50; // Zone 1
+            } else if ("work".equals(type)) {
+                ifValue = 0.75;
+            } else {
+                ifValue = 0.65; // Zone 2
+            }
         }
 
         // TSS = (duration * IF^2 * 100) / 3600
         double tss = (duration * ifValue * ifValue * 100.0) / 3600.0;
-        return new CalculationResult((int) Math.round(duration), BigDecimal.valueOf(tss));
+        return new CalculationResult((int) Math.round(duration), BigDecimal.valueOf(tss), distance, (int) Math.round(ifValue * 100));
     }
 
     private static double estimateIfForType(String targetType, double min, double max, String sport) {
@@ -144,6 +180,16 @@ public class WorkoutCalculator {
             case 6 -> 1.20;
             case 7 -> 1.40;
             default -> 0.70;
+        };
+    }
+
+    private static double getHeuristicDistance(double durationSeconds, String sport) {
+        if (sport == null) return 0.0;
+        return switch (sport.toLowerCase()) {
+            case "swimming" -> (durationSeconds / 2400.0) * 1400.0;
+            case "cycling" -> (durationSeconds / 3600.0) * 28000.0;
+            case "running" -> (durationSeconds / 2700.0) * 7500.0;
+            default -> 0.0;
         };
     }
 }

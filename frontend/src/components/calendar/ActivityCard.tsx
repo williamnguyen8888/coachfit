@@ -615,9 +615,11 @@ export function ActivityCard({
               <span style={{ fontSize: 9, fontWeight: 700, background: "var(--bg-input)", padding: "2px 5px", borderRadius: 4, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 2 }}>
                 <span>📏</span>
                 <span>{formatDistance(
-                  sport === "swimming" ? (event.workout?.estimatedDuration ? (event.workout.estimatedDuration / 2400) * 1400 : 0) :
-                  sport === "cycling" ? (event.workout?.estimatedDuration ? (event.workout.estimatedDuration / 3600) * 28000 : 0) :
-                  sport === "running" ? (event.workout?.estimatedDuration ? (event.workout.estimatedDuration / 2700) * 7500 : 0) : 0
+                  event.workout?.estimatedDistance ?? (
+                    sport === "swimming" ? (event.workout?.estimatedDuration ? (event.workout.estimatedDuration / 2400) * 1400 : 0) :
+                    sport === "cycling" ? (event.workout?.estimatedDuration ? (event.workout.estimatedDuration / 3600) * 28000 : 0) :
+                    sport === "running" ? (event.workout?.estimatedDuration ? (event.workout.estimatedDuration / 2700) * 7500 : 0) : 0
+                  )
                 )}</span>
               </span>
               <span style={{ fontSize: 9, fontWeight: 700, background: "var(--bg-input)", padding: "2px 5px", borderRadius: 4, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 2 }}>

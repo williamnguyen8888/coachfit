@@ -25,7 +25,7 @@ public interface ListCalendarEventsUseCase {
 
     // ── Read model ─────────────────────────────────────────────────────────────
 
-    record WorkoutSummary(UUID id, String sport, Integer estimatedDurationSeconds) {}
+    record WorkoutSummary(UUID id, String sport, Integer estimatedDurationSeconds, java.math.BigDecimal estimatedTss, Double estimatedDistance) {}
     record ActivitySummary(UUID id, Double tss, Integer durationSeconds) {}
 
     record CalendarEventView(

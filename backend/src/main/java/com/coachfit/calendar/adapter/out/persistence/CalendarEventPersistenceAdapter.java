@@ -166,6 +166,7 @@ class CalendarEventPersistenceAdapter implements CalendarEventPersistencePort {
                 SELECT c.id, c.user_id, c.date, c.event_type, c.workout_id, c.activity_id,
                        c.title, c.description, c.status, c.order_index, c.compliance_score,
                        w.sport AS workout_sport, w.estimated_duration_seconds AS workout_duration,
+                       w.estimated_tss AS workout_tss, w.steps AS workout_steps,
                        a.tss AS activity_tss, a.duration_seconds AS activity_duration
                   FROM calendar_events c
                   LEFT JOIN workouts w ON w.id = c.workout_id AND w.deleted_at IS NULL
@@ -193,6 +194,8 @@ class CalendarEventPersistenceAdapter implements CalendarEventPersistencePort {
                         rs.getBigDecimal("compliance_score"),
                         rs.getString("workout_sport"),
                         nullableInt(rs, "workout_duration"),
+                        rs.getBigDecimal("workout_tss"),
+                        rs.getString("workout_steps"),
                         rs.getBigDecimal("activity_tss"),
                         nullableInt(rs, "activity_duration")
                 ))
@@ -223,7 +226,7 @@ class CalendarEventPersistenceAdapter implements CalendarEventPersistencePort {
                 e.workoutId, e.activityId,
                 e.title, e.description,
                 e.status, e.orderIndex, e.complianceScore,
-                null, null, null, null
+                null, null, null, null, null, null
         );
     }
 

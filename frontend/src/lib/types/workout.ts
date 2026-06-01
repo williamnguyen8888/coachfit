@@ -58,6 +58,9 @@ export interface WorkoutSummary {
   description: string | null;
   /** Estimated total duration in seconds (derived from steps) */
   estimatedDuration: number | null;
+  estimatedTss: number | null;
+  estimatedDistance: number | null;
+  averageIntensity?: number | null;
   tags: string[];
   /** True = CoachFit system template, False = user-created */
   isTemplate: boolean;

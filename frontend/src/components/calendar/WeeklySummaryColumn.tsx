@@ -310,12 +310,8 @@ export function WeeklySummaryColumn({
     events.forEach((e) => {
       if (e.eventType === "workout" && e.status !== "skipped" && e.workout && e.workout.sport === sport) {
         planTime += e.workout.estimatedDuration ?? 0;
-        planLoad += getEstimatedLoad(e);
-        
-        const dur = e.workout.estimatedDuration ?? 0;
-        if (sport === "swimming") planDist += (dur / 2400) * 1400;
-        else if (sport === "cycling") planDist += (dur / 3600) * 28000;
-        else if (sport === "running") planDist += (dur / 2700) * 7500;
+        planLoad += e.workout.estimatedTss ?? getEstimatedLoad(e);
+        planDist += e.workout.estimatedDistance ?? 0;
       }
     });
 

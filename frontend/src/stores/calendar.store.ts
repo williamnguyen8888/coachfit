@@ -349,7 +349,13 @@ export const useCalendarStore = create<CalendarState>()(
             title: fullPayload.title!,
             notes: fullPayload.notes ?? null,
             workout: fullPayload.workoutId
-              ? { id: fullPayload.workoutId, sport: target.workout?.sport ?? "other", estimatedDuration: target.workout?.estimatedDuration ?? null }
+              ? {
+                  id: fullPayload.workoutId,
+                  sport: target.workout?.sport ?? "other",
+                  estimatedDuration: target.workout?.estimatedDuration ?? null,
+                  estimatedTss: target.workout?.estimatedTss ?? null,
+                  estimatedDistance: target.workout?.estimatedDistance ?? null,
+                }
               : null,
           };
           const next = state.events.map((e) => e.id === id ? updated : e);

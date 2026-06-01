@@ -415,177 +415,7 @@ function calculateWorkoutZoneDurations(steps: WorkoutStep[]): {
 
 
 
-function calculateWorkoutLoad(durationSeconds: number, sport: string): number {
-  const factor = INTENSITY_FACTOR[sport] ?? 0.7;
-  return Math.round((durationSeconds / 60) * factor);
-}
 
-function calculateWorkoutDistance(steps: WorkoutStep[], sport: string): number {
-  let totalMeters = 0;
-  let hasDistanceStep = false;
-  
-  function process(step: WorkoutStep, mult = 1) {
-    if (step.type === "repeat" && step.steps) {
-      const count = step.count ?? 1;
-      for (const sub of step.steps) {
-        process(sub, mult * count);
-      }
-    } else {
-      if (step.duration?.type === "distance" && step.duration.value != null) {
-        totalMeters += step.duration.value * mult;
-        hasDistanceStep = true;
-      }
-    }
-  }
-  
-  for (const step of steps) {
-    process(step);
-  }
-  
-  if (hasDistanceStep) return totalMeters;
-  
-  // Heuristic
-  const duration = steps.reduce((sum, s) => {
-    if (s.type === "repeat" && s.steps) {
-      return sum + (s.steps.reduce((a, sub) => a + (sub.duration?.value ?? 0), 0) * (s.count ?? 1));
-    }
-    return sum + (s.duration?.value ?? 0);
-  }, 0);
-  
-  if (duration > 0) {
-    if (sport === "swimming") return (duration / 2400) * 1400;
-    if (sport === "cycling") return (duration / 3600) * 28000;
-    if (sport === "running") return (duration / 2700) * 7500;
-  }
-  return 0;
-}
-
-function calculateStepIntensityFactor(step: WorkoutStep, sport: string, zones?: SportZones): number {
-  let intensity = 0.7; // Default fallback
-
-  if (step.target) {
-    if (step.target.type === "power_pct") {
-      const min = step.target.min ?? 0.5;
-      const max = step.target.max ?? 0.8;
-      intensity = (min + max) / 2;
-    } else if (step.target.type === "power_zone") {
-      const zNum = step.target.zone ?? 2;
-      if (zones?.ftp && zones.ftp > 0 && zones.zones) {
-        const zDef = zones.zones.find((z) => z.zone === zNum);
-        if (zDef && zDef.min != null && zDef.max != null) {
-          const midW = (zDef.min + zDef.max) / 2;
-          intensity = midW / zones.ftp;
-        } else {
-          const pct = DEFAULT_CYCLING_PCT_RANGES[zNum];
-          if (pct) intensity = (pct[0] + pct[1]) / 2;
-        }
-      } else {
-        const pct = DEFAULT_CYCLING_PCT_RANGES[zNum];
-        if (pct) intensity = (pct[0] + pct[1]) / 2;
-      }
-    } else if (step.target.type === "hr_zone") {
-      const zNum = step.target.zone ?? 2;
-      if (zones?.lthr && zones.lthr > 0 && zones.zones) {
-        const zDef = zones.zones.find((z) => z.zone === zNum);
-        if (zDef && zDef.min != null && zDef.max != null) {
-          const midBpm = (zDef.min + zDef.max) / 2;
-          intensity = midBpm / zones.lthr; // HR fraction of LTHR
-        } else {
-          const pct = DEFAULT_HR_PCT_RANGES[zNum];
-          if (pct) intensity = (pct[0] + pct[1]) / 2;
-        }
-      } else {
-        const pct = DEFAULT_HR_PCT_RANGES[zNum];
-        if (pct) intensity = (pct[0] + pct[1]) / 2;
-      }
-    } else if (step.target.type === "pace") {
-      const min = step.target.min ?? 0.7;
-      const max = step.target.max ?? 0.9;
-      intensity = (min + max) / 2;
-    }
-  } else {
-    if (step.type === "warmup" || step.type === "cooldown" || step.type === "rest") {
-      intensity = 0.50; // Zone 1
-    } else if (step.type === "work") {
-      intensity = 0.75; // Zone 2-3 transition
-    } else {
-      intensity = 0.65; // Zone 2
-    }
-  }
-
-  return intensity;
-}
-
-function calculateDetailedWorkoutLoad(steps: WorkoutStep[], sport: string, zones?: SportZones): number {
-  let totalLoad = 0;
-  let totalDuration = 0;
-
-  function process(step: WorkoutStep, mult = 1) {
-    if (step.type === "repeat" && step.steps) {
-      const count = step.count ?? 1;
-      for (const sub of step.steps) {
-        process(sub, mult * count);
-      }
-    } else {
-      const dur = step.duration?.value ?? 0;
-      if (dur > 0) {
-        const stepSec = dur * mult;
-        totalDuration += stepSec;
-        const ifactor = calculateStepIntensityFactor(step, sport, zones);
-        
-        // Standard TSS/Load formula: (t * IF^2) / 36
-        let stepLoad = (stepSec * ifactor * ifactor) / 36;
-        if (sport === "strength" || sport === "other") {
-          stepLoad = stepLoad * 0.7;
-        }
-        totalLoad += stepLoad;
-      }
-    }
-  }
-
-  for (const step of steps) {
-    process(step);
-  }
-
-  if (totalDuration > 0) {
-    return Math.round(totalLoad);
-  }
-
-  return 0;
-}
-
-function calculateWorkoutIntensity(steps: WorkoutStep[], sport: string, zones?: SportZones): number {
-  let totalIntensityWeighted = 0;
-  let totalDuration = 0;
-
-  function process(step: WorkoutStep, mult = 1) {
-    if (step.type === "repeat" && step.steps) {
-      const count = step.count ?? 1;
-      for (const sub of step.steps) {
-        process(sub, mult * count);
-      }
-    } else {
-      const dur = step.duration?.value ?? 0;
-      if (dur > 0) {
-        const stepSec = dur * mult;
-        totalDuration += stepSec;
-        const ifactor = calculateStepIntensityFactor(step, sport, zones);
-        totalIntensityWeighted += ifactor * stepSec;
-      }
-    }
-  }
-
-  for (const step of steps) {
-    process(step);
-  }
-
-  if (totalDuration > 0) {
-    return Math.round((totalIntensityWeighted / totalDuration) * 100);
-  }
-
-  const factor = INTENSITY_FACTOR[sport] ?? 0.7;
-  return Math.round(factor * 100);
-}
 
 function parsePaceToSeconds(paceStr: string): number {
   if (!paceStr) return 0;
@@ -1031,7 +861,7 @@ function WorkoutPicker({ selectedId, onSelect }: WorkoutPickerProps) {
           filtered.map((w) => {
             const isSelected = selectedId === w.id;
             const sportHex = getSportHex(w.sport);
-            const estLoad = calculateWorkoutLoad(w.estimatedDuration ?? 0, w.sport);
+            const estLoad = w.estimatedTss ?? Math.round(((w.estimatedDuration ?? 0) / 60) * (INTENSITY_FACTOR[w.sport] ?? 0.7));
 
             return (
               <button
@@ -1433,10 +1263,10 @@ export function CalendarEventModal({
     
     const steps = workoutDetail?.steps ?? [];
     
-    const workoutDuration = workoutDetail?.estimatedDuration ?? event.workout.estimatedDuration ?? 0;
-    const workoutDistance = workoutDetail ? calculateWorkoutDistance(steps, sport) : 0;
-    const workoutLoad = workoutDetail ? calculateDetailedWorkoutLoad(steps, sport, activeZones) : getEstimatedLoad(event);
-    const workoutIntensity = workoutDetail ? calculateWorkoutIntensity(steps, sport, activeZones) : Math.round((INTENSITY_FACTOR[sport] ?? 0.7) * 100);
+    const workoutDuration = workoutDetail?.estimatedDuration ?? event.workout?.estimatedDuration ?? 0;
+    const workoutDistance = workoutDetail?.estimatedDistance ?? event.workout?.estimatedDistance ?? 0;
+    const workoutLoad = workoutDetail?.estimatedTss ?? event.workout?.estimatedTss ?? getEstimatedLoad(event);
+    const workoutIntensity = workoutDetail?.averageIntensity ?? Math.round((INTENSITY_FACTOR[sport] ?? 0.7) * 100);
 
     const { zones: zoneSecs, totalSeconds: totalZoneSecs } = calculateWorkoutZoneDurations(steps);
     
@@ -2692,21 +2522,21 @@ export function CalendarEventModal({
                   <div>
                     <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 600 }}>Distance</div>
                     <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", marginTop: "2px" }}>
-                      {calculateWorkoutDistance(previewWorkout.steps, previewWorkout.sport) > 0
-                        ? formatDistance(calculateWorkoutDistance(previewWorkout.steps, previewWorkout.sport))
+                      {previewWorkout.estimatedDistance && previewWorkout.estimatedDistance > 0
+                        ? formatDistance(previewWorkout.estimatedDistance)
                         : "--"}
                     </div>
                   </div>
                   <div>
                     <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 600 }}>Est. Load</div>
                     <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", marginTop: "2px" }}>
-                      {calculateDetailedWorkoutLoad(previewWorkout.steps, previewWorkout.sport, previewZones)}
+                      {Math.round(previewWorkout.estimatedTss ?? 0)}
                     </div>
                   </div>
                   <div>
                     <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 600 }}>Intensity</div>
                     <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", marginTop: "2px" }}>
-                      {calculateWorkoutIntensity(previewWorkout.steps, previewWorkout.sport, previewZones)}%
+                      {previewWorkout.averageIntensity ?? Math.round((INTENSITY_FACTOR[previewWorkout.sport] ?? 0.7) * 100)}%
                     </div>
                   </div>
                 </div>

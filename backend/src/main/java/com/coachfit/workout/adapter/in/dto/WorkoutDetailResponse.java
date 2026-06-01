@@ -1,6 +1,7 @@
 package com.coachfit.workout.adapter.in.dto;
 
 import com.coachfit.workout.application.port.in.GetWorkoutUseCase.WorkoutDetail;
+import com.coachfit.workout.domain.WorkoutCalculator;
 import com.fasterxml.jackson.annotation.JsonRawValue;
 
 import java.math.BigDecimal;
@@ -23,6 +24,8 @@ public record WorkoutDetailResponse(
         Integer    estimatedDurationSeconds,
         Integer    estimatedDuration,
         BigDecimal estimatedTss,
+        Double     estimatedDistance,
+        Integer    averageIntensity,
 
         @JsonRawValue
         String     steps,
@@ -36,9 +39,13 @@ public record WorkoutDetailResponse(
 ) {
 
     public static WorkoutDetailResponse from(WorkoutDetail d) {
+        var calc = WorkoutCalculator.calculate(d.stepsJson(), d.sport());
+        double distance = calc.distanceMeters();
+        int intensity = calc.averageIntensity();
         return new WorkoutDetailResponse(
                 d.id(), d.userId(), d.name(), d.sport(), d.description(),
                 d.estimatedDurationSeconds(), d.estimatedDurationSeconds(), d.estimatedTss(),
+                distance, intensity,
                 d.stepsJson(),
                 d.tags(), d.isTemplate(), d.isPublic(), d.source(),
                 d.createdAt(), d.updatedAt()

@@ -30,6 +30,8 @@ public record WorkoutListResponse(
             Integer    estimatedDurationSeconds,
             Integer    estimatedDuration,
             BigDecimal estimatedTss,
+            Double     estimatedDistance,
+            Integer    averageIntensity,
             List<String> tags,
             boolean    isTemplate,
             boolean    isPublic,
@@ -43,6 +45,7 @@ public record WorkoutListResponse(
                 .map(w -> new Item(
                         w.id(), w.name(), w.sport(), w.description(),
                         w.estimatedDurationSeconds(), w.estimatedDurationSeconds(), w.estimatedTss(),
+                        w.estimatedDistance(), w.averageIntensity(),
                         w.tags(), w.isTemplate(), w.isPublic(), w.source(),
                         w.createdAt(), w.updatedAt()))
                 .toList();

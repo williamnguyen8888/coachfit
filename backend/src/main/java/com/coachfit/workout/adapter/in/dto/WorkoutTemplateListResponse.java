@@ -29,6 +29,8 @@ public record WorkoutTemplateListResponse(
             String     description,
             Integer    estimatedDurationSeconds,
             BigDecimal estimatedTss,
+            Double     estimatedDistance,
+            Integer    averageIntensity,
             List<String> tags,
             String     source,
             Instant    createdAt
@@ -39,6 +41,7 @@ public record WorkoutTemplateListResponse(
                 .map(t -> new Item(
                         t.id(), t.name(), t.sport(), t.description(),
                         t.estimatedDurationSeconds(), t.estimatedTss(),
+                        t.estimatedDistance(), t.averageIntensity(),
                         t.tags(), t.source(), t.createdAt()))
                 .toList();
         return new WorkoutTemplateListResponse(

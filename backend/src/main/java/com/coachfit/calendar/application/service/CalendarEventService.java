@@ -201,9 +201,19 @@ public class CalendarEventService
      * (currently passed as null — enrichment deferred to a future cross-module join).
      */
     private CalendarEventView toView(CalendarEventSummary s) {
-        WorkoutSummary workout = s.workoutId() != null
-                ? new WorkoutSummary(s.workoutId(), s.workoutSport(), s.workoutDuration())
-                : null;
+        WorkoutSummary workout = null;
+        if (s.workoutId() != null) {
+            Double distance = null;
+            java.math.BigDecimal tss = s.workoutTss();
+            if (s.workoutSteps() != null && !s.workoutSteps().isBlank()) {
+                var calc = com.coachfit.workout.domain.WorkoutCalculator.calculate(s.workoutSteps(), s.workoutSport());
+                distance = calc.distanceMeters();
+                if (tss == null || tss.compareTo(java.math.BigDecimal.ZERO) == 0) {
+                    tss = calc.tss();
+                }
+            }
+            workout = new WorkoutSummary(s.workoutId(), s.workoutSport(), s.workoutDuration(), tss, distance);
+        }
         ActivitySummary activity = s.activityId() != null
                 ? new ActivitySummary(s.activityId(), s.activityTss() != null ? s.activityTss().doubleValue() : null, s.activityDuration())
                 : null;

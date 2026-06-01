@@ -111,6 +111,7 @@ const INTENSITY_FACTOR: Record<string, number> = {
 
 export function getEstimatedLoad(event: CalendarEvent): number {
   if (event.eventType === "rest" || event.eventType === "note") return 0;
+  if (event.workout?.estimatedTss != null) return Math.round(event.workout.estimatedTss);
   const dur = event.workout?.estimatedDuration ?? 0;
   if (dur <= 0) return 0;
   const sport = event.workout?.sport ?? "other";

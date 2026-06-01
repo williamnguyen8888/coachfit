@@ -24,6 +24,8 @@ export interface CalendarWorkoutRef {
   sport: Sport;
   /** Estimated duration in seconds */
   estimatedDuration: number | null;
+  estimatedTss: number | null;
+  estimatedDistance: number | null;
 }
 
 /** Activity summary embedded in a calendar event (when completed) */

@@ -147,7 +147,7 @@ class WorkoutPersistenceAdapter implements WorkoutPersistencePort {
                                       int page, int size) {
         StringBuilder sql = new StringBuilder("""
                 SELECT id, name, sport, description,
-                       estimated_duration_seconds, estimated_tss,
+                       estimated_duration_seconds, estimated_tss, steps,
                        tags, is_template, is_public, source,
                        created_at, updated_at
                   FROM workouts
@@ -190,7 +190,7 @@ class WorkoutPersistenceAdapter implements WorkoutPersistencePort {
     public List<TemplateListItem> listTemplates(String sport, int page, int size) {
         StringBuilder sql = new StringBuilder("""
                 SELECT id, name, sport, description,
-                       estimated_duration_seconds, estimated_tss,
+                       estimated_duration_seconds, estimated_tss, steps,
                        tags, source, created_at
                   FROM workouts
                  WHERE is_template = true
@@ -247,13 +247,20 @@ class WorkoutPersistenceAdapter implements WorkoutPersistencePort {
     }
 
     private WorkoutListItem toListItem(ResultSet rs) throws SQLException {
+        String sport = rs.getString("sport");
+        String steps = rs.getString("steps");
+        var calc = com.coachfit.workout.domain.WorkoutCalculator.calculate(steps, sport);
+        double distance = calc.distanceMeters();
+        int intensity = calc.averageIntensity();
         return new WorkoutListItem(
                 rs.getObject("id", UUID.class),
                 rs.getString("name"),
-                rs.getString("sport"),
+                sport,
                 rs.getString("description"),
                 nullableInt(rs, "estimated_duration_seconds"),
                 rs.getBigDecimal("estimated_tss"),
+                distance,
+                intensity,
                 arrayToList(rs, "tags"),
                 rs.getBoolean("is_template"),
                 rs.getBoolean("is_public"),
@@ -264,13 +271,20 @@ class WorkoutPersistenceAdapter implements WorkoutPersistencePort {
     }
 
     private TemplateListItem toTemplateItem(ResultSet rs) throws SQLException {
+        String sport = rs.getString("sport");
+        String steps = rs.getString("steps");
+        var calc = com.coachfit.workout.domain.WorkoutCalculator.calculate(steps, sport);
+        double distance = calc.distanceMeters();
+        int intensity = calc.averageIntensity();
         return new TemplateListItem(
                 rs.getObject("id", UUID.class),
                 rs.getString("name"),
-                rs.getString("sport"),
+                sport,
                 rs.getString("description"),
                 nullableInt(rs, "estimated_duration_seconds"),
                 rs.getBigDecimal("estimated_tss"),
+                distance,
+                intensity,
                 arrayToList(rs, "tags"),
                 rs.getString("source"),
                 toInstant(rs, "created_at")

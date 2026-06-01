@@ -41,10 +41,16 @@ public record CalendarEventResponse(
         String          assignedBy      // null — coach assignment is a future ticket
 ) {
 
-    public record WorkoutPayload(UUID id, String sport, Integer estimatedDuration) {
+    public record WorkoutPayload(
+            UUID id,
+            String sport,
+            Integer estimatedDuration,
+            BigDecimal estimatedTss,
+            Double estimatedDistance
+    ) {
         static WorkoutPayload from(WorkoutSummary s) {
             return s == null ? null
-                    : new WorkoutPayload(s.id(), s.sport(), s.estimatedDurationSeconds());
+                    : new WorkoutPayload(s.id(), s.sport(), s.estimatedDurationSeconds(), s.estimatedTss(), s.estimatedDistance());
         }
     }
 

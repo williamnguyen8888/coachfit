@@ -42,6 +42,8 @@ public interface ListWorkoutTemplatesUseCase {
             String     description,
             Integer    estimatedDurationSeconds,
             BigDecimal estimatedTss,
+            Double     estimatedDistance,
+            Integer    averageIntensity,
             List<String> tags,
             String     source,
             Instant    createdAt

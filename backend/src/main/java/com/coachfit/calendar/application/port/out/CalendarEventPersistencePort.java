@@ -76,6 +76,8 @@ public interface CalendarEventPersistencePort {
             BigDecimal   complianceScore,
             String       workoutSport,
             Integer      workoutDuration,
+            BigDecimal   workoutTss,
+            String       workoutSteps,
             BigDecimal   activityTss,
             Integer      activityDuration
     ) {}
