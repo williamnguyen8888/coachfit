@@ -1,1 +1,0 @@
-[{"name":"com.coachfit.calendar.adapter.out.persistence.CalendarEventPersistenceAdapter","comment":"JPA + JdbcClient adapter implementing {@link CalendarEventPersistencePort}.  <p>Simple reads use Spring Data JPA via {@link CalendarEventJpaRepository}. Bulk \/ complex writes use {@link JdbcClient} for fine-grained SQL control."}]
