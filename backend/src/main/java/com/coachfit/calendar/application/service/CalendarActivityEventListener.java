@@ -81,29 +81,14 @@ public class CalendarActivityEventListener {
                     event.activityId(), matchedWorkout.id(), complianceScore);
         } else {
             // 6. No match found -> auto-create a completed calendar event (pseudo-event)
-            UUID eventId = port.save(
+            port.createStandaloneActivityEvent(
                     event.userId(),
                     activityDate,
-                    "workout",
-                    null, // workoutId
+                    event.activityId(),
                     event.name(),
-                    event.description()
+                    event.sport()
             );
-
-            // Set activity ID, status completed, and order index 999
-            jdbcClient.sql("""
-                    UPDATE calendar_events
-                       SET activity_id = :activityId,
-                           status = 'completed',
-                           order_index = 999,
-                           updated_at = now()
-                     WHERE id = :id
-                    """)
-                    .param("activityId", event.activityId())
-                    .param("id",         eventId)
-                    .update();
-
-            log.info("Created auto-completed calendar event {} for unmatched activity {}", eventId, event.activityId());
+            log.info("Created auto-completed calendar event for unmatched activity {}", event.activityId());
         }
     }
 

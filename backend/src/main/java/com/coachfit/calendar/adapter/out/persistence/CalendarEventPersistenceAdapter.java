@@ -357,18 +357,11 @@ class CalendarEventPersistenceAdapter implements CalendarEventPersistencePort {
     @Override
     @Transactional
     public void createStandaloneActivityEvent(UUID userId, LocalDate date, UUID activityId, String name, String sport) {
-        UUID eventId = save(userId, date, "workout", null, name, null);
-        jdbcClient.sql("""
-                UPDATE calendar_events
-                   SET activity_id = :activityId,
-                       status = 'completed',
-                       order_index = 999,
-                       updated_at = now()
-                 WHERE id = :id
-                """)
-                .param("activityId", activityId)
-                .param("id",         eventId)
-                .update();
+        CalendarEventEntity entity = new CalendarEventEntity(userId, date, "workout", name);
+        entity.activityId = activityId;
+        entity.status = "completed";
+        entity.orderIndex = 999;
+        repo.save(entity);
     }
 
     @Override
@@ -383,6 +376,7 @@ class CalendarEventPersistenceAdapter implements CalendarEventPersistencePort {
                    AND NOT EXISTS (
                        SELECT 1 FROM calendar_events c
                         WHERE c.activity_id = a.id
+                          AND c.workout_id IS NOT NULL
                           AND c.deleted_at IS NULL
                    )
                  LIMIT 1
