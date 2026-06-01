@@ -83,9 +83,21 @@ function apiStepToBuilder(step: WorkoutStep): BuilderStep {
         .map((s) => apiStepToBuilder(s) as BuilderLeafStep),
     } satisfies BuilderRepeatStep;
   }
+  const leafTypes: BuilderLeafStep["type"][] = [
+    "warmup",
+    "work",
+    "rest",
+    "cooldown",
+    "ramp",
+    "free",
+  ];
+  const leafType = leafTypes.includes(step.type as BuilderLeafStep["type"])
+    ? (step.type as BuilderLeafStep["type"])
+    : "work";
+
   return {
     uid: crypto.randomUUID(),
-    type: step.type as BuilderLeafStep["type"],
+    type: leafType,
     duration: step.duration ?? { type: "time", value: 300 },
     target: step.target ?? { type: "open" },
     notes: step.description,
@@ -427,8 +439,8 @@ export function WorkoutBuilderPage({ initialWorkout }: WorkoutBuilderPageProps) 
         style={{
           flex: 1,
           overflowY: "auto",
-          padding: "24px 20px",
-          maxWidth: 900,
+          padding: "20px",
+          maxWidth: 1120,
           width: "100%",
           margin: "0 auto",
           display: "flex",
@@ -467,7 +479,7 @@ export function WorkoutBuilderPage({ initialWorkout }: WorkoutBuilderPageProps) 
                 margin: 0,
               }}
             >
-              Steps
+              Workout blocks
               {state.steps.length > 0 && (
                 <span
                   style={{
@@ -487,9 +499,9 @@ export function WorkoutBuilderPage({ initialWorkout }: WorkoutBuilderPageProps) 
               size="sm"
               leftIcon={<Plus size={14} />}
               onClick={() => setShowAddMenu(true)}
-              aria-label="Add workout step"
+              aria-label="Add workout block"
             >
-              Add Step
+              Add Block
             </Button>
           </div>
 

@@ -65,10 +65,39 @@ function intensityFromTarget(target?: BuilderLeafStep["target"]): { intensity: n
       const zone = Math.max(1, Math.min(7, Math.round(mid * 4.5)));
       return { intensity: Math.min(1, mid), color: zoneColor(zone) };
     }
+    case "power_watts": {
+      const mid = ((target.min ?? 150) + (target.max ?? 220)) / 2;
+      const intensity = Math.max(0.1, Math.min(1, mid / 450));
+      const zone = Math.max(1, Math.min(7, Math.round(intensity * 7)));
+      return { intensity, color: zoneColor(zone) };
+    }
     case "pace": {
       // Faster pace = lower sec/km value = higher intensity
       const mid = ((target.min ?? 300) + (target.max ?? 360)) / 2;
       const intensity = Math.max(0.1, Math.min(1, (600 - mid) / 400));
+      const zone = Math.max(1, Math.min(5, Math.round(intensity * 5)));
+      return { intensity, color: zoneColor(zone) };
+    }
+    case "pace_zone": {
+      const z = target.zone ?? 2;
+      const intensity = Math.min(1, z / 5);
+      return { intensity, color: zoneColor(z) };
+    }
+    case "speed": {
+      const mid = ((target.min ?? 24) + (target.max ?? 32)) / 2;
+      const intensity = Math.max(0.1, Math.min(1, mid / 48));
+      const zone = Math.max(1, Math.min(7, Math.round(intensity * 7)));
+      return { intensity, color: zoneColor(zone) };
+    }
+    case "hr_pct": {
+      const mid = ((target.min ?? 0.75) + (target.max ?? 0.85)) / 2;
+      const intensity = Math.max(0.1, Math.min(1, mid / 1.1));
+      const zone = Math.max(1, Math.min(5, Math.round(intensity * 5)));
+      return { intensity, color: zoneColor(zone) };
+    }
+    case "hr_bpm": {
+      const mid = ((target.min ?? 130) + (target.max ?? 150)) / 2;
+      const intensity = Math.max(0.1, Math.min(1, (mid - 90) / 110));
       const zone = Math.max(1, Math.min(5, Math.round(intensity * 5)));
       return { intensity, color: zoneColor(zone) };
     }
@@ -214,7 +243,7 @@ export function WorkoutPreview({ steps }: WorkoutPreviewProps) {
         >
           {segments.map((seg, i) => {
             const segW = total > 0 ? (seg.durationSeconds / total) * (SVG_W - GAP_WIDTH * (segments.length - 1)) : SVG_W / segments.length;
-            const x = segments.slice(0, i).reduce((acc, s, si) => {
+            const x = segments.slice(0, i).reduce((acc, s) => {
               const w = total > 0 ? (s.durationSeconds / total) * (SVG_W - GAP_WIDTH * (segments.length - 1)) : SVG_W / segments.length;
               return acc + w + GAP_WIDTH;
             }, 0);

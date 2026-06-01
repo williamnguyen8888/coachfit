@@ -4,7 +4,8 @@
  * TargetEditor — popover modal for editing a step's training target.
  *
  * Supports the full target type matrix from docs/07-workout-data-model.md:
- *   power_zone  | power_pct | hr_zone | pace | rpe | open
+ *   power_zone | power_pct | power_watts | hr_zone | hr_pct | hr_bpm
+ *   pace_zone | pace | speed | cadence | rpe | open
  *
  * Cycling:  power targets preferred
  * Running:  pace / HR targets
@@ -30,10 +31,15 @@ interface TargetMeta {
 const TARGET_TYPES: TargetMeta[] = [
   { type: "power_zone", label: "Power Zone", sports: ["cycling"] },
   { type: "power_pct", label: "% FTP", sports: ["cycling", "running", "swimming"] },
+  { type: "power_watts", label: "Watts", sports: ["cycling"] },
   { type: "hr_zone", label: "HR Zone", sports: "all" },
+  { type: "hr_pct", label: "% LTHR", sports: "all" },
+  { type: "hr_bpm", label: "HR bpm", sports: "all" },
+  { type: "pace_zone", label: "Pace Zone", sports: ["running"] },
   { type: "pace", label: "Pace", sports: ["running"] },
-  { type: "rpe", label: "RPE (1–10)", sports: "all" },
+  { type: "speed", label: "Speed", sports: ["cycling", "running", "swimming"] },
   { type: "cadence", label: "Cadence (rpm)", sports: ["cycling", "running"] },
+  { type: "rpe", label: "RPE (1–10)", sports: "all" },
   { type: "open", label: "Open / No target", sports: "all" },
 ];
 
@@ -225,13 +231,26 @@ function PaceInput({
 /* ------------------------------------------------------------------ */
 
 export function TargetEditor({ value, sport, onSave, onClose }: TargetEditorProps) {
-  const initialType = value.type === "cadence" && value.min != null && value.min < 15 ? "rpe" : value.type;
-  const [type, setType] = React.useState<TargetType>(initialType);
+  const initialType =
+    value.type === "none"
+      ? "open"
+      : value.type === "cadence" && value.min != null && value.min < 15
+      ? "rpe"
+      : value.type;
+  const [selectedType, setSelectedType] = React.useState<TargetType>(initialType);
   const [zone, setZone] = React.useState<number>(value.zone ?? 2);
   const [minVal, setMinVal] = React.useState<number>(value.min != null ? Math.round(value.min * 100) : 75);
   const [maxVal, setMaxVal] = React.useState<number>(value.max != null ? Math.round(value.max * 100) : 85);
+  const [wattsMin, setWattsMin] = React.useState<number>(value.type === "power_watts" && value.min != null ? value.min : 180);
+  const [wattsMax, setWattsMax] = React.useState<number>(value.type === "power_watts" && value.max != null ? value.max : 240);
+  const [hrPctMin, setHrPctMin] = React.useState<number>(value.type === "hr_pct" && value.min != null ? Math.round(value.min * 100) : 80);
+  const [hrPctMax, setHrPctMax] = React.useState<number>(value.type === "hr_pct" && value.max != null ? Math.round(value.max * 100) : 88);
+  const [hrBpmMin, setHrBpmMin] = React.useState<number>(value.type === "hr_bpm" && value.min != null ? value.min : 130);
+  const [hrBpmMax, setHrBpmMax] = React.useState<number>(value.type === "hr_bpm" && value.max != null ? value.max : 150);
   const [paceMin, setPaceMin] = React.useState<number>(value.min ?? 300);
   const [paceMax, setPaceMax] = React.useState<number>(value.max ?? 330);
+  const [speedMin, setSpeedMin] = React.useState<number>(value.type === "speed" && value.min != null ? value.min : sport === "cycling" ? 28 : 10);
+  const [speedMax, setSpeedMax] = React.useState<number>(value.type === "speed" && value.max != null ? value.max : sport === "cycling" ? 34 : 13);
   const [rpeMin, setRpeMin] = React.useState<number>(initialType === "rpe" && value.min != null ? value.min : 6);
   const [rpeMax, setRpeMax] = React.useState<number>(initialType === "rpe" && value.max != null ? value.max : 7);
   const [cadenceMin, setCadenceMin] = React.useState<number>(value.type === "cadence" && value.min != null && value.min >= 15 ? value.min : 80);
@@ -249,16 +268,30 @@ export function TargetEditor({ value, sport, onSave, onClose }: TargetEditorProp
     return t;
   });
 
+  const type = availableTypes.some((t) => t.type === selectedType)
+    ? selectedType
+    : "open";
+
   function buildTarget(): StepTarget {
     switch (type) {
       case "power_zone":
         return { type: "power_zone", zone };
       case "power_pct":
         return { type: "power_pct", min: minVal / 100, max: maxVal / 100 };
+      case "power_watts":
+        return { type: "power_watts", min: wattsMin, max: wattsMax };
       case "hr_zone":
         return { type: "hr_zone", zone };
+      case "hr_pct":
+        return { type: "hr_pct", min: hrPctMin / 100, max: hrPctMax / 100 };
+      case "hr_bpm":
+        return { type: "hr_bpm", min: hrBpmMin, max: hrBpmMax };
+      case "pace_zone":
+        return { type: "pace_zone", zone };
       case "pace":
         return { type: "pace", min: paceMin, max: paceMax };
+      case "speed":
+        return { type: "speed", min: speedMin, max: speedMax };
       case "rpe":
         return { type: "rpe", min: rpeMin, max: rpeMax };
       case "cadence":
@@ -296,9 +329,11 @@ export function TargetEditor({ value, sport, onSave, onClose }: TargetEditorProp
         style={{
           background: "var(--bg-elevated)",
           border: "1px solid var(--border-default)",
-          borderRadius: "var(--radius-lg)",
+          borderRadius: "var(--radius-md)",
           padding: "24px",
-          width: 380,
+          width: "min(560px, calc(100vw - 32px))",
+          maxHeight: "calc(100dvh - 48px)",
+          overflowY: "auto",
           boxShadow: "var(--shadow-lg)",
           display: "flex",
           flexDirection: "column",
@@ -327,7 +362,7 @@ export function TargetEditor({ value, sport, onSave, onClose }: TargetEditorProp
           {availableTypes.map((t) => (
             <button
               key={t.type}
-              onClick={() => setType(t.type)}
+              onClick={() => setSelectedType(t.type)}
               style={{
                 padding: "6px 12px",
                 borderRadius: "var(--radius-full)",
@@ -345,8 +380,8 @@ export function TargetEditor({ value, sport, onSave, onClose }: TargetEditorProp
           ))}
         </div>
 
-        {/* Zone selector (power_zone, hr_zone) */}
-        {(type === "power_zone" || type === "hr_zone") && (
+        {/* Zone selector (power_zone, hr_zone, pace_zone) */}
+        {(type === "power_zone" || type === "hr_zone" || type === "pace_zone") && (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             <span style={{ fontSize: "var(--text-sm)", color: "var(--text-secondary)", fontWeight: 500 }}>
               Select Zone
@@ -389,11 +424,43 @@ export function TargetEditor({ value, sport, onSave, onClose }: TargetEditorProp
           </div>
         )}
 
+        {/* Absolute watts */}
+        {type === "power_watts" && (
+          <div style={{ display: "flex", gap: 12 }}>
+            <NumInput label="Min W" id="watts-min" value={wattsMin} min={0} max={2000} onChange={setWattsMin} />
+            <NumInput label="Max W" id="watts-max" value={wattsMax} min={0} max={2000} onChange={setWattsMax} />
+          </div>
+        )}
+
+        {/* HR percent of LTHR */}
+        {type === "hr_pct" && (
+          <div style={{ display: "flex", gap: 12 }}>
+            <NumInput label="Min % LTHR" id="hr-pct-min" value={hrPctMin} min={0} max={200} onChange={setHrPctMin} />
+            <NumInput label="Max % LTHR" id="hr-pct-max" value={hrPctMax} min={0} max={200} onChange={setHrPctMax} />
+          </div>
+        )}
+
+        {/* HR bpm */}
+        {type === "hr_bpm" && (
+          <div style={{ display: "flex", gap: 12 }}>
+            <NumInput label="Min bpm" id="hr-bpm-min" value={hrBpmMin} min={40} max={250} onChange={setHrBpmMin} />
+            <NumInput label="Max bpm" id="hr-bpm-max" value={hrBpmMax} min={40} max={250} onChange={setHrBpmMax} />
+          </div>
+        )}
+
         {/* Pace range */}
         {type === "pace" && (
           <div style={{ display: "flex", gap: 12 }}>
             <PaceInput label="Fast Pace" id="pace-min" value={paceMin} onChange={setPaceMin} />
             <PaceInput label="Easy Pace" id="pace-max" value={paceMax} onChange={setPaceMax} />
+          </div>
+        )}
+
+        {/* Speed */}
+        {type === "speed" && (
+          <div style={{ display: "flex", gap: 12 }}>
+            <NumInput label="Min km/h" id="speed-min" value={speedMin} min={0} max={120} step={0.1} onChange={setSpeedMin} />
+            <NumInput label="Max km/h" id="speed-max" value={speedMax} min={0} max={120} step={0.1} onChange={setSpeedMax} />
           </div>
         )}
 

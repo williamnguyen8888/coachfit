@@ -66,7 +66,7 @@ export function DashboardClient() {
       return d.length > 0 ? (d[0] as WellnessEntry) : null;
     }
     if (typeof d === "object") {
-      const asObj = d as Record<string, any>;
+      const asObj = d as Record<string, unknown>;
       if (Array.isArray(asObj.content) && asObj.content.length > 0) {
         return asObj.content[0] as WellnessEntry;
       }

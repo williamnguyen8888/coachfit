@@ -26,15 +26,16 @@ import {
   verticalListSortingStrategy,
   arrayMove,
 } from "@dnd-kit/sortable";
+import { ListPlus } from "lucide-react";
+import { BuilderStepCard, type BuilderStepCardProps } from "./BuilderStepCard";
+import type { BuilderStep } from "@/lib/types/builder";
+import type { Sport } from "@/lib/types/activity";
 
 // Restrict dragging to the vertical axis only (replaces @dnd-kit/modifiers)
 const restrictToVerticalAxis: Modifier = ({ transform }) => ({
   ...transform,
   x: 0,
 });
-import { BuilderStepCard, type BuilderStepCardProps } from "./BuilderStepCard";
-import type { BuilderStep, BuilderLeafStep, BuilderRepeatStep } from "@/lib/types/builder";
-import type { Sport } from "@/lib/types/activity";
 
 /* ------------------------------------------------------------------ */
 /*  Props                                                                */
@@ -106,12 +107,12 @@ export function BuilderCanvas({
           textAlign: "center",
         }}
       >
-        <span style={{ fontSize: 36 }}>💪</span>
+        <ListPlus size={28} strokeWidth={1.75} />
         <p style={{ fontSize: "var(--text-base)", color: "var(--text-secondary)", margin: 0 }}>
-          No steps yet
+          No workout blocks yet
         </p>
         <p style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", margin: 0 }}>
-          Click "Add Step" below to start building your workout
+          Add warm-up, work, ramp, rest, free, or repeat blocks to build the session.
         </p>
       </div>
     );

@@ -25,6 +25,8 @@ import {
   Plus,
   Pencil,
   Minus,
+  TrendingUp,
+  Activity,
 } from "lucide-react";
 import type { BuilderLeafStep, BuilderRepeatStep, BuilderStep } from "@/lib/types/builder";
 import type { Sport } from "@/lib/types/activity";
@@ -62,6 +64,18 @@ const STEP_META: Record<
     bg: "rgba(129,140,248,0.12)",
     icon: <Wind size={13} />,
   },
+  ramp: {
+    label: "Ramp",
+    color: "#F59E0B",
+    bg: "rgba(245,158,11,0.12)",
+    icon: <TrendingUp size={13} />,
+  },
+  free: {
+    label: "Free",
+    color: "#A3A3A3",
+    bg: "rgba(163,163,163,0.12)",
+    icon: <Activity size={13} />,
+  },
 };
 
 /* ------------------------------------------------------------------ */
@@ -85,16 +99,31 @@ function targetLabel(target?: BuilderLeafStep["target"]): string {
       return target.zone != null ? ZONE_NAMES[target.zone] ?? `Z${target.zone}` : "Power zone";
     case "power_pct":
       if (target.min != null && target.max != null)
-        return `${Math.round(target.min * 100)}–${Math.round(target.max * 100)}% FTP`;
-      return "% FTP";
+        return `${Math.round(target.min * 100)}–${Math.round(target.max * 100)}% threshold`;
+      return "% threshold";
+    case "power_watts":
+      if (target.min != null && target.max != null) return `${target.min}–${target.max} W`;
+      return "Power watts";
     case "hr_zone":
       return target.zone != null ? `HR Z${target.zone}` : "HR zone";
+    case "hr_pct":
+      if (target.min != null && target.max != null)
+        return `${Math.round(target.min * 100)}–${Math.round(target.max * 100)}% LTHR`;
+      return "HR %";
+    case "hr_bpm":
+      if (target.min != null && target.max != null) return `${target.min}–${target.max} bpm`;
+      return "HR bpm";
+    case "pace_zone":
+      return target.zone != null ? `Pace Z${target.zone}` : "Pace zone";
     case "pace":
       if (target.min != null && target.max != null) {
         const fmt = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, "0")}`;
         return `${fmt(target.min)}–${fmt(target.max)} /km`;
       }
       return "Pace";
+    case "speed":
+      if (target.min != null && target.max != null) return `${target.min}–${target.max} km/h`;
+      return "Speed";
     case "rpe":
       if (target.min != null && target.max != null) return `RPE ${target.min}–${target.max}`;
       return "RPE";

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import type { WorkoutStep, StepType, StepDuration, StepTarget } from "@/lib/types/workout";
+import { useState, useRef } from "react";
+import type { WorkoutStep, StepType, StepTarget } from "@/lib/types/workout";
 import type { SportZones } from "@/lib/types/settings";
 
 // ─── Color & Icon Maps ────────────────────────────────────────────────────────
@@ -19,16 +19,6 @@ const ZONE_COLORS: Record<number, string> = {
 function getZoneColor(zone: number): string {
   return ZONE_COLORS[Math.max(1, Math.min(7, zone))] ?? "#8B8B9E";
 }
-
-const ZONE_BACKGROUNDS: Record<number, { min: number; max: number; color: string; label: string }> = {
-  1: { min: 0, max: 0.55, color: "#60A5FA", label: "Z1" },
-  2: { min: 0.55, max: 0.75, color: "#34D399", label: "Z2" },
-  3: { min: 0.75, max: 0.87, color: "#FBBF24", label: "Z3" },
-  4: { min: 0.87, max: 1.0, color: "#FB923C", label: "Z4" },
-  5: { min: 1.0, max: 1.12, color: "#F87171", label: "Z5" },
-  6: { min: 1.12, max: 1.3, color: "#C084FC", label: "Z6" },
-  7: { min: 1.3, max: 1.5, color: "#F472B6", label: "Z7" },
-};
 
 // ─── Component Props ──────────────────────────────────────────────────────────
 
@@ -93,15 +83,44 @@ export function InteractiveWorkoutChart({ steps, sport, athleteZones }: Interact
       case "power_pct": {
         const mid = ((target.min ?? 0.5) + (target.max ?? 0.8)) / 2;
         const zone = Math.max(1, Math.min(7, Math.round(mid * 4.5)));
-        return { intensity: mid, color: getZoneColor(zone), text: `${Math.round(mid * 100)}% FTP` };
+        return { intensity: mid, color: getZoneColor(zone), text: `${Math.round(mid * 100)}% threshold` };
+      }
+      case "power_watts": {
+        const mid = ((target.min ?? 150) + (target.max ?? 220)) / 2;
+        const intensity = Math.max(0.1, Math.min(1.5, mid / 300));
+        const zone = Math.max(1, Math.min(7, Math.round((intensity / 1.5) * 7)));
+        return { intensity, color: getZoneColor(zone), text: `${target.min ?? 0}–${target.max ?? 0} W` };
+      }
+      case "hr_pct": {
+        const mid = ((target.min ?? 0.75) + (target.max ?? 0.85)) / 2;
+        const zone = Math.max(1, Math.min(5, Math.round(mid * 5)));
+        return { intensity: mid, color: getZoneColor(zone), text: `${Math.round((target.min ?? mid) * 100)}–${Math.round((target.max ?? mid) * 100)}% LTHR` };
+      }
+      case "hr_bpm": {
+        const mid = ((target.min ?? 130) + (target.max ?? 150)) / 2;
+        const intensity = Math.max(0.2, Math.min(1.2, (mid - 80) / 100));
+        const zone = Math.max(1, Math.min(5, Math.round(intensity * 5)));
+        return { intensity, color: getZoneColor(zone), text: `${target.min ?? 0}–${target.max ?? 0} bpm` };
+      }
+      case "pace_zone": {
+        const z = target.zone ?? 2;
+        return { intensity: Math.min(1.2, z / 4), color: getZoneColor(z), text: `Pace Z${z}` };
       }
       case "pace": {
         if (target.min != null && target.max != null) {
           const mid = (target.min + target.max) / 2;
-          const zone = Math.max(1, Math.min(6, Math.round(mid * 5.5)));
-          return { intensity: mid, color: getZoneColor(zone), text: `${Math.round(target.min * 100)}–${Math.round(target.max * 100)}% Pace` };
+          const intensity = Math.max(0.2, Math.min(1.2, (600 - mid) / 360));
+          const zone = Math.max(1, Math.min(5, Math.round(intensity * 5)));
+          const fmt = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, "0")}`;
+          return { intensity, color: getZoneColor(zone), text: `${fmt(target.min)}–${fmt(target.max)} /km` };
         }
         return { intensity: 0.7, color: getZoneColor(2), text: "Pace" };
+      }
+      case "speed": {
+        const mid = ((target.min ?? 24) + (target.max ?? 32)) / 2;
+        const intensity = Math.max(0.2, Math.min(1.2, mid / 40));
+        const zone = Math.max(1, Math.min(7, Math.round(intensity * 5)));
+        return { intensity, color: getZoneColor(zone), text: `${target.min ?? 0}–${target.max ?? 0} km/h` };
       }
       case "rpe": {
         const mid = ((target.min ?? 6) + (target.max ?? 7)) / 2;
@@ -133,7 +152,7 @@ export function InteractiveWorkoutChart({ steps, sport, athleteZones }: Interact
         if (step.target) {
           const t = step.target;
           if (t.type === "power_pct" && t.min != null && t.max != null) {
-            if (step.type === "warmup") {
+            if (step.type === "warmup" || step.type === "ramp") {
               startIntensity = t.min;
               endIntensity = t.max;
             } else if (step.type === "cooldown") {
@@ -145,14 +164,16 @@ export function InteractiveWorkoutChart({ steps, sport, athleteZones }: Interact
               endIntensity = mid;
             }
           } else if (t.type === "pace" && t.min != null && t.max != null) {
-            if (step.type === "warmup") {
-              startIntensity = t.min;
-              endIntensity = t.max;
+            const minIntensity = Math.max(0.2, Math.min(1.2, (600 - t.max) / 360));
+            const maxIntensity = Math.max(0.2, Math.min(1.2, (600 - t.min) / 360));
+            if (step.type === "warmup" || step.type === "ramp") {
+              startIntensity = minIntensity;
+              endIntensity = maxIntensity;
             } else if (step.type === "cooldown") {
-              startIntensity = t.max;
-              endIntensity = t.min;
+              startIntensity = maxIntensity;
+              endIntensity = minIntensity;
             } else {
-              const mid = (t.min + t.max) / 2;
+              const mid = (minIntensity + maxIntensity) / 2;
               startIntensity = mid;
               endIntensity = mid;
             }

@@ -13,7 +13,6 @@ import {
   Activity,
   ChevronRight,
   Clock,
-  Flame,
   TrendingUp,
 } from "lucide-react";
 import Link from "next/link";

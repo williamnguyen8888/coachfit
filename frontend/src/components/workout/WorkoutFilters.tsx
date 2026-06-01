@@ -101,6 +101,7 @@ const SPORT_OPTIONS: SegmentOption<Sport | "">[] = [
   { value: "running", label: "Running" },
   { value: "swimming", label: "Swimming" },
   { value: "strength", label: "Strength" },
+  { value: "other", label: "Other" },
 ];
 
 const SOURCE_OPTIONS: SegmentOption<WorkoutSource>[] = [

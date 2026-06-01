@@ -23,6 +23,8 @@ const STEP_TYPE_LABEL: Record<StepType, string> = {
   work: "Work",
   rest: "Rest",
   cooldown: "Cool-down",
+  ramp: "Ramp",
+  free: "Free",
   repeat: "Repeat",
   other: "Step",
 };
@@ -32,6 +34,8 @@ const STEP_TYPE_COLOR: Record<StepType, string> = {
   work: "#FB923C",     // zone 4 – orange
   rest: "#34D399",     // zone 2 – green
   cooldown: "#60A5FA", // zone 1 – light blue
+  ramp: "#F59E0B",
+  free: "var(--text-muted)",
   repeat: "var(--text-muted)",
   other: "var(--text-muted)",
 };
@@ -58,13 +62,39 @@ function targetLabel(target?: WorkoutStep["target"]): string | null {
       return target.zone != null ? ZONE_NAMES[target.zone] ?? `Zone ${target.zone}` : "Power zone";
     case "power_pct":
       if (target.min != null && target.max != null) {
-        return `${Math.round(target.min * 100)}–${Math.round(target.max * 100)}% FTP`;
+        return `${Math.round(target.min * 100)}–${Math.round(target.max * 100)}% threshold`;
       }
-      return "Power %FTP";
+      return "% threshold";
+    case "power_watts":
+      if (target.min != null && target.max != null) {
+        return `${target.min}–${target.max} W`;
+      }
+      return "Power watts";
     case "hr_zone":
       return target.zone != null ? `HR Zone ${target.zone}` : "HR zone";
+    case "hr_pct":
+      if (target.min != null && target.max != null) {
+        return `${Math.round(target.min * 100)}–${Math.round(target.max * 100)}% LTHR`;
+      }
+      return "HR %";
+    case "hr_bpm":
+      if (target.min != null && target.max != null) {
+        return `${target.min}–${target.max} bpm`;
+      }
+      return "HR bpm";
+    case "pace_zone":
+      return target.zone != null ? `Pace Zone ${target.zone}` : "Pace zone";
     case "pace":
-      return target.value != null ? `${target.value} min/km` : "Pace";
+      if (target.min != null && target.max != null) {
+        const fmt = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, "0")}`;
+        return `${fmt(target.min)}–${fmt(target.max)} /km`;
+      }
+      return target.value != null ? `${target.value} sec/km` : "Pace";
+    case "speed":
+      if (target.min != null && target.max != null) {
+        return `${target.min}–${target.max} km/h`;
+      }
+      return "Speed";
     case "rpe":
       if (target.min != null && target.max != null) {
         return `RPE ${target.min}–${target.max}`;

@@ -85,7 +85,7 @@ export function BuilderHeader({
       style={{
         background: "var(--bg-surface)",
         border: "1px solid var(--border-subtle)",
-        borderRadius: "var(--radius-lg)",
+        borderRadius: "var(--radius-md)",
         padding: "24px",
         display: "flex",
         flexDirection: "column",

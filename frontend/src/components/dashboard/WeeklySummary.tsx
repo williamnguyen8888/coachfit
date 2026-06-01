@@ -49,10 +49,9 @@ function formatDistance(meters: number | null, sport: string): string {
 
 /* ─── custom tooltip ───────────────────────────────────────────────────── */
 
-function CustomTooltip({ active, payload, label }: {
+function CustomTooltip({ active, payload }: {
   active?: boolean;
   payload?: Array<{ name: string; value: number; payload: { sport: string } }>;
-  label?: string;
 }) {
   if (!active || !payload?.length) return null;
   const p = payload[0];

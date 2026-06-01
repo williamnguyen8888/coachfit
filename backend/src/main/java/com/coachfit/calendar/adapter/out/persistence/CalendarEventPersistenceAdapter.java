@@ -400,7 +400,7 @@ class CalendarEventPersistenceAdapter implements CalendarEventPersistencePort {
         entity.activityId = activityId;
         entity.status = "completed";
         entity.orderIndex = 999;
-        repo.save(entity);
+        repo.saveAndFlush(entity);
     }
 
     @Override

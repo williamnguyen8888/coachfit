@@ -113,7 +113,7 @@ export function DurationEditor({ value, onSave, onClose }: DurationEditorProps) 
         style={{
           background: "var(--bg-elevated)",
           border: "1px solid var(--border-default)",
-          borderRadius: "var(--radius-lg)",
+          borderRadius: "var(--radius-md)",
           padding: "24px",
           width: 340,
           boxShadow: "var(--shadow-lg)",
