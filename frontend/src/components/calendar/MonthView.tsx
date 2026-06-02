@@ -454,6 +454,10 @@ export function MonthView() {
 
   if (isLoading) return <MonthSkeleton />;
 
+  const selectedWeek = weeks.find((week) => week.includes(selectedDate));
+  const selectedWeekEvents = selectedWeek ? selectedWeek.flatMap((d) => eventsByDate[d] ?? []) : [];
+  const selectedWeekNumber = selectedWeek ? getWeekNumber(selectedWeek[0]) : 0;
+
   if (isMobile) {
     return (
       <div style={{ display: "flex", flexDirection: "column", flex: 1, gap: 16, padding: "12px" }}>
@@ -538,11 +542,26 @@ export function MonthView() {
                       );
                     })}
                   </div>
-                </button>
+                 </button>
               );
             })}
           </div>
         </div>
+
+        {/* Weekly Summary for Selected Date's Week */}
+        {selectedWeek && (
+          <WeeklySummaryColumn
+            events={selectedWeekEvents}
+            weekNumber={selectedWeekNumber}
+            style={{
+              minWidth: "auto",
+              borderRight: "none",
+              borderBottom: "none",
+              borderRadius: "var(--radius-md)",
+              border: "1px solid var(--border-subtle)",
+            }}
+          />
+        )}
 
         {/* Selected Date Details Area */}
         <div style={{ display: "flex", flexDirection: "column", gap: 12, flex: 1 }}>
@@ -643,9 +662,10 @@ export function MonthView() {
       <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
         {/* Day-of-week header row */}
         <div
+          className="month-grid-container"
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(7, 1fr) 240px",
+            gridTemplateColumns: "repeat(7, minmax(0, 1fr)) 240px",
             borderBottom: "1px solid var(--border-default)",
           }}
         >
@@ -671,6 +691,7 @@ export function MonthView() {
             );
           })}
           <div
+            className="month-summary-header"
             style={{
               padding: "var(--space-2)",
               textAlign: "center",
@@ -689,10 +710,13 @@ export function MonthView() {
 
         {/* Day grid */}
         <div
+          className="month-grid-container month-day-grid"
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(7, 1fr) 240px",
+            gridTemplateColumns: "repeat(7, minmax(0, 1fr)) 240px",
+            gridAutoRows: "minmax(140px, auto)",
             flex: 1,
+            overflowY: "auto",
           }}
         >
           {weeks.map((weekDates, weekIdx) => {
@@ -738,6 +762,22 @@ export function MonthView() {
 
       {/* Scoped CSS */}
       <style>{`
+        .month-grid-container {
+          display: grid;
+          grid-template-columns: repeat(7, minmax(0, 1fr)) 240px;
+        }
+        .month-day-grid {
+          grid-auto-rows: minmax(140px, auto);
+        }
+        @media (max-width: 1200px) {
+          .month-grid-container {
+            grid-template-columns: repeat(7, minmax(0, 1fr)) !important;
+          }
+          .month-summary-header,
+          .weekly-summary-column {
+            display: none !important;
+          }
+        }
         @media (hover: hover) {
           /* Show '+' and highlight day number on cell hover */
           .day-cell:hover .month-add-btn { opacity: 1; }

@@ -3,6 +3,8 @@ spring:
     url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/coachfit_dev}
     username: ${DATABASE_USERNAME:${DB_USER:coachfit}}
     password: ${DATABASE_PASSWORD:${DB_PASSWORD:dev_password}}
+  flyway:
+    locations: classpath:db/migration,classpath:db/seed
   jpa:
     hibernate:
       ddl-auto: validate

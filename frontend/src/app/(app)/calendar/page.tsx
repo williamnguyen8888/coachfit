@@ -86,7 +86,7 @@ export default function CalendarPage() {
           flex: 1,
           display: "flex",
           flexDirection: "column",
-          overflow: viewMode === "month" || isMobile ? "auto" : "hidden",
+          overflow: isMobile ? "auto" : "hidden",
         }}
       >
         {error ? (
