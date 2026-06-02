@@ -1,0 +1,32 @@
+# Build and Output
+backend/target/
+target/
+build/
+.next/
+out/
+dist/
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.*
+
+# IDEs and Editors
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Operating System Files
+.DS_Store
+Thumbs.db
+
+# Environmental variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
