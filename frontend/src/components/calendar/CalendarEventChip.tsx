@@ -22,6 +22,7 @@ export interface CalendarEventChipProps {
   /** Compact mode for month view cells */
   compact?: boolean;
   onClick?: (event: CalendarEvent) => void;
+  onAnalysisClick?: (eventId: string) => void;
   // Drag props
   draggable?: boolean;
   onDragStart?: (e: React.DragEvent) => void;

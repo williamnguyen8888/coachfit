@@ -18,11 +18,13 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import com.coachfit.calendar.application.port.out.CalendarEventPersistencePort.ActivityStreamData;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.times;
 
 @ExtendWith(MockitoExtension.class)
 class CalendarEventServiceTest {
@@ -354,5 +356,81 @@ class CalendarEventServiceTest {
                 null,
                 "manual"
         );
+    }
+
+    @Test
+    void analyze_generatesCorrectMatchAnalysis() {
+        CalendarEventSummary existing = event(LocalDate.of(2026, 6, 1), "completed", WORKOUT_ID, ACTIVITY_ID);
+        when(port.findById(EVENT_ID)).thenReturn(Optional.of(existing));
+        when(port.findActivityStream(ACTIVITY_ID)).thenReturn(Optional.empty());
+        when(port.findUserSportZones(USER_ID, "cycling", LocalDate.of(2026, 6, 1)))
+                .thenReturn(Optional.empty());
+
+        var analysis = service.analyze(USER_ID, EVENT_ID);
+
+        org.assertj.core.api.Assertions.assertThat(analysis).isNotNull();
+        org.assertj.core.api.Assertions.assertThat(analysis.eventId()).isEqualTo(EVENT_ID);
+        org.assertj.core.api.Assertions.assertThat(analysis.complianceScore()).isNotNull();
+        org.assertj.core.api.Assertions.assertThat(analysis.coaching().rating()).isEqualTo("EXCELLENT");
+    }
+
+    @Test
+    void analyze_calculatesHeartRateRecoveryCorrectly() {
+        String stepsJson = "[{\"type\":\"work\",\"duration\":{\"type\":\"time\",\"value\":60}},{\"type\":\"rest\",\"duration\":{\"type\":\"time\",\"value\":60}}]";
+        CalendarEventSummary existing = new CalendarEventSummary(
+                EVENT_ID,
+                USER_ID,
+                LocalDate.of(2026, 6, 1),
+                "workout",
+                WORKOUT_ID,
+                ACTIVITY_ID,
+                "Endurance",
+                null,
+                "completed",
+                (short) 0,
+                BigDecimal.valueOf(100),
+                "cycling",
+                120,
+                BigDecimal.valueOf(10),
+                stepsJson,
+                BigDecimal.valueOf(10), // workoutDistance
+                120, // activityDuration
+                "cycling", // activitySport
+                "Ride", // activityName
+                BigDecimal.valueOf(1000), // activityDistance
+                150, // activityAvgHr
+                180, // activityMaxHr
+                160, // activityAvgPower
+                "strava" // activitySource
+        );
+
+        int[] timestamps = new int[]{0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120};
+        short[] heartRates = new short[]{120, 130, 140, 150, 160, 170, 180, 170, 160, 150, 140, 135, 130};
+        short[] power = new short[]{200, 200, 200, 200, 200, 200, 200, 100, 100, 100, 100, 100, 100};
+        float[] speed = new float[]{8, 8, 8, 8, 8, 8, 8, 4, 4, 4, 4, 4, 4};
+        float[] distance = new float[]{0, 80, 160, 240, 320, 400, 480, 520, 560, 600, 640, 680, 720};
+
+        ActivityStreamData stream = new ActivityStreamData(timestamps, heartRates, power, speed, distance);
+
+        when(port.findById(EVENT_ID)).thenReturn(Optional.of(existing));
+        when(port.findActivityStream(ACTIVITY_ID)).thenReturn(Optional.of(stream));
+        when(port.findUserSportZones(USER_ID, "cycling", LocalDate.of(2026, 6, 1)))
+                .thenReturn(Optional.empty());
+
+        var analysis = service.analyze(USER_ID, EVENT_ID);
+
+        org.assertj.core.api.Assertions.assertThat(analysis).isNotNull();
+        // The first step is work (duration 60), second is rest (duration 60)
+        // HR at work end (60s) is 180 bpm
+        // HR at rest end (120s) is 130 bpm
+        // Expected HRR = 180 - 130 = 50 bpm
+        org.assertj.core.api.Assertions.assertThat(analysis.steps()).hasSize(2);
+        org.assertj.core.api.Assertions.assertThat(analysis.steps().get(0).heartRateRecovery()).isEqualTo(50);
+        org.assertj.core.api.Assertions.assertThat(analysis.steps().get(1).heartRateRecovery()).isNull();
+
+        // Verify cache works (second call doesn't call port again, so we verify port query count remains 1)
+        var cachedAnalysis = service.analyze(USER_ID, EVENT_ID);
+        org.assertj.core.api.Assertions.assertThat(cachedAnalysis).isSameAs(analysis);
+        verify(port, times(1)).findActivityStream(ACTIVITY_ID);
     }
 }

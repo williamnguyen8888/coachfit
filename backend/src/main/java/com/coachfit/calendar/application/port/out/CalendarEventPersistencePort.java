@@ -88,6 +88,26 @@ public interface CalendarEventPersistencePort {
 
     boolean hasActiveEventForActivity(UUID userId, UUID activityId);
 
+    Optional<ActivityStreamData> findActivityStream(UUID activityId);
+
+    Optional<UserSportZones> findUserSportZones(UUID userId, String sport, LocalDate date);
+
+    record ActivityStreamData(
+            int[] timestamps,
+            short[] heartRate,
+            short[] power,
+            float[] speed,
+            float[] distance
+    ) {}
+
+    record UserSportZones(
+            String sport,
+            Integer ftp,
+            Integer lthr,
+            Integer maxHr,
+            String zonesJson
+    ) {}
+
     // ── Read model ─────────────────────────────────────────────────────────────
 
     record CalendarEventSummary(

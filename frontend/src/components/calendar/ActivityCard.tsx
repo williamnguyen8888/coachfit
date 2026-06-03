@@ -123,6 +123,7 @@ export interface ActivityCardProps {
   event: CalendarEvent;
   compact?: boolean;
   onClick?: (event: CalendarEvent) => void;
+  onAnalysisClick?: (eventId: string) => void;
   draggable?: boolean;
   onDragStart?: (e: React.DragEvent) => void;
   onDragEnd?: () => void;
@@ -141,6 +142,7 @@ export function ActivityCard({
   event,
   compact = false,
   onClick,
+  onAnalysisClick,
   draggable,
   onDragStart,
   onDragEnd,
@@ -526,7 +528,13 @@ export function ActivityCard({
             />
             {/* Compliance pill */}
             {compliance != null && (
-              <div
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onAnalysisClick?.(event.id);
+                }}
                 style={{
                   position: "absolute",
                   top: "50%",
@@ -534,20 +542,36 @@ export function ActivityCard({
                   transform: "translate(-50%, -50%)",
                   background: compliance >= 80 ? "var(--color-success)" : compliance >= 50 ? "var(--color-warning)" : "var(--color-danger)",
                   color: "white",
-                  fontSize: 8,
+                  fontSize: 9,
                   fontWeight: 800,
-                  padding: "1px 6px",
+                  padding: "2px 8px",
                   borderRadius: 10,
-                  boxShadow: "0 1px 4px rgba(0,0,0,0.15)",
+                  boxShadow: "0 2px 6px rgba(0,0,0,0.3)",
                   textTransform: "uppercase",
                   letterSpacing: "0.04em",
                   zIndex: 2,
                   whiteSpace: "nowrap",
                   lineHeight: 1.2,
+                  border: "none",
+                  cursor: onAnalysisClick ? "pointer" : "default",
+                  transition: "transform 150ms ease, filter 150ms ease",
                 }}
+                onMouseEnter={(e) => {
+                  if (onAnalysisClick) {
+                    e.currentTarget.style.transform = "translate(-50%, -50%) scale(1.08)";
+                    e.currentTarget.style.filter = "brightness(1.15)";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (onAnalysisClick) {
+                    e.currentTarget.style.transform = "translate(-50%, -50%) scale(1)";
+                    e.currentTarget.style.filter = "none";
+                  }
+                }}
+                title="Click to view detailed compliance match analysis report"
               >
                 {compliance}% Match
-              </div>
+              </button>
             )}
           </div>
         )}

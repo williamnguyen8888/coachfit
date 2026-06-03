@@ -482,6 +482,107 @@ class CalendarEventPersistenceAdapter implements CalendarEventPersistencePort {
                 .single();
     }
 
+    @Override
+    public Optional<ActivityStreamData> findActivityStream(UUID activityId) {
+        return jdbcClient.sql("""
+                SELECT timestamps, heart_rate, power, speed, distance
+                  FROM activity_streams
+                 WHERE activity_id = :activityId
+                """)
+                .param("activityId", activityId)
+                .query((rs, rowNum) -> {
+                    int[] timestamps = toIntArray(rs.getArray("timestamps"));
+                    short[] heartRate = toShortArray(rs.getArray("heart_rate"));
+                    short[] power = toShortArray(rs.getArray("power"));
+                    float[] speed = toFloatArray(rs.getArray("speed"));
+                    float[] distance = toFloatArray(rs.getArray("distance"));
+                    return new ActivityStreamData(timestamps, heartRate, power, speed, distance);
+                })
+                .optional();
+    }
+
+    @Override
+    public Optional<UserSportZones> findUserSportZones(UUID userId, String sport, LocalDate date) {
+        return jdbcClient.sql("""
+                SELECT sport, ftp, lthr, max_hr, zones::text AS zones_json
+                  FROM sport_zones
+                 WHERE user_id = :userId
+                   AND sport = :sport
+                   AND effective_date <= :date
+                 ORDER BY effective_date DESC
+                 LIMIT 1
+                """)
+                .param("userId", userId)
+                .param("sport", sport)
+                .param("date", date)
+                .query((rs, rowNum) -> new UserSportZones(
+                        rs.getString("sport"),
+                        nullableInt(rs, "ftp"),
+                        nullableInt(rs, "lthr"),
+                        nullableInt(rs, "max_hr"),
+                        rs.getString("zones_json")
+                ))
+                .optional();
+    }
+
+    // Helper conversion methods for PG native arrays
+    private static int[] toIntArray(java.sql.Array sqlArray) throws java.sql.SQLException {
+        if (sqlArray == null) return new int[0];
+        Object array = sqlArray.getArray();
+        if (array instanceof Integer[] boxed) {
+            int[] unboxed = new int[boxed.length];
+            for (int i = 0; i < boxed.length; i++) {
+                unboxed[i] = boxed[i] != null ? boxed[i] : 0;
+            }
+            return unboxed;
+        } else if (array instanceof int[] primitive) {
+            return primitive;
+        }
+        return new int[0];
+    }
+
+    private static short[] toShortArray(java.sql.Array sqlArray) throws java.sql.SQLException {
+        if (sqlArray == null) return new short[0];
+        Object array = sqlArray.getArray();
+        if (array instanceof Integer[] boxed) {
+            short[] unboxed = new short[boxed.length];
+            for (int i = 0; i < boxed.length; i++) {
+                unboxed[i] = boxed[i] != null ? boxed[i].shortValue() : 0;
+            }
+            return unboxed;
+        } else if (array instanceof Short[] boxed) {
+            short[] unboxed = new short[boxed.length];
+            for (int i = 0; i < boxed.length; i++) {
+                unboxed[i] = boxed[i] != null ? boxed[i] : 0;
+            }
+            return unboxed;
+        } else if (array instanceof short[] primitive) {
+            return primitive;
+        }
+        return new short[0];
+    }
+
+    private static float[] toFloatArray(java.sql.Array sqlArray) throws java.sql.SQLException {
+        if (sqlArray == null) return new float[0];
+        Object array = sqlArray.getArray();
+        if (array instanceof Double[] boxed) {
+            float[] unboxed = new float[boxed.length];
+            for (int i = 0; i < boxed.length; i++) {
+                unboxed[i] = boxed[i] != null ? boxed[i].floatValue() : 0.0f;
+            }
+            return unboxed;
+        } else if (array instanceof Float[] boxed) {
+            float[] unboxed = new float[boxed.length];
+            for (int i = 0; i < boxed.length; i++) {
+                unboxed[i] = boxed[i] != null ? boxed[i] : 0.0f;
+            }
+            return unboxed;
+        } else if (array instanceof float[] primitive) {
+            return primitive;
+        }
+        return new float[0];
+    }
+
     // ── Mapping ───────────────────────────────────────────────────────────────
 
     private CalendarEventSummary toSummary(CalendarEventEntity e) {

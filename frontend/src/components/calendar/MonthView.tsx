@@ -19,6 +19,7 @@ import { useCalendarStore } from "@/stores/calendar.store";
 import { useDragDrop } from "@/hooks/useDragDrop";
 import { CalendarEventChip } from "./CalendarEventChip";
 import { CalendarEventModal } from "./CalendarEventModal";
+import { ActivityAnalysisModal } from "./ActivityAnalysisModal";
 import { DailyWellnessSummary } from "./DailyWellnessSummary";
 import { WeeklySummaryColumn } from "./WeeklySummaryColumn";
 import { parseLocalDateString, toLocalDateString } from "@/lib/utils";
@@ -75,10 +76,11 @@ const MAX_VISIBLE = 3;
 interface DayCellOverflowProps {
   extraEvents: CalendarEvent[];
   onEventClick: (event: CalendarEvent) => void;
+  onAnalysisClick?: (eventId: string) => void;
   onClose: () => void;
 }
 
-function DayCellOverflowPopover({ extraEvents, onEventClick, onClose }: DayCellOverflowProps) {
+function DayCellOverflowPopover({ extraEvents, onEventClick, onAnalysisClick, onClose }: DayCellOverflowProps) {
   return (
     <div
       style={{
@@ -103,6 +105,7 @@ function DayCellOverflowPopover({ extraEvents, onEventClick, onClose }: DayCellO
           key={event.id}
           event={event}
           onClick={(e) => { onEventClick(e); onClose(); }}
+          onAnalysisClick={(id) => { onAnalysisClick?.(id); onClose(); }}
         />
       ))}
       <button
@@ -132,6 +135,7 @@ interface DayCellProps {
   events: CalendarEvent[];
   inMonth: boolean;
   onEventClick: (event: CalendarEvent) => void;
+  onAnalysisClick?: (eventId: string) => void;
   onAddClick: (date: string) => void;
   isDragOver: boolean;
   draggingId: string | null;
@@ -150,6 +154,7 @@ function DayCell({
   events,
   inMonth,
   onEventClick,
+  onAnalysisClick,
   onAddClick,
   isDragOver,
   draggingId,
@@ -306,6 +311,7 @@ function DayCell({
               key={event.id}
               event={event}
               onClick={onEventClick}
+              onAnalysisClick={onAnalysisClick}
               draggable={inMonth}
               onDragStart={chipDragProps.onDragStart}
               onDragEnd={chipDragProps.onDragEnd}
@@ -356,6 +362,7 @@ function DayCell({
           <DayCellOverflowPopover
             extraEvents={events.slice(MAX_VISIBLE)}
             onEventClick={onEventClick}
+            onAnalysisClick={onAnalysisClick}
             onClose={() => setShowOverflow(false)}
           />
         </>
@@ -425,6 +432,7 @@ export function MonthView() {
     | null
   >(null);
   const closeModal = useCallback(() => setModalState(null), []);
+  const [analysisEventId, setAnalysisEventId] = useState<string | null>(null);
 
   const eventIdsByDate: Record<string, string[]> = {};
   for (const [date, evts] of Object.entries(eventsByDate)) {
@@ -606,6 +614,7 @@ export function MonthView() {
                   key={event.id}
                   event={event}
                   onClick={(e) => setModalState({ mode: "edit", event: e })}
+                  onAnalysisClick={(id) => setAnalysisEventId(id)}
                   onComplete={() => handleComplete(event.id)}
                   onSkip={() => handleSkip(event.id)}
                   sleep={sleepByDate?.[selectedDate]}
@@ -653,13 +662,17 @@ export function MonthView() {
           ) : (
             <CalendarEventModal mode="edit" event={modalState.event} onClose={closeModal} />
           ))}
+
+        {analysisEventId && (
+          <ActivityAnalysisModal eventId={analysisEventId} onClose={() => setAnalysisEventId(null)} />
+        )}
       </div>
     );
   }
 
   return (
     <>
-      <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
+      <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
         {/* Day-of-week header row */}
         <div
           className="month-grid-container"
@@ -708,17 +721,17 @@ export function MonthView() {
           </div>
         </div>
 
-        {/* Day grid */}
-        <div
-          className="month-grid-container month-day-grid"
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(7, minmax(0, 1fr)) 240px",
-            gridAutoRows: "minmax(140px, auto)",
-            flex: 1,
-            overflowY: "auto",
-          }}
-        >
+        {/* Scroll wrapper for day grid */}
+        <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
+          {/* Day grid */}
+          <div
+            className="month-grid-container month-day-grid"
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(7, minmax(0, 1fr)) 240px",
+              gridAutoRows: "minmax(140px, auto)",
+            }}
+          >
           {weeks.map((weekDates, weekIdx) => {
             const dayCells = weekDates.map((date) => {
               const inMonth   = isCurrentMonth(date, anchorDate);
@@ -731,6 +744,7 @@ export function MonthView() {
                   events={eventsByDate[date] ?? []}
                   inMonth={inMonth}
                   onEventClick={(event) => setModalState({ mode: "edit", event })}
+                  onAnalysisClick={(id) => setAnalysisEventId(id)}
                   onAddClick={(d) => setModalState({ mode: "create", date: d })}
                   isDragOver={isDragOver}
                   draggingId={dragState.draggingId}
@@ -757,6 +771,7 @@ export function MonthView() {
               />
             ];
           })}
+          </div>
         </div>
       </div>
 
@@ -799,6 +814,10 @@ export function MonthView() {
         ) : (
           <CalendarEventModal mode="edit" event={modalState.event} onClose={closeModal} />
         ))}
+
+      {analysisEventId && (
+        <ActivityAnalysisModal eventId={analysisEventId} onClose={() => setAnalysisEventId(null)} />
+      )}
     </>
   );
 }

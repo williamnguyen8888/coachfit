@@ -4,6 +4,7 @@ import com.coachfit.calendar.adapter.in.dto.CalendarEventRequest;
 import com.coachfit.calendar.adapter.in.dto.CalendarEventResponse;
 import com.coachfit.calendar.adapter.in.dto.ReorderRequest;
 import com.coachfit.calendar.adapter.in.dto.SkipRequest;
+import com.coachfit.calendar.application.port.in.AnalyzeCalendarEventUseCase;
 import com.coachfit.calendar.application.port.in.CompleteCalendarEventUseCase;
 import com.coachfit.calendar.application.port.in.CreateCalendarEventUseCase;
 import com.coachfit.calendar.application.port.in.CreateCalendarEventUseCase.CreateCommand;
@@ -63,6 +64,7 @@ public class CalendarController {
     private final SkipCalendarEventUseCase   skipUseCase;
     private final ReorderCalendarEventsUseCase reorderUseCase;
     private final com.coachfit.calendar.application.port.in.LinkActivityToCalendarEventUseCase linkActivityUseCase;
+    private final AnalyzeCalendarEventUseCase analyzeUseCase;
 
     public CalendarController(
             ListCalendarEventsUseCase    listUseCase,
@@ -72,7 +74,8 @@ public class CalendarController {
             CompleteCalendarEventUseCase completeUseCase,
             SkipCalendarEventUseCase     skipUseCase,
             ReorderCalendarEventsUseCase reorderUseCase,
-            com.coachfit.calendar.application.port.in.LinkActivityToCalendarEventUseCase linkActivityUseCase) {
+            com.coachfit.calendar.application.port.in.LinkActivityToCalendarEventUseCase linkActivityUseCase,
+            AnalyzeCalendarEventUseCase  analyzeUseCase) {
         this.listUseCase       = listUseCase;
         this.createUseCase     = createUseCase;
         this.updateUseCase     = updateUseCase;
@@ -81,6 +84,7 @@ public class CalendarController {
         this.skipUseCase       = skipUseCase;
         this.reorderUseCase    = reorderUseCase;
         this.linkActivityUseCase = linkActivityUseCase;
+        this.analyzeUseCase    = analyzeUseCase;
     }
 
     // ── GET /calendar?from=...&to=... ─────────────────────────────────────────
@@ -202,6 +206,16 @@ public class CalendarController {
 
         completeUseCase.complete(principal.getUserId(), id);
         return ResponseEntity.ok().build();
+    }
+
+    // ── GET /calendar/{id}/analysis ──────────────────────────────────────────
+
+    @GetMapping("/{id}/analysis")
+    public ResponseEntity<AnalyzeCalendarEventUseCase.CalendarEventAnalysis> analyze(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        AnalyzeCalendarEventUseCase.CalendarEventAnalysis analysis = analyzeUseCase.analyze(principal.getUserId(), id);
+        return ResponseEntity.ok(analysis);
     }
 
     // ── PUT /calendar/{id}/link-activity ─────────────────────────────────────

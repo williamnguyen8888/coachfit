@@ -20,6 +20,7 @@ import { useCalendarStore } from "@/stores/calendar.store";
 import { useDragDrop } from "@/hooks/useDragDrop";
 import { CalendarEventChip } from "./CalendarEventChip";
 import { CalendarEventModal } from "./CalendarEventModal";
+import { ActivityAnalysisModal } from "./ActivityAnalysisModal";
 import { DailyWellnessSummary } from "./DailyWellnessSummary";
 import { WeeklySummaryColumn } from "./WeeklySummaryColumn";
 import { addLocalDays, toLocalDateString } from "@/lib/utils";
@@ -123,6 +124,7 @@ interface DayColumnProps {
   date: string;
   events: CalendarEvent[];
   onEventClick: (event: CalendarEvent) => void;
+  onAnalysisClick?: (eventId: string) => void;
   onAddClick: (date: string) => void;
   isDragOver: boolean;
   isSameDay: boolean;
@@ -145,6 +147,7 @@ function DayColumn({
   date,
   events,
   onEventClick,
+  onAnalysisClick,
   onAddClick,
   isDragOver,
   isSameDay,
@@ -454,6 +457,7 @@ function DayColumn({
                 <CalendarEventChip
                   event={event}
                   onClick={onEventClick}
+                  onAnalysisClick={onAnalysisClick}
                   draggable={!isMobile}
                   onDragStart={chipDragProps.onDragStart}
                   onDragEnd={chipDragProps.onDragEnd}
@@ -604,6 +608,7 @@ export function WeekView() {
     | null
   >(null);
   const closeModal = useCallback(() => setModalState(null), []);
+  const [analysisEventId, setAnalysisEventId] = useState<string | null>(null);
 
   // Swipe gesture (mobile)
   const touchStartX   = useRef<number | null>(null);
@@ -695,6 +700,7 @@ export function WeekView() {
           minHeight: 400,
           userSelect: "none",
           overflowX: isMobile ? "visible" : "auto",
+          overflowY: isMobile ? "visible" : "auto",
           scrollSnapType: isMobile ? "none" : "x mandatory",
           WebkitOverflowScrolling: "touch",
           gap: isMobile ? "var(--space-3)" : 0,
@@ -728,6 +734,7 @@ export function WeekView() {
               date={date}
               events={eventsByDate[date] ?? []}
               onEventClick={(event) => setModalState({ mode: "edit", event })}
+              onAnalysisClick={(id) => setAnalysisEventId(id)}
               onAddClick={(d) => setModalState({ mode: "create", date: d })}
               isDragOver={isDragOver}
               isSameDay={isSameDayReorder}
@@ -833,6 +840,10 @@ export function WeekView() {
         ) : (
           <CalendarEventModal mode="edit" event={modalState.event} onClose={closeModal} />
         ))}
+
+      {analysisEventId && (
+        <ActivityAnalysisModal eventId={analysisEventId} onClose={() => setAnalysisEventId(null)} />
+      )}
     </>
   );
 }
