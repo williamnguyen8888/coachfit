@@ -673,56 +673,60 @@ export function MonthView() {
   return (
     <>
       <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
-        {/* Day-of-week header row */}
-        <div
-          className="month-grid-container"
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(7, minmax(0, 1fr)) 240px",
-            borderBottom: "1px solid var(--border-default)",
-          }}
-        >
-          {DAY_NAMES_SHORT.map((name, i) => {
-            const isWeekend = i >= 5;
-            return (
-              <div
-                key={name}
-                style={{
-                  padding: "var(--space-2)",
-                  textAlign: "center",
-                  fontSize: "var(--text-xs)",
-                  fontWeight: 600,
-                  color: isWeekend ? "var(--text-secondary)" : "var(--text-muted)",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.07em",
-                  borderRight: "1px solid var(--border-subtle)",
-                  background: isWeekend ? "color-mix(in srgb, var(--bg-elevated) 30%, transparent)" : "transparent",
-                }}
-              >
-                {name}
-              </div>
-            );
-          })}
-          <div
-            className="month-summary-header"
-            style={{
-              padding: "var(--space-2)",
-              textAlign: "center",
-              fontSize: "var(--text-xs)",
-              fontWeight: 600,
-              color: "var(--text-muted)",
-              textTransform: "uppercase",
-              letterSpacing: "0.07em",
-              borderRight: "1px solid var(--border-subtle)",
-              background: "var(--bg-elevated)",
-            }}
-          >
-            Summary
-          </div>
-        </div>
-
         {/* Scroll wrapper for day grid */}
         <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
+          {/* Day-of-week header row */}
+          <div
+            className="month-grid-container"
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(7, minmax(0, 1fr)) 240px",
+              borderBottom: "1px solid var(--border-default)",
+              position: "sticky",
+              top: 0,
+              zIndex: 10,
+              background: "var(--bg-primary)",
+            }}
+          >
+            {DAY_NAMES_SHORT.map((name, i) => {
+              const isWeekend = i >= 5;
+              return (
+                <div
+                  key={name}
+                  style={{
+                    padding: "var(--space-2)",
+                    textAlign: "center",
+                    fontSize: "var(--text-xs)",
+                    fontWeight: 600,
+                    color: isWeekend ? "var(--text-secondary)" : "var(--text-muted)",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.07em",
+                    borderRight: "1px solid var(--border-subtle)",
+                    background: isWeekend ? "color-mix(in srgb, var(--bg-elevated) 30%, transparent)" : "transparent",
+                  }}
+                >
+                  {name}
+                </div>
+              );
+            })}
+            <div
+              className="month-summary-header"
+              style={{
+                padding: "var(--space-2)",
+                textAlign: "center",
+                fontSize: "var(--text-xs)",
+                fontWeight: 600,
+                color: "var(--text-muted)",
+                textTransform: "uppercase",
+                letterSpacing: "0.07em",
+                borderRight: "1px solid var(--border-subtle)",
+                background: "var(--bg-elevated)",
+              }}
+            >
+              Summary
+            </div>
+          </div>
+
           {/* Day grid */}
           <div
             className="month-grid-container month-day-grid"

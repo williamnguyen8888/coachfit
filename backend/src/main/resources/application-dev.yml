@@ -5,6 +5,7 @@ spring:
     password: ${DATABASE_PASSWORD:${DB_PASSWORD:dev_password}}
   flyway:
     locations: classpath:db/migration,classpath:db/seed
+    out-of-order: true
   jpa:
     hibernate:
       ddl-auto: validate

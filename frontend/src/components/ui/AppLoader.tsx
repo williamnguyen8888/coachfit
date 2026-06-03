@@ -7,26 +7,27 @@
 export function AppLoader() {
   return (
     <div className="app-loader" aria-label="Loading CoachFit…" role="status">
-      {/* Sidebar skeleton */}
-      <div className="app-loader__sidebar">
-        {/* Logo area */}
+      {/* Top Header skeleton */}
+      <div className="app-loader__header">
+        {/* Logo */}
         <div className="app-loader__logo skeleton" />
-        {/* Nav items */}
-        {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="app-loader__nav-item">
-            <div className="skeleton app-loader__nav-icon" />
-            <div className="skeleton app-loader__nav-label" />
-          </div>
-        ))}
+        
+        {/* Nav Items */}
+        <div className="app-loader__nav">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="app-loader__nav-item skeleton" />
+          ))}
+        </div>
+
+        {/* Right actions */}
+        <div className="app-loader__actions">
+          <div className="app-loader__btn skeleton" />
+          <div className="app-loader__avatar skeleton" />
+        </div>
       </div>
 
       {/* Main content skeleton */}
       <div className="app-loader__main">
-        {/* Top bar */}
-        <div className="app-loader__topbar">
-          <div className="skeleton app-loader__topbar-title" />
-          <div className="skeleton app-loader__topbar-avatar" />
-        </div>
         {/* Content blocks */}
         <div className="app-loader__content">
           <div className="skeleton app-loader__card app-loader__card--wide" />
@@ -42,6 +43,7 @@ export function AppLoader() {
       <style>{`
         .app-loader {
           display: flex;
+          flex-direction: column;
           height: 100vh;
           width: 100%;
           background: var(--bg-base);
@@ -66,41 +68,48 @@ export function AppLoader() {
           100% { background-position: -200% 0; }
         }
 
-        /* ── Sidebar ──────────────────────────────────────────────────── */
-        .app-loader__sidebar {
-          width: 240px;
-          flex-shrink: 0;
-          padding: 20px 16px;
-          border-right: 1px solid var(--border-subtle);
+        /* ── Top Header ────────────────────────────────────────────────── */
+        .app-loader__header {
+          height: 64px;
+          border-bottom: 1px solid var(--border-subtle);
+          padding: 0 24px;
           display: flex;
-          flex-direction: column;
-          gap: 8px;
+          align-items: center;
+          justify-content: space-between;
+          flex-shrink: 0;
         }
 
         .app-loader__logo {
-          height: 36px;
+          height: 32px;
           width: 120px;
-          margin-bottom: 24px;
+        }
+
+        .app-loader__nav {
+          display: flex;
+          gap: 16px;
         }
 
         .app-loader__nav-item {
+          height: 20px;
+          width: 80px;
+        }
+
+        .app-loader__actions {
           display: flex;
           align-items: center;
-          gap: 12px;
-          padding: 8px;
+          gap: 16px;
         }
 
-        .app-loader__nav-icon {
-          width: 20px;
-          height: 20px;
+        .app-loader__btn {
+          width: 32px;
+          height: 32px;
           border-radius: var(--radius-sm);
-          flex-shrink: 0;
         }
 
-        .app-loader__nav-label {
-          height: 14px;
-          flex: 1;
-          max-width: 100px;
+        .app-loader__avatar {
+          width: 32px;
+          height: 32px;
+          border-radius: 50%;
         }
 
         /* ── Main area ────────────────────────────────────────────────── */
@@ -109,26 +118,6 @@ export function AppLoader() {
           display: flex;
           flex-direction: column;
           overflow: hidden;
-        }
-
-        .app-loader__topbar {
-          height: 60px;
-          border-bottom: 1px solid var(--border-subtle);
-          padding: 0 24px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-        }
-
-        .app-loader__topbar-title {
-          height: 20px;
-          width: 160px;
-        }
-
-        .app-loader__topbar-avatar {
-          width: 32px;
-          height: 32px;
-          border-radius: 50%;
         }
 
         .app-loader__content {
@@ -158,9 +147,9 @@ export function AppLoader() {
           height: 220px;
         }
 
-        /* ── Mobile: hide sidebar ─────────────────────────────────────── */
+        /* ── Mobile: hide header elements ────────────────────────────── */
         @media (max-width: 768px) {
-          .app-loader__sidebar { display: none; }
+          .app-loader__header { display: none; }
           .app-loader__grid { grid-template-columns: 1fr; }
         }
       `}</style>

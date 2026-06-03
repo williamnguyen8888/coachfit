@@ -374,7 +374,6 @@ class CalendarEventServiceTest {
         org.assertj.core.api.Assertions.assertThat(analysis).isNotNull();
         org.assertj.core.api.Assertions.assertThat(analysis.eventId()).isEqualTo(EVENT_ID);
         org.assertj.core.api.Assertions.assertThat(analysis.complianceScore()).isNotNull();
-        org.assertj.core.api.Assertions.assertThat(analysis.coaching().rating()).isEqualTo("EXCELLENT");
     }
 
     @Test

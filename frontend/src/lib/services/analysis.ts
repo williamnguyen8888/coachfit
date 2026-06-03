@@ -56,14 +56,6 @@ export interface MetricsAnalysis {
   zoneMatches: ZoneDistributionMatch[];
 }
 
-export interface CoachingFeedback {
-  rating: 'EXCELLENT' | 'GOOD' | 'INCONSISTENT' | 'UNDERACHIEVED' | 'OVERACHIEVED';
-  summary: string;
-  pacingFeedback: string;
-  durationFeedback: string;
-  recommendations: string[];
-}
-
 export interface CalendarEventAnalysis {
   eventId: string;
   workoutId: string;
@@ -74,7 +66,6 @@ export interface CalendarEventAnalysis {
   summary: SummaryComparison;
   steps: StepAnalysis[];
   metrics: MetricsAnalysis;
-  coaching: CoachingFeedback;
 }
 
 export const analysisService = {

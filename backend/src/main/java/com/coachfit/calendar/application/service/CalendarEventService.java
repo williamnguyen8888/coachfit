@@ -826,9 +826,6 @@ public class CalendarEventService
             ));
         }
 
-        // Dynamic Coaching Feedback
-        CoachingFeedback coaching = generateCoachingFeedback(overallScore.doubleValue(), flatSteps, stepAnalyses, totalPlannedDuration, actDuration != null ? actDuration : 0);
-
         SummaryComparison summary = new SummaryComparison(
                 totalPlannedDuration,
                 actDuration,
@@ -852,8 +849,7 @@ public class CalendarEventService
                     overallScore,
                     summary,
                     stepAnalyses,
-                    new MetricsAnalysis(zoneMatches),
-                    coaching
+                    new MetricsAnalysis(zoneMatches)
             );
         });
     }
@@ -1028,106 +1024,6 @@ public class CalendarEventService
         return String.format("%d:%02d/%s", m, s, "swimming".equalsIgnoreCase(sport) ? "100m" : "km");
     }
 
-    private CoachingFeedback generateCoachingFeedback(double overallScore, List<FlatStep> planSteps, List<StepAnalysis> saList, int planDur, int actDur) {
-        java.util.Locale locale = org.springframework.context.i18n.LocaleContextHolder.getLocale();
-        String rating;
-        String summary;
-        String durationFeedback;
-        String pacingFeedback;
-        List<String> recommendations = new ArrayList<>();
-
-        if (overallScore >= 90) {
-            rating = messageSource.getMessage("coaching.rating.excellent", null, "EXCELLENT", locale);
-            summary = messageSource.getMessage("coaching.summary.excellent", null, 
-                    "Phenomenal execution of the planned session! You followed the workout instructions with extreme precision.", locale);
-        } else if (overallScore >= 75) {
-            rating = messageSource.getMessage("coaching.rating.good", null, "GOOD", locale);
-            summary = messageSource.getMessage("coaching.summary.good", null, 
-                    "Solid workout. You hit the key targets reasonably well, with minor deviations.", locale);
-        } else if (overallScore >= 60) {
-            rating = messageSource.getMessage("coaching.rating.inconsistent", null, "INCONSISTENT", locale);
-            summary = messageSource.getMessage("coaching.summary.inconsistent", null, 
-                    "The session had significant variation from the plan. Pacing or durations were uneven.", locale);
-        } else if (actDur < planDur * 0.7) {
-            rating = messageSource.getMessage("coaching.rating.underachieved", null, "UNDERACHIEVED", locale);
-            summary = messageSource.getMessage("coaching.summary.underachieved", null, 
-                    "The workout was cut short. You did not accumulate enough time to meet the planned adaptation stimulus.", locale);
-        } else {
-            rating = messageSource.getMessage("coaching.rating.overachieved", null, "OVERACHIEVED", locale);
-            summary = messageSource.getMessage("coaching.summary.overachieved", null, 
-                    "The workout intensity or duration was significantly higher than planned, which alters the targeted training effect.", locale);
-        }
-
-        double durRatio = (double) actDur / planDur;
-        if (durRatio >= 0.95 && durRatio <= 1.05) {
-            durationFeedback = messageSource.getMessage("coaching.duration.spoton", null, 
-                    "Duration was spot on. You completed exactly the prescribed volume.", locale);
-        } else if (durRatio < 0.95) {
-            int pct = (int) Math.round((1.0 - durRatio) * 100);
-            durationFeedback = messageSource.getMessage("coaching.duration.shorter", new Object[]{pct}, 
-                    "The workout was shorter than planned by {0}%. Prescribed adaptation requires longer durations.", locale);
-            recommendations.add(messageSource.getMessage("coaching.recommendation.recovery", null, 
-                    "Prioritize completing the full duration of recovery and warm-up steps to hit target volume.", locale));
-        } else {
-            int pct = (int) Math.round((durRatio - 1.0) * 100);
-            durationFeedback = messageSource.getMessage("coaching.duration.longer", new Object[]{pct}, 
-                    "You overshot the planned duration by {0}%. Be cautious as excess volume extends recovery needs.", locale);
-            recommendations.add(messageSource.getMessage("coaching.recommendation.active", null, 
-                    "Stick to the planned durations, especially for active intervals, to manage fatigue.", locale));
-        }
-
-        int overshootCount = 0;
-        int undershootCount = 0;
-        int targetMetCount = 0;
-        int workStepCount = 0;
-
-        for (StepAnalysis sa : saList) {
-            if ("work".equals(sa.stepType())) {
-                workStepCount++;
-                if (sa.isTargetMet()) {
-                    targetMetCount++;
-                } else {
-                    undershootCount++;
-                }
-            }
-        }
-
-        if (workStepCount > 0) {
-            double metPct = (double) targetMetCount / workStepCount;
-            if (metPct >= 0.8) {
-                pacingFeedback = messageSource.getMessage("coaching.pacing.superb", null, 
-                        "Pacing strategy was superb. You controlled your power/heart rate perfectly during the high-intensity intervals.", locale);
-                recommendations.add(messageSource.getMessage("coaching.recommendation.discipline", null, 
-                        "Excellent discipline. Keep using this pacing feedback to maintain structured efforts.", locale));
-            } else if (undershootCount > workStepCount * 0.4) {
-                pacingFeedback = messageSource.getMessage("coaching.pacing.struggled", null, 
-                        "You struggled to reach the target intensity zones during the main work steps.", locale);
-                recommendations.add(messageSource.getMessage("coaching.recommendation.rest", null, 
-                        "Make sure you are well rested before key intensity sessions to hit higher targets.", locale));
-                recommendations.add(messageSource.getMessage("coaching.recommendation.recalibrate", null, 
-                        "Consider recalibrating your training zones if target zones feel too difficult.", locale));
-            } else {
-                pacingFeedback = messageSource.getMessage("coaching.pacing.inconsistent", null, 
-                        "Pacing was inconsistent. You started intervals too aggressively and faded, or overshot recovery targets.", locale);
-                recommendations.add(messageSource.getMessage("coaching.recommendation.flat", null, 
-                        "Focus on a flat pacing profile. Do not start intervals too hard; distribute energy evenly.", locale));
-                recommendations.add(messageSource.getMessage("coaching.recommendation.respect", null, 
-                        "Respect recovery steps: keep your heart rate/power low during recovery to prepare for the next step.", locale));
-            }
-        } else {
-            pacingFeedback = messageSource.getMessage("coaching.pacing.default", null, 
-                    "Pacing control was well maintained.", locale);
-        }
-
-        if (recommendations.isEmpty()) {
-            recommendations.add(messageSource.getMessage("coaching.recommendation.default1", null, 
-                    "Continue monitoring target execution during structured workouts.", locale));
-            recommendations.add(messageSource.getMessage("coaching.recommendation.default2", null, 
-                    "Review compliance graphs to spot micro-pacing adjustments.", locale));
-        }
-
-        return new CoachingFeedback(rating, summary, pacingFeedback, durationFeedback, recommendations);
-    }
 
     private static double getDefaultSpeed(String sport) {
         if (sport == null) return 3.33;

@@ -1,6 +1,6 @@
 "use client";
 
-import { Sidebar } from "./Sidebar";
+import { Header } from "./Header";
 import { BottomTabBar } from "./BottomTabBar";
 import { useUIStore } from "@/stores/ui.store";
 import { useEffect } from "react";
@@ -19,11 +19,11 @@ export function AppShell({ children }: AppShellProps) {
 
   return (
     <div
-      className="flex h-dvh min-h-0 overflow-hidden"
+      className="flex flex-col h-dvh min-h-0 overflow-hidden"
       style={{ background: "var(--bg-primary)" }}
     >
-      {/* Desktop Sidebar — hidden on mobile/tablet via lg:flex in Sidebar */}
-      <Sidebar />
+      {/* Desktop Header — hidden on mobile/tablet */}
+      <Header />
 
       {/* Main content
           • Mobile/tablet: padding-bottom reserves space for the fixed bottom tab bar
@@ -31,7 +31,7 @@ export function AppShell({ children }: AppShellProps) {
       */}
       <main
         id="main-content"
-        className="app-shell-main flex-1 min-w-0 h-dvh min-h-0 flex flex-col overflow-y-auto overflow-x-hidden"
+        className="app-shell-main flex-1 min-w-0 flex flex-col overflow-y-auto overflow-x-hidden"
       >
         {children}
       </main>

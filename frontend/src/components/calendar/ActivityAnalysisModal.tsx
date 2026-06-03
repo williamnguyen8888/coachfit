@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X, Trophy, Activity, Zap, Heart, Clock, AlertCircle, Compass, Flame, CheckCircle, ArrowRight, Loader2 } from "lucide-react";
+import { X, Activity, Heart, Clock, AlertCircle, Compass, Flame, CheckCircle, ArrowRight, Loader2, ArrowUp, ArrowDown, Check } from "lucide-react";
 import { analysisService } from "@/lib/services/analysis";
 import type { CalendarEventAnalysis, StepAnalysis } from "@/lib/services/analysis";
 import { useCalendarStore } from "@/stores/calendar.store";
@@ -18,6 +18,7 @@ export function ActivityAnalysisModal({ eventId, onClose }: ActivityAnalysisModa
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
+  const [activeTab, setActiveTab] = useState<'overview' | 'intervals' | 'zones'>('overview');
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 580);
@@ -43,7 +44,7 @@ export function ActivityAnalysisModal({ eventId, onClose }: ActivityAnalysisModa
       }
     }
     loadAnalysis();
-  }, [eventId]);
+  }, [eventId, t]);
 
   if (loading) {
     return (
@@ -76,7 +77,7 @@ export function ActivityAnalysisModal({ eventId, onClose }: ActivityAnalysisModa
     );
   }
 
-  const { title, sport, complianceScore, summary, steps, metrics, coaching } = analysis;
+  const { title, sport, complianceScore, summary, steps, metrics } = analysis;
   const ratingColor = complianceScore >= 90 ? "var(--color-success)" : complianceScore >= 75 ? "var(--color-warning)" : "var(--color-danger)";
 
   const formatDuration = (seconds: number | null) => {
@@ -95,6 +96,325 @@ export function ActivityAnalysisModal({ eventId, onClose }: ActivityAnalysisModa
   const radius = 50;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (complianceScore / 100) * circumference;
+
+  // Count steps met
+  const intervalsMet = steps.filter(s => s.isTargetMet).length;
+  const totalIntervals = steps.length;
+
+  // Target intensity bar rendering
+  const renderIntensityBar = (targetStr: string, actualPower: number, actualHr: number, targetType: string) => {
+    if (!targetStr || !targetType || targetType === 'open' || targetType === 'rpe' || targetType === 'cadence') {
+      return <span style={{ color: "var(--text-muted)", fontSize: 10 }}>--</span>;
+    }
+
+    const isPower = targetType.startsWith('power') || targetType.includes('power');
+    const isHr = targetType.startsWith('hr') || targetType.includes('hr');
+    
+    let actVal = 0;
+    if (isPower) actVal = actualPower;
+    else if (isHr) actVal = actualHr;
+
+    if (actVal <= 0) {
+      return <span style={{ color: "var(--text-muted)", fontSize: 10 }}>--</span>;
+    }
+
+    const cleanTarget = targetStr.replace(/[Wbpms\/km]/g, '').trim();
+    if (cleanTarget.includes('-')) {
+      const parts = cleanTarget.split('-');
+      const targetMin = parseFloat(parts[0]);
+      const targetMax = parseFloat(parts[1]);
+      if (!isNaN(targetMin) && !isNaN(targetMax) && targetMin > 0 && targetMax > 0) {
+        const scaleMin = 0.6 * targetMin;
+        const scaleMax = 1.4 * targetMax;
+        const range = scaleMax - scaleMin;
+        if (range > 0) {
+          const startPct = ((targetMin - scaleMin) / range) * 100;
+          const endPct = ((targetMax - scaleMin) / range) * 100;
+          const widthPct = endPct - startPct;
+          const actualPct = Math.max(0, Math.min(100, ((actVal - scaleMin) / range) * 100));
+
+          const isOptimal = actVal >= targetMin && actVal <= targetMax;
+          const barColor = isOptimal ? "var(--color-success)" : actVal < targetMin ? "var(--color-warning)" : "var(--color-danger)";
+
+          return (
+            <div style={{ display: "flex", flexDirection: "column", gap: 2, width: 85, marginTop: 4 }}>
+              <div style={{ height: 4, background: "var(--bg-input)", borderRadius: 2, position: "relative" }}>
+                <div style={{ position: "absolute", left: `${startPct}%`, width: `${widthPct}%`, height: "100%", background: "rgba(16, 185, 129, 0.25)", borderRadius: 1 }} />
+                <div style={{ position: "absolute", left: `calc(${actualPct}% - 3px)`, top: -1, width: 6, height: 6, borderRadius: "50%", background: barColor, border: "1px solid #fff" }} />
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 8, color: "var(--text-muted)" }}>
+                <span>{Math.round(targetMin)}</span>
+                <span style={{ color: barColor, fontWeight: 700 }}>{Math.round(actVal)}</span>
+                <span>{Math.round(targetMax)}</span>
+              </div>
+            </div>
+          );
+        }
+      }
+    }
+    return <span style={{ color: "var(--text-muted)", fontSize: 10 }}>--</span>;
+  };
+
+  // Duration progress rendering
+  const renderDurationBar = (planned: number, actual: number) => {
+    if (planned <= 0) return <span style={{ color: "var(--text-muted)", fontSize: 10 }}>--</span>;
+    const actualVal = actual || 0;
+    const maxDur = Math.max(planned, actualVal);
+    const plannedPct = (planned / maxDur) * 100;
+    const actualPct = (actualVal / maxDur) * 100;
+    const ratio = actualVal / planned;
+    const isMatch = ratio >= 0.9 && ratio <= 1.1;
+    const barColor = isMatch ? "var(--color-success)" : actualVal < planned ? "var(--color-warning)" : "var(--color-danger)";
+
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 2, width: 85, marginTop: 4 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+          <div style={{ height: 2, background: "var(--border-subtle)", borderRadius: 1 }}>
+            <div style={{ width: `${plannedPct}%`, height: "100%", background: "var(--text-muted)" }} />
+          </div>
+          <div style={{ height: 3, background: "var(--bg-input)", borderRadius: 1.5 }}>
+            <div style={{ width: `${actualPct}%`, height: "100%", background: barColor }} />
+          </div>
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 8, color: "var(--text-muted)" }}>
+          <span>KH: {formatDuration(planned)}</span>
+          <span style={{ color: barColor, fontWeight: 700 }}>TT: {formatDuration(actualVal)}</span>
+        </div>
+      </div>
+    );
+  };
+
+  // Tab 1 rendering: Overall Metrics Summary
+  const renderOverviewTab = () => {
+    const getStatusText = (compliance: number, actual: number | null, planned: number) => {
+      if (actual == null || actual <= 0) return { text: "Chưa tập", color: "var(--text-muted)" };
+      if (compliance >= 90 && compliance <= 110) return { text: "Tối ưu", color: "var(--color-success)" };
+      if (actual < planned) return { text: "Dưới KH", color: "var(--color-warning)" };
+      return { text: "Vượt KH", color: "var(--color-danger)" };
+    };
+
+    const rows = [
+      {
+        name: "Thời lượng (Duration)",
+        icon: <Clock size={14} />,
+        planned: formatDuration(summary.plannedDuration),
+        actual: formatDuration(summary.actualDuration),
+        compliance: summary.durationCompliance,
+        status: getStatusText(summary.durationCompliance, summary.actualDuration, summary.plannedDuration),
+      },
+      {
+        name: "Quãng đường (Distance)",
+        icon: <Compass size={14} />,
+        planned: formatDistance(summary.plannedDistance),
+        actual: formatDistance(summary.actualDistance),
+        compliance: summary.distanceCompliance,
+        status: getStatusText(summary.distanceCompliance, summary.actualDistance ? Math.round(summary.actualDistance) : 0, Math.round(summary.plannedDistance)),
+      },
+      {
+        name: "Khối lượng TSS (Load)",
+        icon: <Flame size={14} />,
+        planned: `${summary.plannedTss.toFixed(0)}`,
+        actual: `${summary.actualTss.toFixed(0)}`,
+        compliance: summary.tssCompliance,
+        status: getStatusText(summary.tssCompliance, Math.round(summary.actualTss), Math.round(summary.plannedTss)),
+      },
+      {
+        name: "Cường độ TB (Intensity)",
+        icon: <Activity size={14} />,
+        planned: sport === "cycling" ? "Zone 2-3" : "Vùng hiếu khí",
+        actual: sport === "cycling" ? `${summary.actualAvgIntensity}W` : formatSpeedToPaceStr(summary.actualAvgIntensity, sport),
+        compliance: summary.intensityCompliance,
+        status: getStatusText(summary.intensityCompliance, summary.actualAvgIntensity, 70),
+      },
+    ];
+
+    return (
+      <div style={tableWrapperStyle}>
+        <table style={tableStyle}>
+          <thead>
+            <tr style={tableHeaderRowStyle}>
+              <th style={thStyle}>Chỉ số chính</th>
+              <th style={thStyle}>Kế hoạch</th>
+              <th style={thStyle}>Thực tế</th>
+              <th style={thStyle}>Tỷ lệ đạt</th>
+              <th style={{ ...thStyle, textAlign: "right" }}>Trạng thái</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, idx) => (
+              <tr key={idx} style={tableRowStyle(idx)}>
+                <td style={{ ...tdStyle, fontWeight: 700 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--text-primary)" }}>
+                    {row.icon}
+                    <span>{row.name}</span>
+                  </div>
+                </td>
+                <td style={tdStyle}>{row.planned}</td>
+                <td style={{ ...tdStyle, fontWeight: 600, color: "var(--text-primary)" }}>{row.actual}</td>
+                <td style={tdStyle}>
+                  <span style={{
+                    color: row.compliance >= 90 ? "var(--color-success)" : row.compliance >= 60 ? "var(--color-warning)" : "var(--color-danger)",
+                    fontWeight: 800,
+                  }}>
+                    {Math.round(row.compliance)}%
+                  </span>
+                </td>
+                <td style={{ ...tdStyle, textAlign: "right" }}>
+                  <span style={{
+                    fontSize: 10,
+                    fontWeight: 800,
+                    color: row.status.color,
+                    background: `${row.status.color}15`,
+                    padding: "2px 8px",
+                    borderRadius: 12,
+                  }}>
+                    {row.status.text}
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
+  // Tab 2 rendering: Detailed Interval Steps
+  const renderIntervalsTab = () => {
+    return (
+      <div style={{ ...tableWrapperStyle, overflowX: "auto" }}>
+        <table style={tableStyle}>
+          <thead>
+            <tr style={tableHeaderRowStyle}>
+              <th style={{ ...thStyle, width: 30 }}>#</th>
+              <th style={thStyle}>Khoảng tập</th>
+              <th style={thStyle}>Mục tiêu</th>
+              <th style={thStyle}>Thực tế (CĐ)</th>
+              {!isMobile && <th style={thStyle}>Thời lượng KH</th>}
+              {!isMobile && <th style={thStyle}>Thời lượng TT</th>}
+              <th style={thStyle}>Đạt KH</th>
+              <th style={thStyle}>Đạt CĐ</th>
+              <th style={{ ...thStyle, textAlign: "right" }}>Khớp chung</th>
+            </tr>
+          </thead>
+          <tbody>
+            {steps.map((s, idx) => {
+              const stepStatusColor = s.isTargetMet ? "var(--color-success)" : s.stepCompliance >= 55 ? "var(--color-warning)" : "var(--color-danger)";
+              const durStatusColor = s.durationCompliance >= 90 ? "var(--color-success)" : s.durationCompliance >= 60 ? "var(--color-warning)" : "var(--color-danger)";
+              const intStatusColor = s.intensityCompliance >= 90 ? "var(--color-success)" : s.intensityCompliance >= 60 ? "var(--color-warning)" : "var(--color-danger)";
+              const actualAvgVal = sport === "cycling" && s.actualAvgPower > 0 ? `${s.actualAvgPower}W` : s.actualAvgPaceStr;
+
+              const dev = getStepDeviation(s.targetValueStr, s.actualAvgPower, s.actualAvgHr, s.targetType);
+              let devIcon = null;
+              if (dev === 'under') {
+                devIcon = <span title="Thấp hơn mục tiêu" style={{ display: "inline-flex", alignItems: "center" }}><ArrowDown size={11} style={{ color: "var(--color-warning)", marginLeft: 4 }} /></span>;
+              } else if (dev === 'over') {
+                devIcon = <span title="Vượt mục tiêu" style={{ display: "inline-flex", alignItems: "center" }}><ArrowUp size={11} style={{ color: "var(--color-danger)", marginLeft: 4 }} /></span>;
+              } else if (dev === 'in-zone') {
+                devIcon = <span title="Đúng mục tiêu" style={{ display: "inline-flex", alignItems: "center" }}><Check size={11} style={{ color: "var(--color-success)", marginLeft: 4 }} /></span>;
+              }
+
+              return (
+                <tr key={idx} style={tableRowStyle(idx)}>
+                  <td style={{ ...tdStyle, color: "var(--text-muted)" }}>{s.stepIndex}</td>
+                  <td style={tdStyle}>
+                    <div style={{ display: "flex", flexDirection: "column" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <div style={{ width: 6, height: 6, borderRadius: "50%", background: getStepTypeColor(s.stepType) }} />
+                        <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{s.name}</span>
+                      </div>
+                      {s.heartRateRecovery != null && s.heartRateRecovery > 0 && (
+                        <div style={{ fontSize: 9, color: "#f43f5e", fontWeight: 700, marginLeft: 12, marginTop: 2, display: "flex", alignItems: "center", gap: 3 }}>
+                          <span>❤️</span>
+                          <span>HRR: -{s.heartRateRecovery} bpm (1m)</span>
+                        </div>
+                      )}
+                    </div>
+                  </td>
+                  <td style={tdStyle}>
+                    <span style={{ background: "var(--bg-input)", padding: "1px 6px", borderRadius: 4, fontSize: 10, fontWeight: 700, color: "var(--text-secondary)" }}>
+                      {s.targetValueStr}
+                    </span>
+                  </td>
+                  <td style={{ ...tdStyle, fontVariantNumeric: "tabular-nums", fontWeight: 600 }}>
+                    <span style={{ display: "inline-flex", alignItems: "center" }}>
+                      {actualAvgVal}
+                      {devIcon}
+                    </span>
+                  </td>
+                  {!isMobile && <td style={{ ...tdStyle, fontVariantNumeric: "tabular-nums" }}>{formatDuration(s.plannedDuration)}</td>}
+                  {!isMobile && <td style={{ ...tdStyle, fontVariantNumeric: "tabular-nums" }}>{formatDuration(s.actualDuration)}</td>}
+                  <td style={{ ...tdStyle, fontVariantNumeric: "tabular-nums", fontWeight: 700, color: durStatusColor }}>
+                    {Math.round(s.durationCompliance)}%
+                  </td>
+                  <td style={{ ...tdStyle, fontVariantNumeric: "tabular-nums", fontWeight: 700, color: intStatusColor }}>
+                    {Math.round(s.intensityCompliance)}%
+                  </td>
+                  <td style={{ ...tdStyle, textAlign: "right" }}>
+                    <span style={{ fontSize: 10, fontWeight: 800, color: stepStatusColor, background: `${stepStatusColor}15`, padding: "2px 6px", borderRadius: 8, display: "inline-flex", alignItems: "center", gap: 3 }}>
+                      {s.isTargetMet ? (
+                        <CheckCircle size={10} style={{ color: "var(--color-success)" }} />
+                      ) : s.stepCompliance >= 55 ? (
+                        <AlertCircle size={10} style={{ color: "var(--color-warning)" }} />
+                      ) : (
+                        <AlertCircle size={10} style={{ color: "var(--color-danger)" }} />
+                      )}
+                      {Math.round(s.stepCompliance)}%
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
+  // Tab 3 rendering: Zones Distribution match
+  const renderZonesTab = () => {
+    return (
+      <div style={tableWrapperStyle}>
+        <table style={tableStyle}>
+          <thead>
+            <tr style={tableHeaderRowStyle}>
+              <th style={thStyle}>Vùng cường độ (Zones)</th>
+              <th style={thStyle}>Kế hoạch %</th>
+              <th style={thStyle}>Thực tế %</th>
+              <th style={{ ...thStyle, textAlign: "right" }}>Sai lệch</th>
+            </tr>
+          </thead>
+          <tbody>
+            {metrics.zoneMatches.map((zm) => {
+              const zColor = getZoneColor(zm.zone);
+              const diff = zm.actualPct - zm.plannedPct;
+              const diffText = diff > 0 ? `+${diff.toFixed(1)}%` : `${diff.toFixed(1)}%`;
+              const isMatch = Math.abs(diff) <= 5.0;
+              const diffColor = isMatch ? "var(--color-success)" : diff > 0 ? "var(--color-danger)" : "var(--color-warning)";
+
+              return (
+                <tr key={zm.zone} style={tableRowStyle(zm.zone - 1)}>
+                  <td style={tdStyle}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <div style={{ width: 10, height: 10, borderRadius: 3, background: zColor }} />
+                      <span style={{ fontWeight: 700, color: "var(--text-primary)" }}>
+                        Zone {zm.zone} — {t(`analysis.zone${zm.zone}`)}
+                      </span>
+                    </div>
+                  </td>
+                  <td style={{ ...tdStyle, fontVariantNumeric: "tabular-nums" }}>{zm.plannedPct}%</td>
+                  <td style={{ ...tdStyle, fontVariantNumeric: "tabular-nums", fontWeight: 600, color: "var(--text-primary)" }}>{zm.actualPct}%</td>
+                  <td style={{ ...tdStyle, textAlign: "right", fontVariantNumeric: "tabular-nums", fontWeight: 700, color: diffColor }}>
+                    {diffText}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
 
   return (
     <div className="modal-backdrop" style={backdropStyle} onClick={(e) => e.currentTarget === e.target && onClose()}>
@@ -117,196 +437,70 @@ export function ActivityAnalysisModal({ eventId, onClose }: ActivityAnalysisModa
         {/* Modal Content */}
         <div style={{ ...contentStyle, padding: isMobile ? 12 : 20, gap: isMobile ? 12 : 16 }}>
           
-          {/* Circular Score Panel & Coaching Insights */}
-          <div style={{ ...topGridStyle, gridTemplateColumns: isMobile ? "1fr" : "130px 1fr", gap: isMobile ? 12 : 16 }}>
-            {/* Score Ring */}
-            <div style={scoreCardStyle}>
-              <div style={{ position: "relative", width: 120, height: 120 }}>
-                <svg width={120} height={120} style={{ transform: "rotate(-90deg)" }}>
-                  {/* Background ring */}
-                  <circle cx={60} cy={60} r={radius} fill="transparent" stroke="var(--border-subtle)" strokeWidth={10} />
-                  {/* Compliance ring */}
+          {/* Performance Matching Summary Header */}
+          <div style={summaryPanelStyle}>
+            <div style={{ display: "flex", alignItems: "center", gap: 24, flexDirection: isMobile ? "column" : "row", textAlign: isMobile ? "center" : "left" }}>
+              {/* Score Ring */}
+              <div style={{ position: "relative", width: 100, height: 100, flexShrink: 0 }}>
+                <svg width={100} height={100} style={{ transform: "rotate(-90deg)" }}>
+                  <circle cx={50} cy={50} r={40} fill="transparent" stroke="var(--border-subtle)" strokeWidth={8} />
                   <circle
-                    cx={60}
-                    cy={60}
-                    r={radius}
+                    cx={50}
+                    cy={50}
+                    r={40}
                     fill="transparent"
                     stroke={ratingColor}
-                    strokeWidth={10}
-                    strokeDasharray={circumference}
-                    strokeDashoffset={strokeDashoffset}
+                    strokeWidth={8}
+                    strokeDasharray={2 * Math.PI * 40}
+                    strokeDashoffset={2 * Math.PI * 40 - (complianceScore / 100) * (2 * Math.PI * 40)}
                     strokeLinecap="round"
                     style={{ transition: "stroke-dashoffset 0.8s ease-out-in" }}
                   />
                 </svg>
                 <div style={scoreCenterTextStyle}>
-                  <span style={{ fontSize: 22, fontWeight: 900, color: "var(--text-primary)" }}>{Math.round(complianceScore)}%</span>
-                  <span style={{ fontSize: 8, fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase" }}>{t("analysis.match")}</span>
+                  <span style={{ fontSize: 18, fontWeight: 900, color: "var(--text-primary)" }}>{Math.round(complianceScore)}%</span>
+                  <span style={{ fontSize: 7, fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase" }}>MATCH</span>
                 </div>
               </div>
-              <div style={{ textAlign: "center", marginTop: 8 }}>
-                <span style={{ fontSize: 11, fontWeight: 800, color: ratingColor, textTransform: "uppercase", background: `${ratingColor}15`, padding: "2px 8px", borderRadius: 12 }}>
-                  {coaching.rating}
-                </span>
-              </div>
-            </div>
 
-            {/* Coaching Insights Text Box */}
-            <div style={coachingCardStyle}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-                <Trophy size={16} style={{ color: "var(--color-warning)" }} />
-                <h3 style={{ fontSize: 13, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--text-primary)" }}>{t("analysis.coachsReport")}</h3>
-              </div>
-              <p style={{ fontSize: 12, lineHeight: 1.5, color: "var(--text-secondary)", marginBottom: 8 }}>
-                {coaching.summary}
-              </p>
-              <div style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11, color: "var(--text-secondary)" }}>
-                <div>• <strong>{t("analysis.pacing")}:</strong> {coaching.pacingFeedback}</div>
-                <div>• <strong>{t("analysis.duration")}:</strong> {coaching.durationFeedback}</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Stats/KPIs Comparison Grid */}
-          <div style={{ ...kpiGridStyle, gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)" }}>
-            <div style={kpiCardStyle}>
-              <div style={kpiLabelStyle}><Clock size={12} /> {t("analysis.duration")}</div>
-              <div style={kpiValuesStyle}>
-                <span className="plan-val" style={planValStyle}>{formatDuration(summary.plannedDuration)}</span>
-                <ArrowRight size={10} style={{ color: "var(--text-muted)" }} />
-                <span className="act-val" style={actValStyle}>{formatDuration(summary.actualDuration)}</span>
-              </div>
-              <div style={kpiDiffStyle(summary.durationCompliance)}>
-                {summary.durationCompliance >= 95 ? `✓ ${t("analysis.optimal")}` : `${Math.round(summary.durationCompliance)}% ${t("analysis.compliance").toLowerCase()}`}
-              </div>
-            </div>
-
-            <div style={kpiCardStyle}>
-              <div style={kpiLabelStyle}><Compass size={12} /> {t("analysis.distance")}</div>
-              <div style={kpiValuesStyle}>
-                <span className="plan-val" style={planValStyle}>{formatDistance(summary.plannedDistance)}</span>
-                <ArrowRight size={10} style={{ color: "var(--text-muted)" }} />
-                <span className="act-val" style={actValStyle}>{formatDistance(summary.actualDistance)}</span>
-              </div>
-              <div style={kpiDiffStyle(summary.distanceCompliance)}>
-                {summary.distanceCompliance >= 95 ? `✓ ${t("analysis.optimal")}` : `${Math.round(summary.distanceCompliance)}% ${t("analysis.compliance").toLowerCase()}`}
-              </div>
-            </div>
-
-            <div style={kpiCardStyle}>
-              <div style={kpiLabelStyle}><Flame size={12} /> {t("analysis.tssLoad")}</div>
-              <div style={kpiValuesStyle}>
-                <span className="plan-val" style={planValStyle}>{summary.plannedTss.toFixed(0)}</span>
-                <ArrowRight size={10} style={{ color: "var(--text-muted)" }} />
-                <span className="act-val" style={actValStyle}>{summary.actualTss.toFixed(0)}</span>
-              </div>
-              <div style={kpiDiffStyle(summary.tssCompliance)}>
-                {summary.tssCompliance >= 95 ? `✓ ${t("analysis.optimal")}` : `${Math.round(summary.tssCompliance)}% ${t("analysis.compliance").toLowerCase()}`}
-              </div>
-            </div>
-
-            <div style={kpiCardStyle}>
-              <div style={kpiLabelStyle}><Activity size={12} /> {t("analysis.avgMetric")}</div>
-              <div style={kpiValuesStyle}>
-                <span className="act-val" style={actValStyle}>
-                  {sport === "cycling" ? `${summary.actualAvgIntensity}W` : formatSpeedToPaceStr(summary.actualAvgIntensity, sport)}
-                </span>
-              </div>
-              <span style={{ fontSize: 9, color: "var(--text-muted)", marginTop: 4 }}>{t("analysis.actualAvgPowerPace")}</span>
-            </div>
-          </div>
-
-          {/* Actionable Tips */}
-          <div style={tipsCardStyle}>
-            <h4 style={{ fontSize: 12, fontWeight: 800, color: "var(--text-primary)", marginBottom: 6, textTransform: "uppercase" }}>{t("analysis.recommendations")}</h4>
-            <ul style={{ paddingLeft: 16, margin: 0, fontSize: 11.5, color: "var(--text-secondary)", display: "flex", flexDirection: "column", gap: 4 }}>
-              {coaching.recommendations.map((tip, idx) => (
-                <li key={idx} style={{ listStyleType: "disc" }}>{tip}</li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Step-by-Step Table */}
-          <div style={{ marginTop: 12 }}>
-            <h3 style={{ fontSize: 13, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--text-primary)", marginBottom: 8 }}>{t("analysis.breakdown")}</h3>
-            <div style={{ ...tableWrapperStyle, overflowX: "auto" }}>
-              <table style={tableStyle}>
-                <thead>
-                  <tr style={tableHeaderRowStyle}>
-                    <th style={{ ...thStyle, width: 40 }}>{t("analysis.step")}</th>
-                    <th style={thStyle}>{t("analysis.phaseName")}</th>
-                    <th style={thStyle}>{t("analysis.targetValue")}</th>
-                    <th style={thStyle}>{t("analysis.planDur")}</th>
-                    <th style={thStyle}>{t("analysis.actDur")}</th>
-                    <th style={thStyle}>{t("analysis.actAvg")}</th>
-                    <th style={{ ...thStyle, textAlign: "right" }}>{t("analysis.compliance")}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {steps.map((s, idx) => {
-                    const stepStatusColor = s.isTargetMet ? "var(--color-success)" : s.stepCompliance >= 55 ? "var(--color-warning)" : "var(--color-danger)";
-                    const actualAvgVal = sport === "cycling" && s.actualAvgPower > 0 ? `${s.actualAvgPower}W` : s.actualAvgPaceStr;
-
-                    return (
-                      <tr key={idx} style={tableRowStyle(idx)}>
-                        <td style={{ ...tdStyle, color: "var(--text-muted)" }}>{s.stepIndex}</td>
-                        <td style={tdStyle}>
-                          <div style={{ display: "flex", flexDirection: "column" }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                              <div style={{ width: 6, height: 6, borderRadius: "50%", background: getStepTypeColor(s.stepType) }} />
-                              <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{s.name}</span>
-                            </div>
-                            {s.heartRateRecovery != null && s.heartRateRecovery > 0 && (
-                              <div style={{ fontSize: 9, color: "#f43f5e", fontWeight: 700, marginLeft: 12, marginTop: 2, display: "flex", alignItems: "center", gap: 3 }}>
-                                <span>❤️</span>
-                                <span>HRR: -{s.heartRateRecovery} bpm (1m)</span>
-                              </div>
-                            )}
-                          </div>
-                        </td>
-                        <td style={tdStyle}>
-                          <span style={{ background: "var(--bg-input)", padding: "1px 6px", borderRadius: 4, fontSize: 10, fontWeight: 700, color: "var(--text-secondary)" }}>
-                            {s.targetValueStr}
-                          </span>
-                        </td>
-                        <td style={{ ...tdStyle, fontVariantNumeric: "tabular-nums" }}>{formatDuration(s.plannedDuration)}</td>
-                        <td style={{ ...tdStyle, fontVariantNumeric: "tabular-nums" }}>{formatDuration(s.actualDuration)}</td>
-                        <td style={{ ...tdStyle, fontVariantNumeric: "tabular-nums", fontWeight: 600 }}>{actualAvgVal}</td>
-                        <td style={{ ...tdStyle, textAlign: "right" }}>
-                          <span style={{ fontSize: 10, fontWeight: 800, color: stepStatusColor, background: `${stepStatusColor}15`, padding: "1px 6px", borderRadius: 8 }}>
-                            {Math.round(s.stepCompliance)}%
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Time in Zones Stacked Progress Chart */}
-          <div style={zonesCardStyle}>
-            <h4 style={{ fontSize: 12, fontWeight: 800, color: "var(--text-primary)", marginBottom: 8, textTransform: "uppercase" }}>{t("analysis.timeInZones")}</h4>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {metrics.zoneMatches.map((zm) => {
-                const zColor = getZoneColor(zm.zone);
-                return (
-                  <div key={zm.zone} style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, fontWeight: 600 }}>
-                      <span style={{ color: "var(--text-primary)" }}>Zone {zm.zone} — {t(`analysis.zone${zm.zone}`)}</span>
-                      <span style={{ color: "var(--text-muted)" }}>{t("analysis.plan")}: {zm.plannedPct}% | {t("analysis.act")}: {zm.actualPct}%</span>
-                    </div>
-                    <div style={{ height: 6, borderRadius: 3, background: "var(--bg-input)", overflow: "hidden", position: "relative", display: "flex" }}>
-                      {/* Plan indicator (dotted or slight color overlay on background) */}
-                      <div style={{ position: "absolute", left: 0, width: `${zm.plannedPct}%`, height: "100%", borderRight: "2px solid rgba(255,255,255,0.25)", background: "rgba(255,255,255,0.06)", zIndex: 1 }} />
-                      {/* Actual value bar */}
-                      <div style={{ width: `${zm.actualPct}%`, height: "100%", background: zColor, zIndex: 2 }} />
-                    </div>
+              {/* Quick Objective Stats */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <h3 style={{ fontSize: 15, fontWeight: 800, color: "var(--text-primary)", margin: 0 }}>
+                  Độ khớp bài tập (Compliance Analysis)
+                </h3>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "8px 16px", marginTop: 4, justifyContent: isMobile ? "center" : "flex-start" }}>
+                  <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>
+                    • Khoảng tập hoàn thành: <strong style={{ color: "var(--text-primary)" }}>{intervalsMet}/{totalIntervals} bước</strong>
                   </div>
-                );
-              })}
+                  <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>
+                    • Thời lượng đạt: <strong style={{ color: "var(--text-primary)" }}>{Math.round(summary.durationCompliance)}%</strong>
+                  </div>
+                  <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>
+                    • Cường độ đạt: <strong style={{ color: "var(--text-primary)" }}>{Math.round(summary.intensityCompliance)}%</strong>
+                  </div>
+                </div>
+              </div>
             </div>
+          </div>
+
+          {/* Tab Selection Navigation */}
+          <div style={tabContainerStyle}>
+            <button onClick={() => setActiveTab('overview')} style={tabBtnStyle(activeTab === 'overview')}>
+              Tổng quan chỉ số
+            </button>
+            <button onClick={() => setActiveTab('intervals')} style={tabBtnStyle(activeTab === 'intervals')}>
+              Chi tiết bước tập ({totalIntervals} khoảng)
+            </button>
+            <button onClick={() => setActiveTab('zones')} style={tabBtnStyle(activeTab === 'zones')}>
+              Phân bố vùng tập luyện
+            </button>
+          </div>
+
+          {/* Active Tab Table Component */}
+          <div style={{ minHeight: 200 }}>
+            {activeTab === 'overview' && renderOverviewTab()}
+            {activeTab === 'intervals' && renderIntervalsTab()}
+            {activeTab === 'zones' && renderZonesTab()}
           </div>
 
         </div>
@@ -324,6 +518,34 @@ function formatSpeedToPaceStr(speedMps: number, sport: string): string {
   const m = Math.floor(paceSecs / 60);
   const s = Math.round(paceSecs % 60);
   return `${m}:${s.toString().padStart(2, "0")}/${isSwimming ? "100m" : "km"}`;
+}
+
+function getStepDeviation(targetStr: string, actualPower: number, actualHr: number, targetType: string): 'under' | 'over' | 'in-zone' | 'none' {
+  if (!targetStr || !targetType || targetType === 'open' || targetType === 'rpe' || targetType === 'cadence') {
+    return 'none';
+  }
+
+  const isPower = targetType.startsWith('power') || targetType.includes('power');
+  const isHr = targetType.startsWith('hr') || targetType.includes('hr');
+  
+  let actVal = 0;
+  if (isPower) actVal = actualPower;
+  else if (isHr) actVal = actualHr;
+
+  if (actVal <= 0) return 'none';
+
+  const cleanTarget = targetStr.replace(/[Wbpms\/km]/g, '').trim();
+  if (cleanTarget.includes('-')) {
+    const parts = cleanTarget.split('-');
+    const targetMin = parseFloat(parts[0]);
+    const targetMax = parseFloat(parts[1]);
+    if (!isNaN(targetMin) && !isNaN(targetMax)) {
+      if (actVal < targetMin) return 'under';
+      if (actVal > targetMax) return 'over';
+      return 'in-zone';
+    }
+  }
+  return 'none';
 }
 
 // ─── Color mappings ──────────────────────────────────────────────────────────
@@ -353,6 +575,35 @@ function getZoneColor(zone: number): string {
 }
 
 // ─── CSS-in-JS Styles (Rich aesthetics matching the main dashboard) ──────────
+const summaryPanelStyle: React.CSSProperties = {
+  background: "linear-gradient(135deg, var(--bg-surface) 0%, rgba(255,255,255,0.01) 100%)",
+  border: "1px solid var(--border-subtle)",
+  borderRadius: 12,
+  padding: "16px 20px",
+  display: "flex",
+  flexDirection: "column",
+};
+
+const tabContainerStyle: React.CSSProperties = {
+  display: "flex",
+  borderBottom: "1px solid var(--border-subtle)",
+  gap: 16,
+  marginBottom: 12,
+  paddingBottom: 4,
+};
+
+const tabBtnStyle = (isActive: boolean): React.CSSProperties => ({
+  background: "none",
+  border: "none",
+  borderBottom: isActive ? "2.5px solid var(--color-accent)" : "2.5px solid transparent",
+  color: isActive ? "var(--text-primary)" : "var(--text-secondary)",
+  padding: "8px 4px",
+  cursor: "pointer",
+  fontSize: 12,
+  fontWeight: 700,
+  transition: "all 0.15s ease",
+});
+
 const backdropStyle: React.CSSProperties = {
   position: "fixed",
   top: 0,
@@ -386,7 +637,7 @@ const containerStyle: React.CSSProperties = {
   border: "1px solid var(--border-subtle)",
   borderRadius: 16,
   width: "100%",
-  maxWidth: 640,
+  maxWidth: 700,
   maxHeight: "90vh",
   display: "flex",
   flexDirection: "column",
@@ -462,62 +713,6 @@ const coachingCardStyle: React.CSSProperties = {
   flexDirection: "column",
 };
 
-const kpiGridStyle: React.CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "repeat(2, 1fr)",
-  gap: 12,
-};
-
-const kpiCardStyle: React.CSSProperties = {
-  background: "var(--bg-surface)",
-  border: "1px solid var(--border-subtle)",
-  borderRadius: 10,
-  padding: 12,
-  display: "flex",
-  flexDirection: "column",
-};
-
-const kpiLabelStyle: React.CSSProperties = {
-  fontSize: 10.5,
-  fontWeight: 700,
-  color: "var(--text-muted)",
-  textTransform: "uppercase",
-  display: "flex",
-  alignItems: "center",
-  gap: 4,
-  marginBottom: 6,
-};
-
-const kpiValuesStyle: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  gap: 8,
-  marginBottom: 4,
-};
-
-const planValStyle: React.CSSProperties = {
-  fontSize: 14,
-  fontWeight: 700,
-  color: "var(--text-secondary)",
-  fontVariantNumeric: "tabular-nums",
-};
-
-const actValStyle: React.CSSProperties = {
-  fontSize: 15,
-  fontWeight: 800,
-  color: "var(--text-primary)",
-  fontVariantNumeric: "tabular-nums",
-};
-
-const kpiDiffStyle = (compliance: number): React.CSSProperties => {
-  const isGood = compliance >= 90;
-  return {
-    fontSize: 10,
-    fontWeight: 700,
-    color: isGood ? "var(--color-success)" : compliance >= 60 ? "var(--color-warning)" : "var(--color-danger)",
-  };
-};
-
 const tipsCardStyle: React.CSSProperties = {
   background: "rgba(255, 193, 7, 0.04)",
   border: "1px solid rgba(255, 193, 7, 0.15)",
@@ -561,10 +756,3 @@ const tableRowStyle = (idx: number): React.CSSProperties => ({
   borderBottom: "1px solid var(--border-subtle)",
   background: idx % 2 === 1 ? "rgba(255,255,255,0.01)" : "transparent",
 });
-
-const zonesCardStyle: React.CSSProperties = {
-  background: "var(--bg-surface)",
-  border: "1px solid var(--border-subtle)",
-  borderRadius: 10,
-  padding: 16,
-};

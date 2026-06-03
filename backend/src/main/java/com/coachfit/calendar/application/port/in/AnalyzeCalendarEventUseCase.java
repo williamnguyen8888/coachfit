@@ -20,8 +20,7 @@ public interface AnalyzeCalendarEventUseCase {
             BigDecimal complianceScore,
             SummaryComparison summary,
             List<StepAnalysis> steps,
-            MetricsAnalysis metrics,
-            CoachingFeedback coaching
+            MetricsAnalysis metrics
     ) {}
 
     record SummaryComparison(
@@ -75,13 +74,5 @@ public interface AnalyzeCalendarEventUseCase {
             String zoneName, // e.g. "Recovery", "Aerobic", "Tempo", "Threshold", "VO2 Max"
             Double plannedPct,
             Double actualPct
-    ) {}
-
-    record CoachingFeedback(
-            String rating, // EXCELLENT, GOOD, INCONSISTENT, UNDERACHIEVED, OVERACHIEVED
-            String summary,
-            String pacingFeedback,
-            String durationFeedback,
-            List<String> recommendations
     ) {}
 }
