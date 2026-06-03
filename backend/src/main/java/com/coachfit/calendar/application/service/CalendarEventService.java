@@ -72,10 +72,13 @@ public class CalendarEventService
     private static final BigDecimal RESCHEDULE_AUTO_LINK_MARGIN = BigDecimal.valueOf(15);
 
     private final CalendarEventPersistencePort port;
-    private final Map<UUID, CalendarEventAnalysis> analysisCache = new ConcurrentHashMap<>();
+    private final org.springframework.context.MessageSource messageSource;
+    private record AnalysisCacheKey(UUID eventId, java.util.Locale locale) {}
+    private final Map<AnalysisCacheKey, CalendarEventAnalysis> analysisCache = new ConcurrentHashMap<>();
 
-    public CalendarEventService(CalendarEventPersistencePort port) {
+    public CalendarEventService(CalendarEventPersistencePort port, org.springframework.context.MessageSource messageSource) {
         this.port = port;
+        this.messageSource = messageSource;
     }
 
     // ── ListCalendarEventsUseCase ─────────────────────────────────────────────
@@ -192,7 +195,7 @@ public class CalendarEventService
             autoLinkAfterReschedule(userId, updated);
         }
 
-        analysisCache.remove(eventId);
+        analysisCache.keySet().removeIf(key -> key.eventId().equals(eventId));
         log.debug("Calendar event updated: id={} user={}", eventId, userId);
     }
 
@@ -204,7 +207,7 @@ public class CalendarEventService
         // Verify ownership before deleting
         CalendarEventSummary event = findOwnedEvent(userId, eventId);
         port.softDelete(event.id());
-        analysisCache.remove(eventId);
+        analysisCache.keySet().removeIf(key -> key.eventId().equals(eventId));
         log.info("Calendar event soft-deleted: id={} user={}", eventId, userId);
     }
 
@@ -228,7 +231,7 @@ public class CalendarEventService
         if (!updated) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Calendar event not found");
         }
-        analysisCache.remove(eventId);
+        analysisCache.keySet().removeIf(key -> key.eventId().equals(eventId));
         log.info("Calendar event manually completed: id={} user={}", eventId, userId);
     }
 
@@ -259,7 +262,7 @@ public class CalendarEventService
             port.updateStatus(eventId, userId, "skipped");
             log.info("Calendar event skipped: id={} user={}", eventId, userId);
         }
-        analysisCache.remove(eventId);
+        analysisCache.keySet().removeIf(key -> key.eventId().equals(eventId));
     }
 
     // ── ReorderCalendarEventsUseCase ──────────────────────────────────────────
@@ -308,7 +311,7 @@ public class CalendarEventService
                     event.activitySport()
             );
         }
-        analysisCache.remove(eventId);
+        analysisCache.keySet().removeIf(key -> key.eventId().equals(eventId));
         try {
             CalendarEventSummary updatedEvent = findOwnedEvent(userId, eventId);
             if (updatedEvent.workoutId() != null && updatedEvent.activityId() != null) {
@@ -341,7 +344,7 @@ public class CalendarEventService
                     event.activitySport()
             );
         }
-        analysisCache.remove(eventId);
+        analysisCache.keySet().removeIf(key -> key.eventId().equals(eventId));
         log.info("Manually unlinked activity from calendar event {} by user {}", eventId, userId);
     }
 
@@ -487,7 +490,9 @@ public class CalendarEventService
     @Override
     @Transactional
     public CalendarEventAnalysis analyze(UUID userId, UUID eventId) {
-        return analysisCache.computeIfAbsent(eventId, id -> {
+        java.util.Locale locale = org.springframework.context.i18n.LocaleContextHolder.getLocale();
+        AnalysisCacheKey cacheKey = new AnalysisCacheKey(eventId, locale);
+        return analysisCache.computeIfAbsent(cacheKey, key -> {
             CalendarEventSummary event = findOwnedEvent(userId, eventId);
 
             if (event.workoutId() == null || event.activityId() == null) {
@@ -1024,38 +1029,51 @@ public class CalendarEventService
     }
 
     private CoachingFeedback generateCoachingFeedback(double overallScore, List<FlatStep> planSteps, List<StepAnalysis> saList, int planDur, int actDur) {
+        java.util.Locale locale = org.springframework.context.i18n.LocaleContextHolder.getLocale();
         String rating;
         String summary;
         String durationFeedback;
-        String pacingFeedback = "Pacing control was well maintained.";
+        String pacingFeedback;
         List<String> recommendations = new ArrayList<>();
 
         if (overallScore >= 90) {
-            rating = "EXCELLENT";
-            summary = "Phenomenal execution of the planned session! You followed the workout instructions with extreme precision.";
+            rating = messageSource.getMessage("coaching.rating.excellent", null, "EXCELLENT", locale);
+            summary = messageSource.getMessage("coaching.summary.excellent", null, 
+                    "Phenomenal execution of the planned session! You followed the workout instructions with extreme precision.", locale);
         } else if (overallScore >= 75) {
-            rating = "GOOD";
-            summary = "Solid workout. You hit the key targets reasonably well, with minor deviations.";
+            rating = messageSource.getMessage("coaching.rating.good", null, "GOOD", locale);
+            summary = messageSource.getMessage("coaching.summary.good", null, 
+                    "Solid workout. You hit the key targets reasonably well, with minor deviations.", locale);
         } else if (overallScore >= 60) {
-            rating = "INCONSISTENT";
-            summary = "The session had significant variation from the plan. Pacing or durations were uneven.";
+            rating = messageSource.getMessage("coaching.rating.inconsistent", null, "INCONSISTENT", locale);
+            summary = messageSource.getMessage("coaching.summary.inconsistent", null, 
+                    "The session had significant variation from the plan. Pacing or durations were uneven.", locale);
         } else if (actDur < planDur * 0.7) {
-            rating = "UNDERACHIEVED";
-            summary = "The workout was cut short. You did not accumulate enough time to meet the planned adaptation stimulus.";
+            rating = messageSource.getMessage("coaching.rating.underachieved", null, "UNDERACHIEVED", locale);
+            summary = messageSource.getMessage("coaching.summary.underachieved", null, 
+                    "The workout was cut short. You did not accumulate enough time to meet the planned adaptation stimulus.", locale);
         } else {
-            rating = "OVERACHIEVED";
-            summary = "The workout intensity or duration was significantly higher than planned, which alters the targeted training effect.";
+            rating = messageSource.getMessage("coaching.rating.overachieved", null, "OVERACHIEVED", locale);
+            summary = messageSource.getMessage("coaching.summary.overachieved", null, 
+                    "The workout intensity or duration was significantly higher than planned, which alters the targeted training effect.", locale);
         }
 
         double durRatio = (double) actDur / planDur;
         if (durRatio >= 0.95 && durRatio <= 1.05) {
-            durationFeedback = "Duration was spot on. You completed exactly the prescribed volume.";
+            durationFeedback = messageSource.getMessage("coaching.duration.spoton", null, 
+                    "Duration was spot on. You completed exactly the prescribed volume.", locale);
         } else if (durRatio < 0.95) {
-            durationFeedback = String.format("The workout was shorter than planned by %d%%. Prescribed adaptation requires longer durations.", (int) Math.round((1.0 - durRatio) * 100));
-            recommendations.add("Prioritize completing the full duration of recovery and warm-up steps to hit target volume.");
+            int pct = (int) Math.round((1.0 - durRatio) * 100);
+            durationFeedback = messageSource.getMessage("coaching.duration.shorter", new Object[]{pct}, 
+                    "The workout was shorter than planned by {0}%. Prescribed adaptation requires longer durations.", locale);
+            recommendations.add(messageSource.getMessage("coaching.recommendation.recovery", null, 
+                    "Prioritize completing the full duration of recovery and warm-up steps to hit target volume.", locale));
         } else {
-            durationFeedback = String.format("You overshot the planned duration by %d%%. Be cautious as excess volume extends recovery needs.", (int) Math.round((durRatio - 1.0) * 100));
-            recommendations.add("Stick to the planned durations, especially for active intervals, to manage fatigue.");
+            int pct = (int) Math.round((durRatio - 1.0) * 100);
+            durationFeedback = messageSource.getMessage("coaching.duration.longer", new Object[]{pct}, 
+                    "You overshot the planned duration by {0}%. Be cautious as excess volume extends recovery needs.", locale);
+            recommendations.add(messageSource.getMessage("coaching.recommendation.active", null, 
+                    "Stick to the planned durations, especially for active intervals, to manage fatigue.", locale));
         }
 
         int overshootCount = 0;
@@ -1077,22 +1095,35 @@ public class CalendarEventService
         if (workStepCount > 0) {
             double metPct = (double) targetMetCount / workStepCount;
             if (metPct >= 0.8) {
-                pacingFeedback = "Pacing strategy was superb. You controlled your power/heart rate perfectly during the high-intensity intervals.";
-                recommendations.add("Excellent discipline. Keep using this pacing feedback to maintain structured efforts.");
+                pacingFeedback = messageSource.getMessage("coaching.pacing.superb", null, 
+                        "Pacing strategy was superb. You controlled your power/heart rate perfectly during the high-intensity intervals.", locale);
+                recommendations.add(messageSource.getMessage("coaching.recommendation.discipline", null, 
+                        "Excellent discipline. Keep using this pacing feedback to maintain structured efforts.", locale));
             } else if (undershootCount > workStepCount * 0.4) {
-                pacingFeedback = "You struggled to reach the target intensity zones during the main work steps.";
-                recommendations.add("Make sure you are well rested before key intensity sessions to hit higher targets.");
-                recommendations.add("Consider recalibrating your training zones if target zones feel too difficult.");
+                pacingFeedback = messageSource.getMessage("coaching.pacing.struggled", null, 
+                        "You struggled to reach the target intensity zones during the main work steps.", locale);
+                recommendations.add(messageSource.getMessage("coaching.recommendation.rest", null, 
+                        "Make sure you are well rested before key intensity sessions to hit higher targets.", locale));
+                recommendations.add(messageSource.getMessage("coaching.recommendation.recalibrate", null, 
+                        "Consider recalibrating your training zones if target zones feel too difficult.", locale));
             } else {
-                pacingFeedback = "Pacing was inconsistent. You started intervals too aggressively and faded, or overshot recovery targets.";
-                recommendations.add("Focus on a flat pacing profile. Do not start intervals too hard; distribute energy evenly.");
-                recommendations.add("Respect recovery steps: keep your heart rate/power low during recovery to prepare for the next step.");
+                pacingFeedback = messageSource.getMessage("coaching.pacing.inconsistent", null, 
+                        "Pacing was inconsistent. You started intervals too aggressively and faded, or overshot recovery targets.", locale);
+                recommendations.add(messageSource.getMessage("coaching.recommendation.flat", null, 
+                        "Focus on a flat pacing profile. Do not start intervals too hard; distribute energy evenly.", locale));
+                recommendations.add(messageSource.getMessage("coaching.recommendation.respect", null, 
+                        "Respect recovery steps: keep your heart rate/power low during recovery to prepare for the next step.", locale));
             }
+        } else {
+            pacingFeedback = messageSource.getMessage("coaching.pacing.default", null, 
+                    "Pacing control was well maintained.", locale);
         }
 
         if (recommendations.isEmpty()) {
-            recommendations.add("Continue monitoring target execution during structured workouts.");
-            recommendations.add("Review compliance graphs to spot micro-pacing adjustments.");
+            recommendations.add(messageSource.getMessage("coaching.recommendation.default1", null, 
+                    "Continue monitoring target execution during structured workouts.", locale));
+            recommendations.add(messageSource.getMessage("coaching.recommendation.default2", null, 
+                    "Review compliance graphs to spot micro-pacing adjustments.", locale));
         }
 
         return new CoachingFeedback(rating, summary, pacingFeedback, durationFeedback, recommendations);

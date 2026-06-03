@@ -29,7 +29,8 @@ class UserSummaryPersistenceAdapter implements UserSummaryPersistencePort {
     public Optional<UserSummary> findById(UUID userId) {
         return jdbcClient.sql("""
                 SELECT u.id, u.email, u.full_name, u.role,
-                       COALESCE(s.tier, 'free') AS tier
+                       COALESCE(s.tier, 'free') AS tier,
+                       COALESCE(u.settings::text, '{}') AS settings
                 FROM users u
                 LEFT JOIN subscriptions s
                        ON s.user_id = u.id
@@ -43,7 +44,8 @@ class UserSummaryPersistenceAdapter implements UserSummaryPersistencePort {
                         rs.getString("email"),
                         rs.getString("full_name"),
                         rs.getString("role"),
-                        rs.getString("tier")
+                        rs.getString("tier"),
+                        rs.getString("settings")
                 ))
                 .optional();
     }

@@ -9,6 +9,8 @@ import { athleteService } from "@/lib/services/settings";
 import { Button } from "@/components/ui/Button";
 import { Input, InputGroup } from "@/components/ui/Input";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { useTranslation } from "@/hooks/useTranslation";
+import { SUPPORTED_LOCALES } from "@/locales/registry";
 import {
   User,
   Save,
@@ -188,6 +190,7 @@ interface FormState {
   gender: Gender | "";
   units: UnitSystem;
   timezone: string;
+  locale: string;
 }
 
 function profileToForm(p: AthleteProfile): FormState {
@@ -200,6 +203,7 @@ function profileToForm(p: AthleteProfile): FormState {
     gender: p.profile?.gender ?? "",
     units: p.settings?.units ?? "metric",
     timezone: p.settings?.timezone ?? "",
+    locale: p.settings?.locale ?? "vi",
   };
 }
 
@@ -216,6 +220,7 @@ function formToRequest(f: FormState): AthleteProfileUpdateRequest {
     settings: {
       units: f.units,
       timezone: f.timezone || undefined,
+      locale: f.locale,
     },
   };
 }
@@ -224,6 +229,7 @@ function formToRequest(f: FormState): AthleteProfileUpdateRequest {
 
 export function ProfileSection() {
   const { data: profile, loading } = useQuery<AthleteProfile>("/athlete");
+  const { t, changeLocale } = useTranslation();
 
   const [form, setForm] = useState<FormState | null>(null);
   const [saving, setSaving] = useState(false);
@@ -280,6 +286,20 @@ export function ProfileSection() {
       setSaving(false);
     }
   };
+
+  const translatedGenders = [
+    { value: "male", label: t("profile.genderMale") },
+    { value: "female", label: t("profile.genderFemale") },
+    { value: "other", label: t("profile.genderOther") },
+    { value: "prefer_not_to_say", label: t("profile.genderPreferNotToSay") },
+  ];
+
+  const translatedExperienceLevels = [
+    { value: "beginner", label: t("profile.experienceBeginner") },
+    { value: "intermediate", label: t("profile.experienceIntermediate") },
+    { value: "advanced", label: t("profile.experienceAdvanced") },
+    { value: "elite", label: t("profile.experienceElite") },
+  ];
 
   /* ── Skeleton ── */
   if (loading || !form) {
@@ -362,31 +382,31 @@ export function ProfileSection() {
 
       {/* Basic info */}
       <div>
-        <SectionTitle>Basic Information</SectionTitle>
+        <SectionTitle>{t("profile.basicInfo")}</SectionTitle>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-[var(--space-4)]">
-          <InputGroup label="Full name" htmlFor="profile-fullname">
+          <InputGroup label={t("profile.fullName")} htmlFor="profile-fullname">
             <Input
               id="profile-fullname"
               value={form.fullName}
               onChange={(e) => set("fullName", e.target.value)}
-              placeholder="Your full name"
+              placeholder={t("profile.fullNamePlaceholder")}
               leftAdornment={<User size={14} />}
             />
           </InputGroup>
 
           <SelectField
             id="profile-units"
-            label="Units"
+            label={t("profile.units")}
             value={form.units}
             onChange={(v) => set("units", v as UnitSystem)}
             options={[
-              { value: "metric", label: "Metric (kg, km)" },
-              { value: "imperial", label: "Imperial (lbs, mi)" },
+              { value: "metric", label: t("profile.unitsMetric") },
+              { value: "imperial", label: t("profile.unitsImperial") },
             ]}
           />
 
           <InputGroup
-            label={`Weight (${form.units === "imperial" ? "lbs" : "kg"})`}
+            label={`${t("profile.weight")} (${form.units === "imperial" ? "lbs" : "kg"})`}
             htmlFor="profile-weight"
           >
             <Input
@@ -403,18 +423,32 @@ export function ProfileSection() {
 
           <SelectField
             id="profile-gender"
-            label="Gender"
+            label={t("profile.gender")}
             value={form.gender}
             onChange={(v) => set("gender", v as Gender)}
-            options={GENDERS}
-            placeholder="Select…"
+            options={translatedGenders}
+            placeholder={t("common.select")}
+          />
+
+          <SelectField
+            id="profile-language"
+            label={t("profile.language")}
+            value={form.locale}
+            onChange={(v) => {
+              set("locale", v);
+              changeLocale(v);
+            }}
+            options={SUPPORTED_LOCALES.map((l) => ({
+              value: l.code,
+              label: `${l.flag} ${l.name}`,
+            }))}
           />
         </div>
       </div>
 
       {/* Sports */}
       <div>
-        <SectionTitle>Sports</SectionTitle>
+        <SectionTitle>{t("profile.sports")}</SectionTitle>
         <div className="flex flex-wrap gap-2 mb-[var(--space-4)]">
           {ALL_SPORTS.map((s) => (
             <SportToggle
@@ -430,21 +464,21 @@ export function ProfileSection() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-[var(--space-4)]">
             <SelectField
               id="profile-primary-sport"
-              label="Primary sport"
+              label={t("profile.primarySport")}
               value={form.primarySport}
               onChange={(v) => set("primarySport", v as Sport)}
               options={ALL_SPORTS.filter((s) =>
                 form.sports.includes(s.value),
               ).map((s) => ({ value: s.value, label: s.label }))}
-              placeholder="Select…"
+              placeholder={t("common.select")}
             />
             <SelectField
               id="profile-experience"
-              label="Experience level"
+              label={t("profile.experienceLevel")}
               value={form.experienceLevel}
               onChange={(v) => set("experienceLevel", v as ExperienceLevel)}
-              options={EXPERIENCE_LEVELS}
-              placeholder="Select…"
+              options={translatedExperienceLevels}
+              placeholder={t("common.select")}
             />
           </div>
         )}
@@ -460,7 +494,7 @@ export function ProfileSection() {
           leftIcon={saved ? <CheckCircle size={15} /> : <Save size={15} />}
           onClick={handleSave}
         >
-          {saved ? "Saved" : "Save profile"}
+          {saved ? t("common.saved") : t("common.save")}
         </Button>
         {saveError && (
           <span style={{ fontSize: "var(--text-sm)", color: "var(--color-danger)" }}>

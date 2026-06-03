@@ -30,6 +30,11 @@ import java.util.stream.Collectors;
 public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+    private final org.springframework.context.MessageSource messageSource;
+
+    public GlobalExceptionHandler(org.springframework.context.MessageSource messageSource) {
+        this.messageSource = messageSource;
+    }
 
     // ── Validation (400) ──────────────────────────────────────────────────────
 
@@ -61,8 +66,10 @@ public class GlobalExceptionHandler {
             AccessDeniedException ex, HttpServletRequest request) {
 
         log.debug("Access denied on {}", request.getRequestURI());
-        return buildResponse(HttpStatus.FORBIDDEN, "FORBIDDEN",
-                "You do not have permission to access this resource.");
+        String translatedMessage = messageSource.getMessage("error.forbidden", null,
+                "You do not have permission to access this resource.",
+                org.springframework.context.i18n.LocaleContextHolder.getLocale());
+        return buildResponse(HttpStatus.FORBIDDEN, "FORBIDDEN", translatedMessage);
     }
 
     // ── Not found (404) ───────────────────────────────────────────────────────
@@ -71,8 +78,10 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiErrorResponse> handleNoResource(
             NoResourceFoundException ex, HttpServletRequest request) {
 
-        return buildResponse(HttpStatus.NOT_FOUND, "NOT_FOUND",
-                "The requested resource was not found.");
+        String translatedMessage = messageSource.getMessage("error.notfound", null,
+                "The requested resource was not found.",
+                org.springframework.context.i18n.LocaleContextHolder.getLocale());
+        return buildResponse(HttpStatus.NOT_FOUND, "NOT_FOUND", translatedMessage);
     }
 
     // ── ResponseStatusException (flexible status) ─────────────────────────────
@@ -88,7 +97,16 @@ public class GlobalExceptionHandler {
         log.debug("ResponseStatusException on {}: {} {}", request.getRequestURI(),
                 ex.getStatusCode(), ex.getReason());
         String code = deriveCode(ex);
-        String message = ex.getReason() != null ? ex.getReason() : ex.getMessage();
+        String reason = ex.getReason();
+        String message = reason != null ? reason : ex.getMessage();
+
+        if (reason != null) {
+            // Try to translate by normalizing reason to error properties key, e.g. "User not found" -> "error.user.not.found"
+            String key = "error." + reason.toLowerCase().replaceAll("[^a-z0-9]", ".");
+            message = messageSource.getMessage(key, null, reason,
+                    org.springframework.context.i18n.LocaleContextHolder.getLocale());
+        }
+
         return buildResponse(HttpStatus.valueOf(ex.getStatusCode().value()), code, message);
     }
 
@@ -101,8 +119,10 @@ public class GlobalExceptionHandler {
         // Log full stack trace server-side, but never expose internals to the client.
         log.error("Unhandled exception on {} {}: {}", request.getMethod(),
                 request.getRequestURI(), ex.getMessage(), ex);
-        return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR",
-                "An unexpected error occurred. Please try again later.");
+        String translatedMessage = messageSource.getMessage("error.internal", null,
+                "An unexpected error occurred. Please try again later.",
+                org.springframework.context.i18n.LocaleContextHolder.getLocale());
+        return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", translatedMessage);
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
-import { AuthProvider } from "@/components/providers";
+import { AuthProvider, I18nProvider } from "@/components/providers";
 import "./globals.css";
 
 const inter = Inter({
@@ -76,7 +76,9 @@ export default function RootLayout({
         />
       </head>
       <body className="h-full antialiased" suppressHydrationWarning>
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <I18nProvider>{children}</I18nProvider>
+        </AuthProvider>
       </body>
     </html>
   );

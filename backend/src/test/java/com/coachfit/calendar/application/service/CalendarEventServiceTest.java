@@ -30,6 +30,7 @@ import static org.mockito.Mockito.times;
 class CalendarEventServiceTest {
 
     @Mock CalendarEventPersistencePort port;
+    @Mock org.springframework.context.MessageSource messageSource;
 
     CalendarEventService service;
 
@@ -41,7 +42,9 @@ class CalendarEventServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new CalendarEventService(port);
+        org.mockito.Mockito.lenient().when(messageSource.getMessage(any(), any(), any(), any()))
+                .thenAnswer(invocation -> invocation.getArgument(2));
+        service = new CalendarEventService(port, messageSource);
     }
 
     @Test

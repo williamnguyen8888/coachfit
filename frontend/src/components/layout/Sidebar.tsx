@@ -18,15 +18,16 @@ import {
 import { useUIStore } from "@/stores/ui.store";
 import { useAuthStore } from "@/stores/auth.store";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "@/hooks/useTranslation";
 
 const NAV_ITEMS = [
-  { label: "Dashboard", href: "/", icon: Home },
-  { label: "Calendar", href: "/calendar", icon: Calendar },
-  { label: "Activities", href: "/activities", icon: Activity },
-  { label: "Workouts", href: "/workouts", icon: Dumbbell },
-  { label: "Wellness", href: "/wellness", icon: HeartPulse },
-  { label: "Analytics", href: "/analytics", icon: BarChart2 },
-  { label: "Settings", href: "/settings", icon: Settings },
+  { label: "Dashboard", key: "menu.dashboard", href: "/", icon: Home },
+  { label: "Calendar", key: "menu.calendar", href: "/calendar", icon: Calendar },
+  { label: "Activities", key: "menu.activities", href: "/activities", icon: Activity },
+  { label: "Workouts", key: "menu.workouts", href: "/workouts", icon: Dumbbell },
+  { label: "Wellness", key: "menu.wellness", href: "/wellness", icon: HeartPulse },
+  { label: "Analytics", key: "menu.analytics", href: "/analytics", icon: BarChart2 },
+  { label: "Settings", key: "menu.settings", href: "/settings", icon: Settings },
 ] as const;
 
 export function Sidebar() {
@@ -34,6 +35,7 @@ export function Sidebar() {
   const { sidebarExpanded, toggleSidebar } = useUIStore();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
+  const { t } = useTranslation();
 
   return (
     <aside
@@ -77,16 +79,17 @@ export function Sidebar() {
 
       {/* Nav links */}
       <nav className="flex-1 py-4 space-y-1 px-2 overflow-y-auto">
-        {NAV_ITEMS.map(({ label, href, icon: Icon }) => {
+        {NAV_ITEMS.map(({ label, key, href, icon: Icon }) => {
           const isActive =
             href === "/" ? pathname === "/" : pathname.startsWith(href);
+          const translatedLabel = t(key);
 
           return (
             <Link
               key={href}
               href={href}
-              aria-label={label}
-              title={!sidebarExpanded ? label : undefined}
+              aria-label={translatedLabel}
+              title={!sidebarExpanded ? translatedLabel : undefined}
               className={cn(
                 "flex items-center gap-3 rounded-lg transition-all duration-150 group relative",
                 sidebarExpanded ? "px-3 py-2.5" : "px-0 py-2.5 justify-center",
@@ -126,7 +129,7 @@ export function Sidebar() {
                   className="text-sm font-medium whitespace-nowrap"
                   style={{ fontSize: "var(--text-sm)" }}
                 >
-                  {label}
+                  {translatedLabel}
                 </span>
               )}
 
@@ -141,7 +144,7 @@ export function Sidebar() {
                     fontSize: "var(--text-xs)",
                   }}
                 >
-                  {label}
+                  {translatedLabel}
                 </span>
               )}
             </Link>
@@ -209,7 +212,7 @@ export function Sidebar() {
           }}
         >
           <LogOut size={16} className="shrink-0" />
-          {sidebarExpanded && <span className="text-sm font-medium">Log out</span>}
+          {sidebarExpanded && <span className="text-sm font-medium">{t("menu.logout")}</span>}
         </button>
       </div>
 

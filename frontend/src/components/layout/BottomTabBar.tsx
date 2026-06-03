@@ -4,18 +4,20 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, Calendar, Activity, Dumbbell, HeartPulse, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "@/hooks/useTranslation";
 
 const TAB_ITEMS = [
-  { label: "Home", href: "/", icon: Home },
-  { label: "Calendar", href: "/calendar", icon: Calendar },
-  { label: "Activities", href: "/activities", icon: Activity },
-  { label: "Workouts", href: "/workouts", icon: Dumbbell },
-  { label: "Wellness", href: "/wellness", icon: HeartPulse },
-  { label: "Settings", href: "/settings", icon: Settings },
+  { label: "Home", key: "menu.dashboard", href: "/", icon: Home },
+  { label: "Calendar", key: "menu.calendar", href: "/calendar", icon: Calendar },
+  { label: "Activities", key: "menu.activities", href: "/activities", icon: Activity },
+  { label: "Workouts", key: "menu.workouts", href: "/workouts", icon: Dumbbell },
+  { label: "Wellness", key: "menu.wellness", href: "/wellness", icon: HeartPulse },
+  { label: "Settings", key: "menu.settings", href: "/settings", icon: Settings },
 ] as const;
 
 export function BottomTabBar() {
   const pathname = usePathname();
+  const { t } = useTranslation();
 
   return (
     <nav
@@ -31,15 +33,16 @@ export function BottomTabBar() {
         WebkitBackdropFilter: "blur(16px) saturate(180%)",
       }}
     >
-      {TAB_ITEMS.map(({ label, href, icon: Icon }) => {
+      {TAB_ITEMS.map(({ label, key, href, icon: Icon }) => {
         const isActive =
           href === "/" ? pathname === "/" : pathname.startsWith(href);
+        const translatedLabel = t(key);
 
         return (
           <Link
             key={href}
             href={href}
-            aria-label={label}
+            aria-label={translatedLabel}
             aria-current={isActive ? "page" : undefined}
             className={cn(
               "flex flex-col items-center justify-center gap-1 transition-all duration-150",
@@ -73,7 +76,7 @@ export function BottomTabBar() {
                 letterSpacing: "0.02em",
               }}
             >
-              {label}
+              {translatedLabel}
             </span>
           </Link>
         );

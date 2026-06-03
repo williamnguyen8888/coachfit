@@ -91,6 +91,13 @@ export async function apiFetch<T>(
     ...(fetchOptions.headers as Record<string, string>),
   };
 
+  if (typeof window !== "undefined") {
+    const locale = localStorage.getItem("cf_locale");
+    if (locale) {
+      headers["Accept-Language"] = locale;
+    }
+  }
+
   const token = skipAuth ? null : getAccessToken();
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;

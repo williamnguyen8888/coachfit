@@ -14,5 +14,6 @@ public record UserSummary(
         String email,
         String fullName,
         String role,
-        String tier
+        String tier,
+        String settings
 ) {}

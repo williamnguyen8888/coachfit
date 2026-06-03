@@ -184,7 +184,14 @@ public class AthleteController {
         ) : null;
 
         // settings is stored as JSON in users.settings; parse it back to a Map for the response.
-        Map<String, Object> settingsMap = Map.of();
+        Map<String, Object> settingsMap;
+        try {
+            settingsMap = user.settings() != null
+                    ? objectMapper.readValue(user.settings(), new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {})
+                    : Map.of();
+        } catch (JsonProcessingException e) {
+            settingsMap = Map.of();
+        }
 
         return new AthleteResponse(
                 user.id().toString(),

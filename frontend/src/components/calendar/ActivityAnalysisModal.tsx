@@ -5,6 +5,7 @@ import { X, Trophy, Activity, Zap, Heart, Clock, AlertCircle, Compass, Flame, Ch
 import { analysisService } from "@/lib/services/analysis";
 import type { CalendarEventAnalysis, StepAnalysis } from "@/lib/services/analysis";
 import { useCalendarStore } from "@/stores/calendar.store";
+import { useTranslation } from "@/hooks/useTranslation";
 
 interface ActivityAnalysisModalProps {
   eventId: string;
@@ -12,6 +13,7 @@ interface ActivityAnalysisModalProps {
 }
 
 export function ActivityAnalysisModal({ eventId, onClose }: ActivityAnalysisModalProps) {
+  const { t } = useTranslation();
   const [analysis, setAnalysis] = useState<CalendarEventAnalysis | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -35,7 +37,7 @@ export function ActivityAnalysisModal({ eventId, onClose }: ActivityAnalysisModa
         useCalendarStore.getState().fetchCurrentRange(true);
       } catch (err) {
         console.error("Failed to load match analysis", err);
-        setError("Could not load match analysis report. Ensure both planned workout and completed activity are linked.");
+        setError(t("analysis.errorFallback"));
       } finally {
         setLoading(false);
       }
@@ -48,7 +50,7 @@ export function ActivityAnalysisModal({ eventId, onClose }: ActivityAnalysisModa
       <div className="modal-backdrop" style={backdropStyle}>
         <div className="modal-container loading-container" style={loadingContainerStyle}>
           <Loader2 size={36} className="animate-spin text-accent" style={{ color: "var(--color-accent)" }} />
-          <p style={{ marginTop: 12, fontSize: 13, color: "var(--text-secondary)", fontWeight: 600 }}>Analyzing workout streams...</p>
+          <p style={{ marginTop: 12, fontSize: 13, color: "var(--text-secondary)", fontWeight: 600 }}>{t("analysis.analyzing")}</p>
         </div>
       </div>
     );
@@ -59,15 +61,15 @@ export function ActivityAnalysisModal({ eventId, onClose }: ActivityAnalysisModa
       <div className="modal-backdrop" style={backdropStyle}>
         <div className="modal-container error-container" style={{ ...containerStyle, maxWidth: 420, padding: 24, textAlign: "center" }}>
           <div style={{ display: "flex", justifyContent: "flex-end", width: "100%" }}>
-            <button onClick={onClose} style={closeBtnStyle} aria-label="Close modal">
+            <button onClick={onClose} style={closeBtnStyle} aria-label={t("analysis.close")}>
               <X size={18} />
             </button>
           </div>
           <AlertCircle size={40} style={{ color: "var(--color-danger)", margin: "0 auto 12px" }} />
-          <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 8, color: "var(--text-primary)" }}>Analysis Unavailable</h3>
+          <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 8, color: "var(--text-primary)" }}>{t("analysis.unavailable")}</h3>
           <p style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.5, marginBottom: 16 }}>{error}</p>
           <button onClick={onClose} className="btn-accent" style={{ padding: "8px 16px", borderRadius: 6, border: "none", background: "var(--color-accent)", color: "white", fontWeight: 600, cursor: "pointer" }}>
-            Close
+            {t("analysis.close")}
           </button>
         </div>
       </div>
@@ -104,10 +106,10 @@ export function ActivityAnalysisModal({ eventId, onClose }: ActivityAnalysisModa
             <span style={{ fontSize: 24 }}>{sport === "cycling" ? "🚴" : sport === "running" ? "🏃" : sport === "swimming" ? "🏊" : "🏋️"}</span>
             <div>
               <h2 style={{ fontSize: 18, fontWeight: 800, color: "var(--text-primary)" }}>{title}</h2>
-              <p style={{ fontSize: 11, color: "var(--text-secondary)", fontWeight: 600, textTransform: "uppercase" }}>Match Analysis Report</p>
+              <p style={{ fontSize: 11, color: "var(--text-secondary)", fontWeight: 600, textTransform: "uppercase" }}>{t("analysis.reportName")}</p>
             </div>
           </div>
-          <button onClick={onClose} style={closeBtnStyle} aria-label="Close modal">
+          <button onClick={onClose} style={closeBtnStyle} aria-label={t("analysis.close")}>
             <X size={20} />
           </button>
         </div>
@@ -139,7 +141,7 @@ export function ActivityAnalysisModal({ eventId, onClose }: ActivityAnalysisModa
                 </svg>
                 <div style={scoreCenterTextStyle}>
                   <span style={{ fontSize: 22, fontWeight: 900, color: "var(--text-primary)" }}>{Math.round(complianceScore)}%</span>
-                  <span style={{ fontSize: 8, fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase" }}>Match</span>
+                  <span style={{ fontSize: 8, fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase" }}>{t("analysis.match")}</span>
                 </div>
               </div>
               <div style={{ textAlign: "center", marginTop: 8 }}>
@@ -153,14 +155,14 @@ export function ActivityAnalysisModal({ eventId, onClose }: ActivityAnalysisModa
             <div style={coachingCardStyle}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
                 <Trophy size={16} style={{ color: "var(--color-warning)" }} />
-                <h3 style={{ fontSize: 13, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--text-primary)" }}>Coach's Report</h3>
+                <h3 style={{ fontSize: 13, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--text-primary)" }}>{t("analysis.coachsReport")}</h3>
               </div>
               <p style={{ fontSize: 12, lineHeight: 1.5, color: "var(--text-secondary)", marginBottom: 8 }}>
                 {coaching.summary}
               </p>
               <div style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11, color: "var(--text-secondary)" }}>
-                <div>• <strong>Pacing:</strong> {coaching.pacingFeedback}</div>
-                <div>• <strong>Duration:</strong> {coaching.durationFeedback}</div>
+                <div>• <strong>{t("analysis.pacing")}:</strong> {coaching.pacingFeedback}</div>
+                <div>• <strong>{t("analysis.duration")}:</strong> {coaching.durationFeedback}</div>
               </div>
             </div>
           </div>
@@ -168,55 +170,55 @@ export function ActivityAnalysisModal({ eventId, onClose }: ActivityAnalysisModa
           {/* Stats/KPIs Comparison Grid */}
           <div style={{ ...kpiGridStyle, gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)" }}>
             <div style={kpiCardStyle}>
-              <div style={kpiLabelStyle}><Clock size={12} /> Duration</div>
+              <div style={kpiLabelStyle}><Clock size={12} /> {t("analysis.duration")}</div>
               <div style={kpiValuesStyle}>
                 <span className="plan-val" style={planValStyle}>{formatDuration(summary.plannedDuration)}</span>
                 <ArrowRight size={10} style={{ color: "var(--text-muted)" }} />
                 <span className="act-val" style={actValStyle}>{formatDuration(summary.actualDuration)}</span>
               </div>
               <div style={kpiDiffStyle(summary.durationCompliance)}>
-                {summary.durationCompliance >= 95 ? "✓ Optimal" : `${Math.round(summary.durationCompliance)}% compliance`}
+                {summary.durationCompliance >= 95 ? `✓ ${t("analysis.optimal")}` : `${Math.round(summary.durationCompliance)}% ${t("analysis.compliance").toLowerCase()}`}
               </div>
             </div>
 
             <div style={kpiCardStyle}>
-              <div style={kpiLabelStyle}><Compass size={12} /> Distance</div>
+              <div style={kpiLabelStyle}><Compass size={12} /> {t("analysis.distance")}</div>
               <div style={kpiValuesStyle}>
                 <span className="plan-val" style={planValStyle}>{formatDistance(summary.plannedDistance)}</span>
                 <ArrowRight size={10} style={{ color: "var(--text-muted)" }} />
                 <span className="act-val" style={actValStyle}>{formatDistance(summary.actualDistance)}</span>
               </div>
               <div style={kpiDiffStyle(summary.distanceCompliance)}>
-                {summary.distanceCompliance >= 95 ? "✓ Optimal" : `${Math.round(summary.distanceCompliance)}% compliance`}
+                {summary.distanceCompliance >= 95 ? `✓ ${t("analysis.optimal")}` : `${Math.round(summary.distanceCompliance)}% ${t("analysis.compliance").toLowerCase()}`}
               </div>
             </div>
 
             <div style={kpiCardStyle}>
-              <div style={kpiLabelStyle}><Flame size={12} /> TSS Load</div>
+              <div style={kpiLabelStyle}><Flame size={12} /> {t("analysis.tssLoad")}</div>
               <div style={kpiValuesStyle}>
                 <span className="plan-val" style={planValStyle}>{summary.plannedTss.toFixed(0)}</span>
                 <ArrowRight size={10} style={{ color: "var(--text-muted)" }} />
                 <span className="act-val" style={actValStyle}>{summary.actualTss.toFixed(0)}</span>
               </div>
               <div style={kpiDiffStyle(summary.tssCompliance)}>
-                {summary.tssCompliance >= 95 ? "✓ Optimal" : `${Math.round(summary.tssCompliance)}% compliance`}
+                {summary.tssCompliance >= 95 ? `✓ ${t("analysis.optimal")}` : `${Math.round(summary.tssCompliance)}% ${t("analysis.compliance").toLowerCase()}`}
               </div>
             </div>
 
             <div style={kpiCardStyle}>
-              <div style={kpiLabelStyle}><Activity size={12} /> Avg Metric</div>
+              <div style={kpiLabelStyle}><Activity size={12} /> {t("analysis.avgMetric")}</div>
               <div style={kpiValuesStyle}>
                 <span className="act-val" style={actValStyle}>
                   {sport === "cycling" ? `${summary.actualAvgIntensity}W` : formatSpeedToPaceStr(summary.actualAvgIntensity, sport)}
                 </span>
               </div>
-              <span style={{ fontSize: 9, color: "var(--text-muted)", marginTop: 4 }}>Actual Avg Power/Pace</span>
+              <span style={{ fontSize: 9, color: "var(--text-muted)", marginTop: 4 }}>{t("analysis.actualAvgPowerPace")}</span>
             </div>
           </div>
 
           {/* Actionable Tips */}
           <div style={tipsCardStyle}>
-            <h4 style={{ fontSize: 12, fontWeight: 800, color: "var(--text-primary)", marginBottom: 6, textTransform: "uppercase" }}>Actionable Recommendations</h4>
+            <h4 style={{ fontSize: 12, fontWeight: 800, color: "var(--text-primary)", marginBottom: 6, textTransform: "uppercase" }}>{t("analysis.recommendations")}</h4>
             <ul style={{ paddingLeft: 16, margin: 0, fontSize: 11.5, color: "var(--text-secondary)", display: "flex", flexDirection: "column", gap: 4 }}>
               {coaching.recommendations.map((tip, idx) => (
                 <li key={idx} style={{ listStyleType: "disc" }}>{tip}</li>
@@ -226,18 +228,18 @@ export function ActivityAnalysisModal({ eventId, onClose }: ActivityAnalysisModa
 
           {/* Step-by-Step Table */}
           <div style={{ marginTop: 12 }}>
-            <h3 style={{ fontSize: 13, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--text-primary)", marginBottom: 8 }}>Interval Steps Breakdown</h3>
+            <h3 style={{ fontSize: 13, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--text-primary)", marginBottom: 8 }}>{t("analysis.breakdown")}</h3>
             <div style={{ ...tableWrapperStyle, overflowX: "auto" }}>
               <table style={tableStyle}>
                 <thead>
                   <tr style={tableHeaderRowStyle}>
-                    <th style={{ ...thStyle, width: 40 }}>Step</th>
-                    <th style={thStyle}>Phase Name</th>
-                    <th style={thStyle}>Target Value</th>
-                    <th style={thStyle}>Plan Dur</th>
-                    <th style={thStyle}>Act Dur</th>
-                    <th style={thStyle}>Act Avg</th>
-                    <th style={{ ...thStyle, textAlign: "right" }}>Compliance</th>
+                    <th style={{ ...thStyle, width: 40 }}>{t("analysis.step")}</th>
+                    <th style={thStyle}>{t("analysis.phaseName")}</th>
+                    <th style={thStyle}>{t("analysis.targetValue")}</th>
+                    <th style={thStyle}>{t("analysis.planDur")}</th>
+                    <th style={thStyle}>{t("analysis.actDur")}</th>
+                    <th style={thStyle}>{t("analysis.actAvg")}</th>
+                    <th style={{ ...thStyle, textAlign: "right" }}>{t("analysis.compliance")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -285,15 +287,15 @@ export function ActivityAnalysisModal({ eventId, onClose }: ActivityAnalysisModa
 
           {/* Time in Zones Stacked Progress Chart */}
           <div style={zonesCardStyle}>
-            <h4 style={{ fontSize: 12, fontWeight: 800, color: "var(--text-primary)", marginBottom: 8, textTransform: "uppercase" }}>Time in Zones Comparison</h4>
+            <h4 style={{ fontSize: 12, fontWeight: 800, color: "var(--text-primary)", marginBottom: 8, textTransform: "uppercase" }}>{t("analysis.timeInZones")}</h4>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {metrics.zoneMatches.map((zm) => {
                 const zColor = getZoneColor(zm.zone);
                 return (
                   <div key={zm.zone} style={{ display: "flex", flexDirection: "column", gap: 3 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, fontWeight: 600 }}>
-                      <span style={{ color: "var(--text-primary)" }}>Zone {zm.zone} — {zm.zoneName}</span>
-                      <span style={{ color: "var(--text-muted)" }}>Plan: {zm.plannedPct}% | Act: {zm.actualPct}%</span>
+                      <span style={{ color: "var(--text-primary)" }}>Zone {zm.zone} — {t(`analysis.zone${zm.zone}`)}</span>
+                      <span style={{ color: "var(--text-muted)" }}>{t("analysis.plan")}: {zm.plannedPct}% | {t("analysis.act")}: {zm.actualPct}%</span>
                     </div>
                     <div style={{ height: 6, borderRadius: 3, background: "var(--bg-input)", overflow: "hidden", position: "relative", display: "flex" }}>
                       {/* Plan indicator (dotted or slight color overlay on background) */}

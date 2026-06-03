@@ -87,7 +87,7 @@ class AthleteControllerTest {
     // ── Fixtures ──────────────────────────────────────────────────────────────
 
     private UserSummary freeUser() {
-        return new UserSummary(USER_ID, "athlete@test.io", "Test Athlete", "athlete", "free");
+        return new UserSummary(USER_ID, "athlete@test.io", "Test Athlete", "athlete", "free", "{}");
     }
 
     private AthleteProfile profile() {
