@@ -126,10 +126,16 @@ export async function apiFetch<T>(
   // ── Parse error body ──
   let errorCode = "UNKNOWN";
   let errorMessage = `HTTP ${res.status}`;
+  let errorData: Record<string, unknown> | undefined;
   try {
     const body = await res.json();
     errorCode = body?.error?.code ?? errorCode;
     errorMessage = body?.error?.message ?? errorMessage;
+    // Capture any extra fields (e.g. existingId for 409 DUPLICATE)
+    if (body?.error && typeof body.error === "object") {
+      const { code: _c, message: _m, ...rest } = body.error;
+      if (Object.keys(rest).length > 0) errorData = rest;
+    }
   } catch {
     // ignore parse errors
   }
@@ -158,7 +164,7 @@ export async function apiFetch<T>(
     }
   }
 
-  throw new ApiError(res.status, errorCode, errorMessage);
+  throw new ApiError(res.status, errorCode, errorMessage, errorData);
 }
 
 /**
@@ -214,15 +220,21 @@ export async function apiUpload<T>(
 
   let errorCode = "UNKNOWN";
   let errorMessage = `HTTP ${res.status}`;
+  let errorData: Record<string, unknown> | undefined;
   try {
     const body = await res.json();
     errorCode = body?.error?.code ?? errorCode;
     errorMessage = body?.error?.message ?? errorMessage;
+    // Capture any extra fields (e.g. existingId for 409 DUPLICATE)
+    if (body?.error && typeof body.error === "object") {
+      const { code: _c, message: _m, ...rest } = body.error;
+      if (Object.keys(rest).length > 0) errorData = rest;
+    }
   } catch {
     // ignore
   }
 
-  throw new ApiError(res.status, errorCode, errorMessage);
+  throw new ApiError(res.status, errorCode, errorMessage, errorData);
 }
 
 // ─── Convenience method shorthands ───────────────────────────────────────────

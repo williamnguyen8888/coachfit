@@ -194,6 +194,7 @@ public class TcxParser {
         List<Double> latitude = new ArrayList<>();
         List<Double> longitude = new ArrayList<>();
         List<Float> distance = new ArrayList<>();
+        List<Short> temperature = new ArrayList<>(); // BUG-12 fix: was missing
         List<Float> grade = new ArrayList<>();
 
         boolean hasHr = false;
@@ -203,6 +204,7 @@ public class TcxParser {
         boolean hasAltitude = false;
         boolean hasGps = false;
         boolean hasDistance = false;
+        boolean hasTemp = false; // BUG-12 fix
         boolean hasGrade = false;
 
         Instant previousTime = null;
@@ -212,6 +214,9 @@ public class TcxParser {
         for (Trackpoint point : points) {
             Instant timestamp = parseInstantOrNull(point.time);
             if (timestamp == null) continue;
+
+            // BUG-14 fix: skip duplicate timestamps to avoid division-by-zero in speed/grade calc
+            if (timestamp.equals(previousTime)) continue;
 
             int elapsed = (int) (timestamp.getEpochSecond() - startEpoch);
             timestamps.add(elapsed);
@@ -246,6 +251,18 @@ public class TcxParser {
                 hasCadence = true;
             } else {
                 cadence.add(null);
+            }
+
+            // BUG-12 fix: read temperature from TPX extension (Garmin uses "Temp" or "atemp")
+            Integer pointTemp = null;
+            if (point.extensions != null && point.extensions.tpx != null) {
+                pointTemp = point.extensions.tpx.temp;
+            }
+            if (pointTemp != null) {
+                temperature.add(pointTemp.shortValue());
+                hasTemp = true;
+            } else {
+                temperature.add(null);
             }
 
             Double altitudeMeters = point.altitudeMeters;
@@ -322,7 +339,7 @@ public class TcxParser {
                 hasGps ? latitude : null,
                 hasGps ? longitude : null,
                 hasDistance ? distance : null,
-                null,
+                hasTemp ? temperature : null, // BUG-12 fix: was always null
                 hasGrade ? grade : null
         );
     }
@@ -604,6 +621,10 @@ public class TcxParser {
 
         @JacksonXmlProperty(localName = "Speed")
         Double speed;
+
+        // BUG-12 fix: Garmin TPX uses "Temp" for temperature in TCX
+        @JacksonXmlProperty(localName = "Temp")
+        Integer temp;
     }
 
     private record TrackpointSummary(

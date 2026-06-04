@@ -8,6 +8,8 @@ export class ApiError extends Error {
     public readonly status: number,
     public readonly code: string,
     message: string,
+    /** Optional extra fields from the error response body (e.g. existingId for 409 DUPLICATE) */
+    public readonly data?: Record<string, unknown>,
   ) {
     super(message);
     this.name = "ApiError";

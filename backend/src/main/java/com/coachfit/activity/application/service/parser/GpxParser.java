@@ -16,6 +16,7 @@ import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Parses GPX activity files using Jackson XML.
@@ -45,6 +46,8 @@ public class GpxParser {
 
         GpxTrack track = root.track;
         String name = (track.name != null && !track.name.isBlank()) ? track.name : "GPX Activity";
+        // BUG-7 fix: map the optional <type> tag to a sport string
+        String sport = mapSport(track.type);
 
         List<GpxPoint> points = new ArrayList<>();
         if (track.segments != null) {
@@ -67,7 +70,8 @@ public class GpxParser {
         }
         if (startedAt == null) startedAt = Instant.EPOCH;
 
-        int durationSeconds = (startedAt != Instant.EPOCH && endedAt != null)
+        // BUG-8 fix: use .equals() not reference comparison (!=) for Instant.EPOCH
+        int durationSeconds = (!Instant.EPOCH.equals(startedAt) && endedAt != null)
                 ? (int) (endedAt.getEpochSecond() - startedAt.getEpochSecond())
                 : 0;
 
@@ -96,7 +100,7 @@ public class GpxParser {
         ));
 
         return new ParsedActivity(
-                "other",
+                sport, // BUG-7 fix: use mapped sport, not hardcoded "other"
                 null,
                 name,
                 startedAt,
@@ -148,6 +152,16 @@ public class GpxParser {
 
         for (GpxPoint point : points) {
             Instant timestamp = parseInstantOrNull(point.time);
+
+            // BUG-25 fix: skip points with no GPS coordinates entirely so all
+            // stream arrays stay in sync by index. In GPX every trkpt should
+            // have lat/lon; those without are waypoints or corrupt records.
+            if (point.lat == null || point.lon == null) {
+                previousPoint = point;
+                previousTime = timestamp;
+                continue;
+            }
+
             int elapsed = timestamp != null ? (int) (timestamp.getEpochSecond() - startEpoch) : 0;
             timestamps.add(elapsed);
 
@@ -227,6 +241,8 @@ public class GpxParser {
             previousTime = timestamp;
         }
 
+        // GPX always has GPS coordinates (we skipped non-GPS points above)
+        boolean hasGps = !latitude.isEmpty();
         return new ParsedStreams(
                 timestamps,
                 hasHr ? heartRate : null,
@@ -234,9 +250,9 @@ public class GpxParser {
                 hasCadence ? cadence : null,
                 hasSpeed ? speed : null,
                 hasAltitude ? altitude : null,
-                latitude,
-                longitude,
-                distance,
+                hasGps ? latitude : null,
+                hasGps ? longitude : null,
+                hasGps ? distance : null,
                 hasTemp ? temperature : null,
                 hasGrade ? grade : null
         );
@@ -325,6 +341,35 @@ public class GpxParser {
         return Math.max(a, b);
     }
 
+    // ── Sport mapping (BUG-7) ────────────────────────────────────────────────
+
+    /** Common GPX <type> values from Garmin Connect, Strava, Wahoo, etc. */
+    private static final Map<String, String> GPX_TYPE_TO_SPORT = Map.ofEntries(
+            Map.entry("cycling", "cycling"),
+            Map.entry("biking", "cycling"),
+            Map.entry("road cycling", "cycling"),
+            Map.entry("mountain biking", "cycling"),
+            Map.entry("virtual ride", "cycling"),
+            Map.entry("running", "running"),
+            Map.entry("trail running", "running"),
+            Map.entry("treadmill running", "running"),
+            Map.entry("swimming", "swimming"),
+            Map.entry("open water swimming", "swimming"),
+            Map.entry("hiking", "hiking"),
+            Map.entry("walking", "walking"),
+            Map.entry("rowing", "rowing"),
+            Map.entry("paddling", "paddling"),
+            Map.entry("cross country skiing", "cross_country_skiing"),
+            Map.entry("alpine skiing", "alpine_skiing"),
+            Map.entry("snowboarding", "snowboarding")
+    );
+
+    private static String mapSport(String type) {
+        if (type == null || type.isBlank()) return "other";
+        String normalized = type.trim().toLowerCase();
+        return GPX_TYPE_TO_SPORT.getOrDefault(normalized, "other");
+    }
+
     @JacksonXmlRootElement(localName = "gpx")
     @JsonIgnoreProperties(ignoreUnknown = true)
     static class GpxRoot {
@@ -336,6 +381,10 @@ public class GpxParser {
     static class GpxTrack {
         @JacksonXmlProperty(localName = "name")
         String name;
+
+        // BUG-7: read the optional <type> element for sport detection
+        @JacksonXmlProperty(localName = "type")
+        String type;
 
         @JacksonXmlProperty(localName = "trkseg")
         @JacksonXmlElementWrapper(useWrapping = false)

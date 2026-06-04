@@ -24,6 +24,16 @@ public interface ActivityStoragePort {
     String storeRawFile(UUID userId, String filename, byte[] bytes, String contentType);
 
     /**
+     * Deletes a previously stored raw file.
+     *
+     * <p>Used to clean up the MinIO object if a DB transaction fails after the file
+     * was already uploaded (BUG-16 fix).
+     *
+     * @param objectPath the object key previously returned by {@link #storeRawFile}
+     */
+    void deleteFile(String objectPath);
+
+    /**
      * Generates a short-lived pre-signed GET URL for an existing object.
      *
      * @param objectPath the object key previously returned by {@link #storeRawFile}

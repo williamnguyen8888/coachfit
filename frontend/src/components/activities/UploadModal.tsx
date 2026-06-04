@@ -15,9 +15,10 @@
 
 import * as React from "react";
 import { useState, useRef, useCallback, useEffect } from "react";
-import { X, Upload, FileText, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
+import { X, Upload, FileText, CheckCircle, AlertCircle, Loader2, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { apiUpload } from "@/lib/api";
+import { apiUpload, ApiError } from "@/lib/api";
+import { ERROR_CODES } from "@/lib/errors";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                               */
@@ -71,6 +72,8 @@ export function UploadModal({ onClose, onSuccess }: UploadModalProps) {
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadedId, setUploadedId] = useState<string | null>(null);
+  // BUG-1 fix: track duplicate activity ID for 409 responses
+  const [duplicateId, setDuplicateId] = useState<string | null>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -130,6 +133,7 @@ export function UploadModal({ onClose, onSuccess }: UploadModalProps) {
     if (!file || uploading) return;
     setUploading(true);
     setUploadError(null);
+    setDuplicateId(null);
 
     try {
       const form = new FormData();
@@ -140,8 +144,15 @@ export function UploadModal({ onClose, onSuccess }: UploadModalProps) {
       setUploadedId(result.id);
       onSuccess?.(result.id);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Upload failed. Please try again.";
-      setUploadError(msg);
+      // BUG-1 fix: detect 409 DUPLICATE and extract the existingId
+      if (err instanceof ApiError && err.status === 409 && err.code === ERROR_CODES.DUPLICATE) {
+        // Use existingId if present; fall back to "" so the duplicate UI still renders
+        const existingId = typeof err.data?.existingId === "string" ? err.data.existingId : "";
+        setDuplicateId(existingId);
+      } else {
+        const msg = err instanceof Error ? err.message : "Upload failed. Please try again.";
+        setUploadError(msg);
+      }
     } finally {
       setUploading(false);
     }
@@ -243,8 +254,46 @@ export function UploadModal({ onClose, onSuccess }: UploadModalProps) {
           </button>
         </div>
 
-        {/* ── Success state ── */}
-        {isSuccess ? (
+        {/* ── Duplicate state ── */}
+        {duplicateId !== null ? (
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 16,
+              padding: "var(--space-6) 0",
+              textAlign: "center",
+            }}
+          >
+            <AlertCircle size={48} style={{ color: "var(--color-warning, #f59e0b)" }} aria-hidden="true" />
+            <div>
+              <p style={{ fontSize: "var(--text-lg)", fontWeight: 700, color: "var(--text-primary)", marginBottom: 4 }}>
+                Activity already exists
+              </p>
+              <p style={{ fontSize: "var(--text-sm)", color: "var(--text-secondary)" }}>
+                This file has already been imported. You can view the existing activity.
+              </p>
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <Button id="duplicate-close-btn" variant="secondary" size="md" onClick={onClose}>
+                Close
+              </Button>
+              <Button
+                id="duplicate-view-btn"
+                variant="primary"
+                size="md"
+                onClick={() => {
+                  onClose();
+                  if (duplicateId) window.location.href = `/activities/${duplicateId}`;
+                }}
+                leftIcon={<ExternalLink size={14} />}
+              >
+                View existing activity
+              </Button>
+            </div>
+          </div>
+        ) : isSuccess ? (
           <div
             style={{
               display: "flex",

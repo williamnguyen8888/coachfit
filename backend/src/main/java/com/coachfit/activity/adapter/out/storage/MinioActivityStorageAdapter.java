@@ -5,6 +5,7 @@ import com.coachfit.activity.domain.exception.FileParseException;
 import io.minio.GetPresignedObjectUrlArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
+import io.minio.RemoveObjectArgs;
 import io.minio.http.Method;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,6 +65,22 @@ class MinioActivityStorageAdapter implements ActivityStoragePort {
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
+
+    @Override
+    public void deleteFile(String objectPath) {
+        try {
+            minioClient.removeObject(
+                    RemoveObjectArgs.builder()
+                            .bucket(bucket)
+                            .object(objectPath)
+                            .build()
+            );
+            log.debug("Deleted file from MinIO: bucket={} key={}", bucket, objectPath);
+        } catch (Exception e) {
+            log.error("MinIO delete failed for key={}: {}", objectPath, e.getMessage(), e);
+            throw new RuntimeException("Failed to delete file from MinIO: " + e.getMessage(), e);
+        }
+    }
 
     @Override
     public String generatePresignedDownloadUrl(String objectPath, int expirySeconds) {
