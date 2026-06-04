@@ -32,6 +32,19 @@ export interface ActivityDownloadResponse {
   expiresInSeconds: number;
 }
 
+interface ActivityStreamsApiResponse {
+  timestamps?: number[];
+  heartRate?: number[];
+  power?: number[];
+  cadence?: number[];
+  speed?: number[];
+  altitude?: number[];
+  latitude?: number[];
+  longitude?: number[];
+  distance?: number[];
+  grade?: number[];
+}
+
 /** Request body for PUT /activities/{id} */
 export interface ActivityUpdateRequest {
   name?: string;
@@ -65,21 +78,36 @@ export const activitiesService = {
 
   /** GET /activities/{id}/streams — time-series data */
   getStreams: (id: string): Promise<ActivityStreams> =>
-    api.get<any>(`/activities/${id}/streams`).then((res) => {
+    api.get<ActivityStreamsApiResponse>(`/activities/${id}/streams`).then((res) => {
       if (!res || !res.timestamps) return { points: [] };
+
+      const heartRate = res.heartRate ?? [];
+      const power = res.power ?? [];
+      const cadence = res.cadence ?? [];
+      const speed = res.speed ?? [];
+      const altitude = res.altitude ?? [];
+      const latitude = res.latitude ?? [];
+      const longitude = res.longitude ?? [];
+      const distance = res.distance ?? [];
+      const grade = res.grade ?? [];
+
       const points: StreamPoint[] = [];
       const len = res.timestamps.length;
       for (let i = 0; i < len; i++) {
+        const hasGps = latitude.length > i
+          && longitude.length > i
+          && !(latitude[i] === 0 && longitude[i] === 0);
         points.push({
           t: res.timestamps[i],
-          hr: res.heartRate && res.heartRate[i] !== 0 ? res.heartRate[i] : undefined,
-          power: res.power && res.power[i] !== 0 ? res.power[i] : undefined,
-          cadence: res.cadence && res.cadence[i] !== 0 ? res.cadence[i] : undefined,
-          speed: res.speed ? res.speed[i] : undefined,
-          altitude: res.altitude ? res.altitude[i] : undefined,
-          lat: res.latitude ? res.latitude[i] : undefined,
-          lng: res.longitude ? res.longitude[i] : undefined,
-          distance: res.distance ? res.distance[i] : undefined,
+          hr: heartRate.length > i && heartRate[i] !== 0 ? heartRate[i] : undefined,
+          power: power.length > i && power[i] !== 0 ? power[i] : undefined,
+          cadence: cadence.length > i && cadence[i] !== 0 ? cadence[i] : undefined,
+          speed: speed.length > i ? speed[i] : undefined,
+          altitude: altitude.length > i ? altitude[i] : undefined,
+          lat: hasGps ? latitude[i] : undefined,
+          lng: hasGps ? longitude[i] : undefined,
+          distance: distance.length > i ? distance[i] : undefined,
+          grade: grade.length > i ? grade[i] : undefined,
         });
       }
       return { points };

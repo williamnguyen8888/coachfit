@@ -1,20 +1,9 @@
 "use client";
 
-/**
- * ActivityMetrics — full metrics grid.
- *
- * Shows sections: Time, Performance, Training Load, Equipment.
- * Only renders non-null fields.
- */
-
 import * as React from "react";
 import { BarChart2 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import type { ActivityDetail } from "@/lib/types/activity";
-
-/* ------------------------------------------------------------------ */
-/*  MetricRow                                                            */
-/* ------------------------------------------------------------------ */
 
 interface MetricRowProps {
   label: string;
@@ -22,8 +11,13 @@ interface MetricRowProps {
   highlight?: boolean;
 }
 
+interface ActivityMetricsProps {
+  activity: ActivityDetail;
+}
+
 function MetricRow({ label, value, highlight }: MetricRowProps) {
   if (value == null) return null;
+
   return (
     <div
       style={{
@@ -51,10 +45,6 @@ function MetricRow({ label, value, highlight }: MetricRowProps) {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Section label                                                        */
-/* ------------------------------------------------------------------ */
-
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <p
@@ -73,29 +63,29 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  ActivityMetrics                                                      */
-/* ------------------------------------------------------------------ */
+function formatDuration(seconds: number): string {
+  const totalSeconds = Math.max(0, Math.round(seconds));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const secs = totalSeconds % 60;
 
-function fmtSeconds(s: number): string {
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const sec = s % 60;
-  if (h > 0) return `${h}h ${m.toString().padStart(2, "0")}m ${sec.toString().padStart(2, "0")}s`;
-  return `${m}m ${sec.toString().padStart(2, "0")}s`;
+  if (hours > 0) {
+    return `${hours}h ${minutes.toString().padStart(2, "0")}m ${secs.toString().padStart(2, "0")}s`;
+  }
+
+  return `${minutes}m ${secs.toString().padStart(2, "0")}s`;
 }
 
-function formatSpeedToPace(speedMps: number | null | undefined, type: "run" | "swim"): string {
-  if (speedMps == null || speedMps <= 0.1) return "--:--";
+function formatSpeedToPace(speedMps: number | null | undefined, type: "run" | "swim"): string | null {
+  if (speedMps == null || speedMps <= 0.1) return null;
+
   const totalSecs = type === "run" ? 1000 / speedMps : 100 / speedMps;
-  if (totalSecs > 1800) return "--:--";
-  const m = Math.floor(totalSecs / 60);
-  const s = Math.round(totalSecs % 60);
-  return `${m}:${s.toString().padStart(2, "0")}`;
-}
+  if (totalSecs > 1800) return null;
 
-interface ActivityMetricsProps {
-  activity: ActivityDetail;
+  const rounded = Math.round(totalSecs);
+  const minutes = Math.floor(rounded / 60);
+  const seconds = rounded % 60;
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
 export function ActivityMetrics({ activity }: ActivityMetricsProps) {
@@ -115,80 +105,114 @@ export function ActivityMetrics({ activity }: ActivityMetricsProps) {
     rawFileFormat,
   } = activity;
 
+  const cadenceLabel = activity.sport === "swimming" ? "Avg Stroke Rate" : "Avg Cadence";
+  const cadenceUnit = activity.sport === "cycling" ? "rpm" : "spm";
+  const trainingLoadLabel =
+    activity.sport === "cycling"
+      ? "TSS"
+      : activity.sport === "running"
+        ? "rTSS"
+        : activity.sport === "swimming"
+          ? "sTSS"
+          : "Load";
+
+  const averageSpeedOrPace =
+    activity.sport === "running"
+      ? (() => {
+          const pace = formatSpeedToPace(avgSpeed, "run");
+          return pace ? `${pace} /km` : null;
+        })()
+      : activity.sport === "swimming"
+        ? (() => {
+            const pace = formatSpeedToPace(avgSpeed, "swim");
+            return pace ? `${pace} /100m` : null;
+          })()
+        : avgSpeed != null
+          ? `${(avgSpeed * 3.6).toFixed(1)} km/h`
+          : null;
+
+  const averageSpeedLabel =
+    activity.sport === "running"
+      ? "Avg Pace"
+      : activity.sport === "swimming"
+        ? "Avg Swim Pace"
+        : "Avg Speed";
+
   return (
     <Card noPadding>
-      <div
-        className="px-3 py-3 sm:px-5 sm:pt-5 sm:pb-4 flex items-center gap-2 border-b border-border-subtle"
-      >
+      <div className="flex items-center gap-2 border-b border-border-subtle px-3 py-3 sm:px-5 sm:pt-5 sm:pb-4">
         <BarChart2 size={16} style={{ color: "var(--color-accent)" }} />
-        <h2 style={{ fontSize: "var(--text-lg)", fontWeight: 600, color: "var(--text-primary)", margin: 0 }}>
+        <h2
+          style={{
+            fontSize: "var(--text-lg)",
+            fontWeight: 600,
+            color: "var(--text-primary)",
+            margin: 0,
+          }}
+        >
           Metrics
         </h2>
       </div>
 
       <div className="px-3 pb-3 sm:px-5 sm:pb-5">
         <SectionLabel>Time</SectionLabel>
-        <MetricRow label="Total Time" value={fmtSeconds(durationSeconds)} />
+        <MetricRow label="Total Time" value={formatDuration(durationSeconds)} />
         <MetricRow
           label="Moving Time"
-          value={movingTimeSeconds ? fmtSeconds(movingTimeSeconds) : null}
+          value={movingTimeSeconds != null ? formatDuration(movingTimeSeconds) : null}
         />
 
         <SectionLabel>Performance</SectionLabel>
-        <MetricRow label="Max Heart Rate" value={maxHeartRate ? `${maxHeartRate} bpm` : null} />
-        
-        {/* Cadence Unit conditional on Sport */}
-        <MetricRow 
-          label={activity.sport === "swimming" ? "Avg Stroke Rate" : "Avg Cadence"} 
-          value={avgCadence ? `${avgCadence} ${activity.sport === "cycling" ? "rpm" : "spm"}` : null} 
+        <MetricRow
+          label="Max Heart Rate"
+          value={maxHeartRate != null ? `${maxHeartRate} bpm` : null}
         />
-        
-        {/* Speed vs Pace conditional on Sport */}
-        {activity.sport === "running" ? (
-          <>
-            <MetricRow label="Avg Pace" value={avgSpeed ? `${formatSpeedToPace(avgSpeed, "run")} /km` : null} />
-            <MetricRow label="Grade Adjusted Pace (GAP)" value={avgSpeed ? `${formatSpeedToPace(avgSpeed * 1.03, "run")} /km` : null} highlight />
-          </>
-        ) : activity.sport === "swimming" ? (
-          <>
-            <MetricRow label="Avg Swim Pace" value={avgSpeed ? `${formatSpeedToPace(avgSpeed, "swim")} /100m` : null} />
-            <MetricRow label="Critical Swim Speed (CSS)" value={formatSpeedToPace(1.0, "swim") + " /100m"} />
-            <MetricRow label="Avg SWOLF" value="38" highlight />
-          </>
-        ) : (
-          <MetricRow label="Avg Speed" value={avgSpeed ? `${(avgSpeed * 3.6).toFixed(1)} km/h` : null} />
-        )}
+        <MetricRow
+          label={cadenceLabel}
+          value={avgCadence != null ? `${avgCadence} ${cadenceUnit}` : null}
+        />
+        <MetricRow label={averageSpeedLabel} value={averageSpeedOrPace} />
 
-        {activity.sport === "cycling" && (
+        {activity.sport === "cycling" ? (
           <>
-            <MetricRow label="Max Power" value={maxPower ? `${maxPower} W` : null} />
-            <MetricRow label="Normalized Power (NP)" value={normalizedPower ? `${normalizedPower} W` : null} highlight />
-            <MetricRow label="Intensity Factor (IF)" value={intensityFactor ? intensityFactor.toFixed(3) : null} highlight />
+            <MetricRow label="Max Power" value={maxPower != null ? `${maxPower} W` : null} />
+            <MetricRow
+              label="Normalized Power (NP)"
+              value={normalizedPower != null ? `${normalizedPower} W` : null}
+              highlight
+            />
+            <MetricRow
+              label="Intensity Factor (IF)"
+              value={intensityFactor != null ? intensityFactor.toFixed(3) : null}
+              highlight
+            />
           </>
-        )}
-        
+        ) : null}
+
         <MetricRow
           label="Elevation Gain"
           value={elevationGainMeters != null ? `${Math.round(elevationGainMeters)} m` : null}
         />
 
         <SectionLabel>Training Load</SectionLabel>
-        <MetricRow 
-          label={activity.sport === "cycling" ? "TSS" : activity.sport === "running" ? "rTSS" : activity.sport === "swimming" ? "sTSS" : "hrTSS"} 
-          value={tss != null ? tss.toFixed(1) : null} 
-          highlight 
+        <MetricRow
+          label={trainingLoadLabel}
+          value={tss != null ? tss.toFixed(1) : null}
+          highlight
         />
-        <MetricRow label="Calories" value={calories ? `${calories.toLocaleString()} kcal` : null} />
+        <MetricRow
+          label="Calories"
+          value={calories != null ? `${calories.toLocaleString()} kcal` : null}
+        />
 
-        {(gear || rawFileFormat) && (
+        {gear || rawFileFormat ? (
           <>
             <SectionLabel>Equipment</SectionLabel>
             <MetricRow label="Gear" value={gear?.name ?? null} />
             <MetricRow label="File Format" value={rawFileFormat ? rawFileFormat.toUpperCase() : null} />
           </>
-        )}
+        ) : null}
       </div>
-
     </Card>
   );
 }

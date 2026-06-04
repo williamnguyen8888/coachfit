@@ -3,6 +3,7 @@ package com.coachfit.activity.adapter.in.dto;
 import com.coachfit.activity.application.port.in.GetActivityLapsUseCase.LapItem;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.List;
 
@@ -33,8 +34,16 @@ public record ActivityLapsResponse(List<LapDto> laps) {
                                 l.lapIndex(), l.startTime(), l.durationSeconds(),
                                 l.distanceMeters(), l.avgHeartRate(), l.maxHeartRate(),
                                 l.avgPower(), l.maxPower(), l.avgCadence(),
-                                l.avgPace(), l.avgPace(), l.elevationGain()))
+                                l.avgPace(), deriveAverageSpeed(l), l.elevationGain()))
                         .toList()
         );
+    }
+
+    private static BigDecimal deriveAverageSpeed(LapItem lap) {
+        if (lap.distanceMeters() == null || lap.durationSeconds() == null || lap.durationSeconds() <= 0) {
+            return null;
+        }
+        return lap.distanceMeters()
+                .divide(BigDecimal.valueOf(lap.durationSeconds()), 4, RoundingMode.HALF_UP);
     }
 }

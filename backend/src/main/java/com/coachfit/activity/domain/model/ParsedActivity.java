@@ -24,6 +24,9 @@ import java.util.List;
  * @param maxHeartRate        max heart rate bpm (nullable)
  * @param avgPower            average power watts (nullable)
  * @param maxPower            max power watts (nullable)
+ * @param normalizedPower     normalized power watts (nullable)
+ * @param intensityFactor     intensity factor (nullable)
+ * @param tss                 training stress score (nullable)
  * @param avgCadence          average cadence rpm (nullable)
  * @param avgSpeed            average speed m/s (nullable)
  * @param startLat            start latitude decimal degrees (nullable)
@@ -45,6 +48,9 @@ public record ParsedActivity(
         Integer      maxHeartRate,
         Integer      avgPower,
         Integer      maxPower,
+        Integer      normalizedPower,
+        BigDecimal   intensityFactor,
+        BigDecimal   tss,
         Integer      avgCadence,
         BigDecimal   avgSpeed,
         Double       startLat,

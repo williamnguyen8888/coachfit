@@ -18,27 +18,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Parses GPX (GPS Exchange Format) files using Jackson XML.
- *
- * <h3>GPX hierarchy mapped (GPX 1.1)</h3>
- * <pre>
- * gpx
- *   trk
- *     name
- *     trkseg
- *       trkpt (lat, lon attributes)
- *         ele
- *         time
- *         extensions
- *           gpxtpx:TrackPointExtension
- *             gpxtpx:hr
- *             gpxtpx:cad
- *             gpxtpx:atemp
- * </pre>
- *
- * <p>GPX has no native lap concept → the entire track is represented as a
- * single synthetic lap. Duration is derived from first to last {@code time}
- * element.
+ * Parses GPX activity files using Jackson XML.
  */
 @Component
 public class GpxParser {
@@ -63,14 +43,13 @@ public class GpxParser {
             throw new FileParseException("GPX", "No track (trk) element found");
         }
 
-        GpxTrack trk = root.track;
-        String name = (trk.name != null && !trk.name.isBlank()) ? trk.name : "GPX Activity";
+        GpxTrack track = root.track;
+        String name = (track.name != null && !track.name.isBlank()) ? track.name : "GPX Activity";
 
-        // Collect all trkpts from all trkseg elements
         List<GpxPoint> points = new ArrayList<>();
-        if (trk.segments != null) {
-            for (GpxSegment seg : trk.segments) {
-                if (seg.points != null) points.addAll(seg.points);
+        if (track.segments != null) {
+            for (GpxSegment segment : track.segments) {
+                if (segment.points != null) points.addAll(segment.points);
             }
         }
 
@@ -78,54 +57,67 @@ public class GpxParser {
             throw new FileParseException("GPX", "Track contains no trackpoints");
         }
 
-        // Determine start time and duration
         Instant startedAt = null;
-        Instant endedAt   = null;
-        for (GpxPoint pt : points) {
-            Instant t = parseInstantOrNull(pt.time);
-            if (t == null) continue;
-            if (startedAt == null || t.isBefore(startedAt)) startedAt = t;
-            if (endedAt   == null || t.isAfter(endedAt))    endedAt   = t;
+        Instant endedAt = null;
+        for (GpxPoint point : points) {
+            Instant timestamp = parseInstantOrNull(point.time);
+            if (timestamp == null) continue;
+            if (startedAt == null || timestamp.isBefore(startedAt)) startedAt = timestamp;
+            if (endedAt == null || timestamp.isAfter(endedAt)) endedAt = timestamp;
         }
         if (startedAt == null) startedAt = Instant.EPOCH;
+
         int durationSeconds = (startedAt != Instant.EPOCH && endedAt != null)
-                ? (int)(endedAt.getEpochSecond() - startedAt.getEpochSecond()) : 0;
+                ? (int) (endedAt.getEpochSecond() - startedAt.getEpochSecond())
+                : 0;
 
-        // Start coords
-        Double startLat = points.get(0).lat;
-        Double startLng = points.get(0).lon;
-
-        // Compute derived distance from consecutive coordinates (simple haversine)
-        double totalDistanceMeters = computeDistance(points);
-
-        // Build streams
+        GpxSummary summary = summarize(points);
         ParsedStreams streams = buildStreams(points, startedAt);
 
-        // Aggregate HR and cadence from extensions
-        long hrSum = 0, hrCount = 0, cadSum = 0, cadCount = 0;
-        for (GpxPoint pt : points) {
-            if (pt.extensions != null && pt.extensions.tpx != null) {
-                if (pt.extensions.tpx.hr != null) { hrSum += pt.extensions.tpx.hr; hrCount++; }
-                if (pt.extensions.tpx.cad != null){ cadSum += pt.extensions.tpx.cad; cadCount++; }
-            }
-        }
-        Integer avgHr  = hrCount  > 0 ? (int)(hrSum  / hrCount)  : null;
-        Integer avgCad = cadCount > 0 ? (int)(cadSum / cadCount) : null;
+        BigDecimal distanceMeters = summary.totalDistanceMeters > 0d
+                ? BigDecimal.valueOf(summary.totalDistanceMeters).setScale(2, RoundingMode.HALF_UP)
+                : null;
+        BigDecimal avgSpeed = distanceMeters != null && durationSeconds > 0
+                ? BigDecimal.valueOf(summary.totalDistanceMeters / durationSeconds).setScale(4, RoundingMode.HALF_UP)
+                : null;
 
-        BigDecimal distance = totalDistanceMeters > 0
-                ? BigDecimal.valueOf(totalDistanceMeters).setScale(2, RoundingMode.HALF_UP) : null;
-
-        // GPX → single synthetic lap
         List<ParsedLap> laps = List.of(new ParsedLap(
-                0, startedAt, durationSeconds, distance,
-                avgHr, null, null, null, avgCad, null, null
+                0,
+                startedAt,
+                durationSeconds > 0 ? durationSeconds : null,
+                distanceMeters,
+                summary.avgHeartRate,
+                summary.maxHeartRate,
+                null,
+                null,
+                summary.avgCadence,
+                null,
+                summary.elevationGainMeters
         ));
 
         return new ParsedActivity(
-                "other", null, name, startedAt, durationSeconds, null,
-                distance, null, null,
-                avgHr, null, null, null, avgCad, null,
-                startLat, startLng, laps, streams
+                "other",
+                null,
+                name,
+                startedAt,
+                durationSeconds,
+                null,
+                distanceMeters,
+                summary.elevationGainMeters,
+                null,
+                summary.avgHeartRate,
+                summary.maxHeartRate,
+                null,
+                null,
+                null,
+                null,
+                null,
+                summary.avgCadence,
+                avgSpeed,
+                summary.startLat,
+                summary.startLng,
+                laps,
+                streams
         );
     }
 
@@ -133,79 +125,205 @@ public class GpxParser {
         long startEpoch = activityStart.getEpochSecond();
 
         List<Integer> timestamps = new ArrayList<>();
-        List<Short>   heartRate  = new ArrayList<>();
-        List<Short>   cadence    = new ArrayList<>();
-        List<Short>   temperature= new ArrayList<>();
-        List<Float>   altitude   = new ArrayList<>();
-        List<Double>  latitude   = new ArrayList<>();
-        List<Double>  longitude  = new ArrayList<>();
+        List<Short> heartRate = new ArrayList<>();
+        List<Short> cadence = new ArrayList<>();
+        List<Short> temperature = new ArrayList<>();
+        List<Float> speed = new ArrayList<>();
+        List<Float> altitude = new ArrayList<>();
+        List<Double> latitude = new ArrayList<>();
+        List<Double> longitude = new ArrayList<>();
+        List<Float> distance = new ArrayList<>();
+        List<Float> grade = new ArrayList<>();
 
-        boolean hasHr = false, hasCad = false, hasTemp = false, hasAlt = false;
+        boolean hasHr = false;
+        boolean hasCadence = false;
+        boolean hasTemp = false;
+        boolean hasSpeed = false;
+        boolean hasAltitude = false;
+        boolean hasGrade = false;
 
-        for (GpxPoint pt : points) {
-            Instant t = parseInstantOrNull(pt.time);
-            int elapsed = (t != null) ? (int)(t.getEpochSecond() - startEpoch) : 0;
+        GpxPoint previousPoint = null;
+        Instant previousTime = null;
+        double cumulativeDistanceMeters = 0d;
+
+        for (GpxPoint point : points) {
+            Instant timestamp = parseInstantOrNull(point.time);
+            int elapsed = timestamp != null ? (int) (timestamp.getEpochSecond() - startEpoch) : 0;
             timestamps.add(elapsed);
-            latitude.add(pt.lat);
-            longitude.add(pt.lon);
 
-            if (pt.ele != null) { altitude.add(pt.ele.floatValue()); hasAlt = true; }
-            else altitude.add(null);
+            latitude.add(point.lat);
+            longitude.add(point.lon);
 
-            if (pt.extensions != null && pt.extensions.tpx != null) {
-                GpxTpx tpx = pt.extensions.tpx;
-                if (tpx.hr != null)   { heartRate.add(tpx.hr.shortValue());   hasHr   = true; } else heartRate.add(null);
-                if (tpx.cad != null)  { cadence.add(tpx.cad.shortValue());    hasCad  = true; } else cadence.add(null);
-                if (tpx.atemp != null){ temperature.add(tpx.atemp.shortValue()); hasTemp = true; } else temperature.add(null);
+            if (point.ele != null) {
+                altitude.add(point.ele.floatValue());
+                hasAltitude = true;
+            } else {
+                altitude.add(null);
+            }
+
+            double segmentDistanceMeters = 0d;
+            if (previousPoint != null) {
+                segmentDistanceMeters = distanceBetween(previousPoint, point);
+                if (!Double.isNaN(segmentDistanceMeters)) {
+                    cumulativeDistanceMeters += segmentDistanceMeters;
+                } else {
+                    segmentDistanceMeters = 0d;
+                }
+            }
+            distance.add((float) cumulativeDistanceMeters);
+
+            Float pointSpeed = null;
+            if (timestamp != null && previousTime != null && segmentDistanceMeters > 0d) {
+                long deltaSeconds = timestamp.getEpochSecond() - previousTime.getEpochSecond();
+                if (deltaSeconds > 0L) {
+                    pointSpeed = (float) (segmentDistanceMeters / deltaSeconds);
+                }
+            }
+            if (pointSpeed != null) {
+                speed.add(pointSpeed);
+                hasSpeed = true;
+            } else {
+                speed.add(null);
+            }
+
+            Float pointGrade = null;
+            if (previousPoint != null && previousPoint.ele != null && point.ele != null && segmentDistanceMeters > 0d) {
+                pointGrade = (float) (((point.ele - previousPoint.ele) / segmentDistanceMeters) * 100d);
+            }
+            if (pointGrade != null) {
+                grade.add(pointGrade);
+                hasGrade = true;
+            } else {
+                grade.add(null);
+            }
+
+            if (point.extensions != null && point.extensions.tpx != null) {
+                GpxTpx tpx = point.extensions.tpx;
+                if (tpx.hr != null) {
+                    heartRate.add(tpx.hr.shortValue());
+                    hasHr = true;
+                } else {
+                    heartRate.add(null);
+                }
+                if (tpx.cad != null) {
+                    cadence.add(tpx.cad.shortValue());
+                    hasCadence = true;
+                } else {
+                    cadence.add(null);
+                }
+                if (tpx.atemp != null) {
+                    temperature.add(tpx.atemp.shortValue());
+                    hasTemp = true;
+                } else {
+                    temperature.add(null);
+                }
             } else {
                 heartRate.add(null);
                 cadence.add(null);
                 temperature.add(null);
             }
+
+            previousPoint = point;
+            previousTime = timestamp;
         }
 
         return new ParsedStreams(
                 timestamps,
-                hasHr   ? heartRate   : null,
-                null,  // power not in standard GPX
-                hasCad  ? cadence     : null,
-                null,  // speed — could derive from consecutive distances/times, deferred
-                hasAlt  ? altitude    : null,
+                hasHr ? heartRate : null,
+                null,
+                hasCadence ? cadence : null,
+                hasSpeed ? speed : null,
+                hasAltitude ? altitude : null,
                 latitude,
                 longitude,
-                null,  // cumulative distance — not directly in GPX
-                hasTemp ? temperature : null
+                distance,
+                hasTemp ? temperature : null,
+                hasGrade ? grade : null
         );
     }
 
-    /**
-     * Simple cumulative distance using the equirectangular approximation.
-     * Accurate enough for sport tracking at these scales.
-     */
-    private double computeDistance(List<GpxPoint> points) {
-        double total = 0;
-        final double R = 6_371_000; // Earth radius in meters
-        for (int i = 1; i < points.size(); i++) {
-            GpxPoint a = points.get(i - 1);
-            GpxPoint b = points.get(i);
-            if (a.lat == null || a.lon == null || b.lat == null || b.lon == null) continue;
-            double lat1 = Math.toRadians(a.lat);
-            double lat2 = Math.toRadians(b.lat);
-            double dlat = Math.toRadians(b.lat - a.lat);
-            double dlon = Math.toRadians(b.lon - a.lon);
-            double ha   = Math.sin(dlat / 2) * Math.sin(dlat / 2)
-                        + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dlon / 2) * Math.sin(dlon / 2);
-            total += R * 2 * Math.atan2(Math.sqrt(ha), Math.sqrt(1 - ha));
+    private GpxSummary summarize(List<GpxPoint> points) {
+        double totalDistanceMeters = 0d;
+        double elevationGainMeters = 0d;
+        Double startLat = points.get(0).lat;
+        Double startLng = points.get(0).lon;
+        GpxPoint previousPoint = null;
+
+        long heartRateSum = 0L;
+        long heartRateCount = 0L;
+        Integer maxHeartRate = null;
+        long cadenceSum = 0L;
+        long cadenceCount = 0L;
+
+        for (GpxPoint point : points) {
+            if (previousPoint != null) {
+                double segmentDistanceMeters = distanceBetween(previousPoint, point);
+                if (!Double.isNaN(segmentDistanceMeters)) {
+                    totalDistanceMeters += segmentDistanceMeters;
+                }
+                if (previousPoint.ele != null && point.ele != null && point.ele > previousPoint.ele) {
+                    elevationGainMeters += point.ele - previousPoint.ele;
+                }
+            }
+
+            if (point.extensions != null && point.extensions.tpx != null) {
+                if (point.extensions.tpx.hr != null) {
+                    int hr = point.extensions.tpx.hr;
+                    heartRateSum += hr;
+                    heartRateCount++;
+                    maxHeartRate = maxNullable(maxHeartRate, hr);
+                }
+                if (point.extensions.tpx.cad != null) {
+                    cadenceSum += point.extensions.tpx.cad;
+                    cadenceCount++;
+                }
+            }
+
+            previousPoint = point;
         }
-        return total;
+
+        return new GpxSummary(
+                totalDistanceMeters,
+                elevationGainMeters > 0d
+                        ? BigDecimal.valueOf(elevationGainMeters).setScale(2, RoundingMode.HALF_UP)
+                        : null,
+                heartRateCount > 0 ? (int) Math.round((double) heartRateSum / heartRateCount) : null,
+                maxHeartRate,
+                cadenceCount > 0 ? (int) Math.round((double) cadenceSum / cadenceCount) : null,
+                startLat,
+                startLng
+        );
     }
 
-    private static Instant parseInstantOrNull(String s) {
-        if (s == null || s.isBlank()) return null;
-        try { return Instant.parse(s); } catch (Exception e) { return null; }
+    private static double distanceBetween(GpxPoint a, GpxPoint b) {
+        if (a.lat == null || a.lon == null || b.lat == null || b.lon == null) {
+            return Double.NaN;
+        }
+
+        final double earthRadiusMeters = 6_371_000d;
+        double lat1 = Math.toRadians(a.lat);
+        double lat2 = Math.toRadians(b.lat);
+        double dlat = Math.toRadians(b.lat - a.lat);
+        double dlon = Math.toRadians(b.lon - a.lon);
+        double haversine = Math.sin(dlat / 2d) * Math.sin(dlat / 2d)
+                + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dlon / 2d) * Math.sin(dlon / 2d);
+        return earthRadiusMeters * 2d * Math.atan2(Math.sqrt(haversine), Math.sqrt(1d - haversine));
     }
 
-    // ── Jackson XML DTOs ──────────────────────────────────────────────────────
+    private static Instant parseInstantOrNull(String value) {
+        if (value == null || value.isBlank()) return null;
+        try {
+            return Instant.parse(value);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private static Integer maxNullable(Integer a, Integer b) {
+        if (a == null) return b;
+        if (b == null) return a;
+        return Math.max(a, b);
+    }
 
     @JacksonXmlRootElement(localName = "gpx")
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -266,4 +384,14 @@ public class GpxParser {
         @JacksonXmlProperty(localName = "atemp")
         Integer atemp;
     }
+
+    private record GpxSummary(
+            double totalDistanceMeters,
+            BigDecimal elevationGainMeters,
+            Integer avgHeartRate,
+            Integer maxHeartRate,
+            Integer avgCadence,
+            Double startLat,
+            Double startLng
+    ) {}
 }

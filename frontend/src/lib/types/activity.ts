@@ -53,11 +53,10 @@ export interface ActivityLap {
   maxHeartRate: number | null;
   avgPower: number | null;
   maxPower: number | null;
-  normalizedPower: number | null;
   avgCadence: number | null;
+  avgPace: number | null;
   avgSpeed: number | null;
-  elevationGainMeters: number | null;
-  calories: number | null;
+  elevationGain: number | null;
 }
 
 /** A single data-point in a stream */
@@ -71,6 +70,7 @@ export interface StreamPoint {
   lat?: number;
   lng?: number;
   distance?: number;  // meters from start
+  grade?: number;     // percent
 }
 
 /** Response from GET /activities/{id}/streams */

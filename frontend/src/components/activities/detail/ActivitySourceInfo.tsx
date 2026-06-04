@@ -11,6 +11,7 @@ import * as React from "react";
 import { Download, ExternalLink, Info } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { SourceBadge } from "../SourceBadge";
+import { activitiesService } from "@/lib/services/activities";
 import type { ActivityDetail } from "@/lib/types/activity";
 
 const SOURCE_DESC: Record<string, string> = {
@@ -26,7 +27,22 @@ interface ActivitySourceInfoProps {
 
 export function ActivitySourceInfo({ activity }: ActivitySourceInfoProps) {
   const { id, source, startedAt, rawFileFormat } = activity;
-  const description = SOURCE_DESC[source] ?? SOURCE_DESC.manual;
+  const description =
+    rawFileFormat != null
+      ? SOURCE_DESC.upload
+      : (SOURCE_DESC[source] ?? SOURCE_DESC.manual);
+  const [downloading, setDownloading] = React.useState(false);
+
+  async function handleDownload() {
+    if (!rawFileFormat || downloading) return;
+    setDownloading(true);
+    try {
+      const { url } = await activitiesService.getDownloadUrl(id);
+      window.open(url, "_blank", "noopener,noreferrer");
+    } finally {
+      setDownloading(false);
+    }
+  }
 
   return (
     <Card>
@@ -106,9 +122,8 @@ export function ActivitySourceInfo({ activity }: ActivitySourceInfoProps) {
 
         {/* Download */}
         {rawFileFormat && (
-          <a
-            href={`/api/v1/activities/${id}/download`}
-            download
+          <button
+            type="button"
             aria-label={`Download original ${rawFileFormat.toUpperCase()} file`}
             style={{
               marginTop: "var(--space-2)",
@@ -124,8 +139,11 @@ export function ActivitySourceInfo({ activity }: ActivitySourceInfoProps) {
               fontSize: "var(--text-sm)",
               fontWeight: 500,
               textDecoration: "none",
+              cursor: downloading ? "progress" : "pointer",
               transition: "all var(--duration-micro) ease-out",
             }}
+            disabled={downloading}
+            onClick={handleDownload}
             onMouseEnter={(e) => {
               e.currentTarget.style.background = "var(--border-subtle)";
               e.currentTarget.style.color = "var(--text-primary)";
@@ -136,9 +154,9 @@ export function ActivitySourceInfo({ activity }: ActivitySourceInfoProps) {
             }}
           >
             <Download size={14} />
-            Download Original File
+            {downloading ? "Preparing Download..." : "Download Original File"}
             <ExternalLink size={12} style={{ opacity: 0.5 }} />
-          </a>
+          </button>
         )}
       </div>
     </Card>

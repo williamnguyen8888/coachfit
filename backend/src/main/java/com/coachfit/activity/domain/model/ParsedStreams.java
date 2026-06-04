@@ -31,10 +31,11 @@ public record ParsedStreams(
         List<Double>   latitude,
         List<Double>   longitude,
         List<Float>    distance,
-        List<Short>    temperature
+        List<Short>    temperature,
+        List<Float>    grade
 ) {
     /** Returns an empty (all-null) stream set. */
     public static ParsedStreams empty() {
-        return new ParsedStreams(null, null, null, null, null, null, null, null, null, null);
+        return new ParsedStreams(null, null, null, null, null, null, null, null, null, null, null);
     }
 }

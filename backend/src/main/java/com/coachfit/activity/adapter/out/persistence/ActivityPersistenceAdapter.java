@@ -76,6 +76,9 @@ class ActivityPersistenceAdapter implements ActivityPersistencePort {
         e.maxHeartRate        = parsed.maxHeartRate();
         e.avgPower            = parsed.avgPower();
         e.maxPower            = parsed.maxPower();
+        e.normalizedPower     = parsed.normalizedPower();
+        e.intensityFactor     = parsed.intensityFactor();
+        e.tss                 = parsed.tss();
         e.avgCadence          = parsed.avgCadence();
         e.avgSpeed            = parsed.avgSpeed();
         e.startLat            = parsed.startLat() != null

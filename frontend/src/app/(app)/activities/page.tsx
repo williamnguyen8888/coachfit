@@ -13,6 +13,7 @@
 
 import * as React from "react";
 import { useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { Upload } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
@@ -36,6 +37,7 @@ const DEFAULT_FILTER: ActivitiesFilter = {
 /* ------------------------------------------------------------------ */
 
 export default function ActivitiesPage() {
+  const router = useRouter();
   const [filter, setFilter] = useState<ActivitiesFilter>(DEFAULT_FILTER);
   const [totalElements, setTotalElements] = useState<number | undefined>(
     undefined
@@ -68,14 +70,11 @@ export default function ActivitiesPage() {
   }, []);
 
   const handleUploadSuccess = useCallback(
-    () => {
+    (activityId: string) => {
       setShowUpload(false);
-      // Refetch list after a short delay (processing lag)
-      setTimeout(() => {
-        setFilter({ ...DEFAULT_FILTER });
-      }, 1500);
+      router.push(`/activities/${activityId}`);
     },
-    [],
+    [router],
   );
 
   return (

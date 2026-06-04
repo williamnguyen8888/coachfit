@@ -3,9 +3,8 @@ package com.coachfit.activity.application.service.parser;
 import com.coachfit.activity.domain.exception.UnsupportedFileFormatException;
 import org.springframework.stereotype.Component;
 
-import java.io.IOException;
-import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.Locale;
 
 /**
  * Detects the format of an uploaded activity file via byte-level inspection.
@@ -39,9 +38,9 @@ public class FileFormatDetector {
      */
     public Format detect(String filename, byte[] fileBytes) {
         if (isFit(fileBytes)) return Format.FIT;
-        String xmlHead = xmlHeader(fileBytes);
-        if (xmlHead.contains("TrainingCenterDatabase")) return Format.TCX;
-        if (xmlHead.contains("<gpx"))                  return Format.GPX;
+        String xmlHead = xmlHeader(fileBytes).toLowerCase(Locale.ROOT);
+        if (xmlHead.contains("trainingcenterdatabase")) return Format.TCX;
+        if (xmlHead.contains("<gpx"))                   return Format.GPX;
         throw new UnsupportedFileFormatException(filename);
     }
 
