@@ -13,14 +13,11 @@ import com.coachfit.activity.domain.exception.DuplicateActivityException;
 import com.coachfit.activity.domain.model.ParsedActivity;
 import com.coachfit.activity.domain.model.ParsedLap;
 import com.coachfit.activity.domain.model.ParsedStreams;
-import com.coachfit.shared.domain.event.ActivityCreatedEvent;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ApplicationEventPublisher;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -31,13 +28,23 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.inOrder;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.same;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+/**
+ * Unit tests for {@link ActivityUploadService}.
+ *
+ * <p>The service was refactored to use {@link ActivityPersistenceOrchestrator}
+ * (which owns the DB transaction + event publishing) instead of injecting
+ * {@code ActivityStreamPersistencePort}, {@code ActivityLapPersistencePort},
+ * and {@code ApplicationEventPublisher} directly. Tests now mock the
+ * orchestrator accordingly.
+ */
 @ExtendWith(MockitoExtension.class)
 class ActivityUploadServiceTest {
 
@@ -47,15 +54,21 @@ class ActivityUploadServiceTest {
     @Mock GpxParser gpxParser;
     @Mock ActivityStoragePort storagePort;
     @Mock ActivityPersistencePort activityPort;
-    @Mock ActivityStreamPersistencePort streamPort;
-    @Mock ActivityLapPersistencePort lapPort;
-    @Mock ApplicationEventPublisher eventPublisher;
+    @Mock ActivityPersistenceOrchestrator orchestrator;
+
+    // ── helpers ──────────────────────────────────────────────────────────────
+
+    private ActivityUploadService service() {
+        return new ActivityUploadService(
+                detector, fitParser, tcxParser, gpxParser,
+                storagePort, activityPort, orchestrator);
+    }
+
+    // ── tests ─────────────────────────────────────────────────────────────────
 
     @Test
-    void upload_duplicateDetected_doesNotStoreRawFile() {
-        ActivityUploadService service = new ActivityUploadService(
-                detector, fitParser, tcxParser, gpxParser,
-                storagePort, activityPort, streamPort, lapPort, eventPublisher);
+    void upload_duplicateDetected_doesNotStoreRawFileOrPersist() {
+        ActivityUploadService service = service();
 
         UUID userId = UUID.randomUUID();
         UUID existingId = UUID.randomUUID();
@@ -70,16 +83,13 @@ class ActivityUploadServiceTest {
         assertThatThrownBy(() -> service.upload(userId, "ride.fit", fileBytes))
                 .isInstanceOf(DuplicateActivityException.class);
 
-        verify(storagePort, never()).storeRawFile(userId, "ride.fit", fileBytes, "application/octet-stream");
-        verify(activityPort, never()).saveActivity(userId, parsed, "raw/path.fit", "fit");
-        verifyNoInteractions(streamPort, lapPort, eventPublisher);
+        verify(storagePort, never()).storeRawFile(any(), any(), any(), any());
+        verifyNoInteractions(orchestrator);
     }
 
     @Test
-    void upload_success_parsesDedupsStoresPersistsAndPublishesEvent() {
-        ActivityUploadService service = new ActivityUploadService(
-                detector, fitParser, tcxParser, gpxParser,
-                storagePort, activityPort, streamPort, lapPort, eventPublisher);
+    void upload_success_parsesDedupsStoresAndDelegatesToOrchestrator() {
+        ActivityUploadService service = service();
 
         UUID userId = UUID.randomUUID();
         UUID activityId = UUID.randomUUID();
@@ -102,47 +112,73 @@ class ActivityUploadServiceTest {
                 .thenReturn(Optional.empty());
         when(storagePort.storeRawFile(userId, "ride.fit", fileBytes, "application/octet-stream"))
                 .thenReturn("activities/raw/ride.fit");
-        when(activityPort.saveActivity(userId, parsed, "activities/raw/ride.fit", "fit"))
-                .thenReturn(activityId);
-        when(activityPort.findById(activityId)).thenReturn(summary);
+        when(orchestrator.persist(
+                eq(userId),
+                eq(parsed),
+                eq("activities/raw/ride.fit"),
+                eq("fit"),
+                anyBoolean(),
+                any(),
+                any()))
+                .thenReturn(summary);
 
         ActivitySummary result = service.upload(userId, "ride.fit", fileBytes);
 
         assertThat(result).isEqualTo(summary);
 
+        // Verify orchestrator was called with correct args
         ArgumentCaptor<ActivityStreamPersistencePort.StreamData> streamCaptor =
                 ArgumentCaptor.forClass(ActivityStreamPersistencePort.StreamData.class);
         ArgumentCaptor<List<ActivityLapPersistencePort.LapData>> lapsCaptor =
                 ArgumentCaptor.forClass(List.class);
-        ArgumentCaptor<Object> eventCaptor = ArgumentCaptor.forClass(Object.class);
 
-        InOrder inOrder = inOrder(detector, fitParser, activityPort, storagePort, streamPort, lapPort, eventPublisher);
-        inOrder.verify(detector).detect("ride.fit", fileBytes);
-        inOrder.verify(fitParser).parse(fileBytes);
-        inOrder.verify(activityPort).findDuplicate(userId, parsed.startedAt(), parsed.sport(), parsed.durationSeconds());
-        inOrder.verify(storagePort).storeRawFile(userId, "ride.fit", fileBytes, "application/octet-stream");
-        inOrder.verify(activityPort).saveActivity(userId, parsed, "activities/raw/ride.fit", "fit");
-        inOrder.verify(streamPort).upsert(same(activityId), streamCaptor.capture());
-        inOrder.verify(lapPort).replaceAll(same(activityId), lapsCaptor.capture());
-        inOrder.verify(activityPort).findById(activityId);
-        inOrder.verify(eventPublisher).publishEvent(eventCaptor.capture());
+        verify(orchestrator).persist(
+                eq(userId),
+                eq(parsed),
+                eq("activities/raw/ride.fit"),
+                eq("fit"),
+                eq(true),        // hasStream — parsedActivity() has non-null streams
+                streamCaptor.capture(),
+                lapsCaptor.capture()
+        );
 
+        // Verify stream conversion (sentinel for null HR at index 1)
         ActivityStreamPersistencePort.StreamData streamData = streamCaptor.getValue();
         assertThat(streamData.timestamps()).containsExactly(0, 30);
-        assertThat(streamData.heartRate()).containsExactly((short) 145, (short) 0);
-        assertThat(streamData.grade()).containsExactly(0.0f, 3.5f);
+        assertThat(streamData.heartRate()).containsExactly((short) 145, Short.MIN_VALUE); // null → sentinel
+        assertThat(streamData.grade()).containsExactly(0.0f, 3.5f);  // null → Float.NaN handled by toFloatArray
 
+        // Verify lap conversion
         List<ActivityLapPersistencePort.LapData> lapData = lapsCaptor.getValue();
         assertThat(lapData).hasSize(1);
         assertThat(lapData.get(0).avgPace()).isEqualByComparingTo("250.00");
         assertThat(lapData.get(0).elevationGain()).isEqualByComparingTo("120.00");
-
-        assertThat(eventCaptor.getValue()).isInstanceOf(ActivityCreatedEvent.class);
-        ActivityCreatedEvent event = (ActivityCreatedEvent) eventCaptor.getValue();
-        assertThat(event.activityId()).isEqualTo(activityId);
-        assertThat(event.distanceMeters()).isEqualByComparingTo("40000.0");
-        assertThat(event.tss()).isEqualByComparingTo("82.40");
     }
+
+    @Test
+    void upload_dbFailure_cleansUpMinIOFile() {
+        ActivityUploadService service = service();
+
+        UUID userId = UUID.randomUUID();
+        byte[] fileBytes = {1, 2, 3};
+        ParsedActivity parsed = parsedActivity();
+
+        when(detector.detect("ride.fit", fileBytes)).thenReturn(FileFormatDetector.Format.FIT);
+        when(fitParser.parse(fileBytes)).thenReturn(parsed);
+        when(activityPort.findDuplicate(any(), any(), any(), any())).thenReturn(Optional.empty());
+        when(storagePort.storeRawFile(any(), any(), any(), any())).thenReturn("activities/raw/ride.fit");
+        when(orchestrator.persist(any(), any(), any(), any(), anyBoolean(), any(), any()))
+                .thenThrow(new RuntimeException("DB down"));
+
+        assertThatThrownBy(() -> service.upload(userId, "ride.fit", fileBytes))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("DB down");
+
+        // BUG-16: must delete the MinIO file on DB failure
+        verify(storagePort).deleteFile("activities/raw/ride.fit");
+    }
+
+    // ── fixture ───────────────────────────────────────────────────────────────
 
     private ParsedActivity parsedActivity() {
         Instant startedAt = Instant.parse("2026-06-01T00:00:00Z");
@@ -161,7 +197,7 @@ class ActivityUploadServiceTest {
         );
         ParsedStreams streams = new ParsedStreams(
                 List.of(0, 30),
-                Arrays.asList((short) 145, null),
+                Arrays.asList((short) 145, null),   // null HR at index 1 → Short.MIN_VALUE sentinel
                 null,
                 Arrays.asList((short) 88, (short) 90),
                 Arrays.asList(10.5f, 11.0f),
@@ -170,7 +206,7 @@ class ActivityUploadServiceTest {
                 Arrays.asList(106.0, 106.001),
                 Arrays.asList(0.0f, 320.0f),
                 Arrays.asList((short) 27, (short) 28),
-                Arrays.asList(null, 3.5f)
+                Arrays.asList(null, 3.5f)            // null grade at index 0 → Float.NaN sentinel
         );
         return new ParsedActivity(
                 "running",

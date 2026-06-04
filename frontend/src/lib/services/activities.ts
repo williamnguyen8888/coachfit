@@ -43,6 +43,7 @@ interface ActivityStreamsApiResponse {
   longitude?: number[];
   distance?: number[];
   grade?: number[];
+  temperature?: number[];
 }
 
 /** Request body for PUT /activities/{id} */
@@ -90,28 +91,50 @@ export const activitiesService = {
       const longitude = res.longitude ?? [];
       const distance = res.distance ?? [];
       const grade = res.grade ?? [];
+      const temperature = res.temperature ?? [];
+
+      // Sentinel values used by backend to represent null in primitive arrays
+      const INT_SENTINEL = -2147483648;   // Integer.MIN_VALUE
+      const SHORT_SENTINEL = -32768;      // Short.MIN_VALUE
+
+      const isSentinel = (v: number): boolean =>
+        v === INT_SENTINEL || v === SHORT_SENTINEL || !Number.isFinite(v);
 
       const points: StreamPoint[] = [];
       const len = res.timestamps.length;
       for (let i = 0; i < len; i++) {
         const hasGps = latitude.length > i
           && longitude.length > i
-          && !(latitude[i] === 0 && longitude[i] === 0);
+          && !(latitude[i] === 0 && longitude[i] === 0)
+          && !isSentinel(latitude[i])
+          && !isSentinel(longitude[i]);
+
+        const hr = heartRate.length > i && !isSentinel(heartRate[i]) ? heartRate[i] : undefined;
+        const pwr = power.length > i && !isSentinel(power[i]) ? power[i] : undefined;
+        const cad = cadence.length > i && !isSentinel(cadence[i]) ? cadence[i] : undefined;
+        const spd = speed.length > i && !isSentinel(speed[i]) ? speed[i] : undefined;
+        const alt = altitude.length > i && !isSentinel(altitude[i]) ? altitude[i] : undefined;
+        const dist = distance.length > i && !isSentinel(distance[i]) ? distance[i] : undefined;
+        const grd = grade.length > i && !isSentinel(grade[i]) ? grade[i] : undefined;
+        const temp = temperature.length > i && !isSentinel(temperature[i]) ? temperature[i] : undefined;
+
         points.push({
           t: res.timestamps[i],
-          hr: heartRate.length > i && heartRate[i] !== 0 ? heartRate[i] : undefined,
-          power: power.length > i && power[i] !== 0 ? power[i] : undefined,
-          cadence: cadence.length > i && cadence[i] !== 0 ? cadence[i] : undefined,
-          speed: speed.length > i ? speed[i] : undefined,
-          altitude: altitude.length > i ? altitude[i] : undefined,
+          hr: hr !== undefined && hr > 0 ? hr : undefined,
+          power: pwr !== undefined && pwr > 0 ? pwr : undefined,
+          cadence: cad !== undefined && cad > 0 ? cad : undefined,
+          speed: spd,
+          altitude: alt,
           lat: hasGps ? latitude[i] : undefined,
           lng: hasGps ? longitude[i] : undefined,
-          distance: distance.length > i ? distance[i] : undefined,
-          grade: grade.length > i ? grade[i] : undefined,
+          distance: dist,
+          grade: grd,
+          temperature: temp,
         });
       }
       return { points };
     }),
+
 
   /** GET /activities/{id}/laps — laps breakdown */
   getLaps: (id: string): Promise<{ laps: ActivityLap[] }> =>

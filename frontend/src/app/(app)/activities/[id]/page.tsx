@@ -1,91 +1,59 @@
+/**
+ * Activity Detail Page — Professional Dashboard
+ * Redesigned to match TrainingPeaks / Intervals.icu professional standards.
+ *
+ * Layout:
+ *   - Hero header with gradient, sport badge, inline name editing
+ *   - Zone intensity bar (power or HR zones)
+ *   - Tab bar: TIMELINE | POWER/PACE | HR | ELEVATION | ROUTE | LAPS | DATA
+ *   - Full-width main content area
+ *   - Right sidebar: Coach feedback + Notes (persistent)
+ */
 "use client";
 
 import * as React from "react";
 import { use, useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Activity,
-  AlertCircle,
-  Award,
-  ChevronLeft,
-  ChevronRight,
-  Compass,
-  Flame,
-  Gauge,
-  Heart,
-  Info,
-  Paperclip,
-  RefreshCw,
-  Share2,
-  Timer,
-  Zap,
-} from "lucide-react";
+import { AlertCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+
+// Detail components
+import { ActivityHeroHeader } from "@/components/activities/detail/ActivityHeroHeader";
+import { ActivityZoneIntensityBar } from "@/components/activities/detail/ActivityZoneIntensityBar";
 import { ActivityDetailSkeleton } from "@/components/activities/detail/ActivityDetailSkeleton";
-import { ActivityAnalyticsTab } from "@/components/activities/detail/ActivityAnalyticsTab";
-import { ActivityLaps } from "@/components/activities/detail/ActivityLaps";
-import { ActivityMap } from "@/components/activities/detail/ActivityMap";
-import { ActivityMetrics } from "@/components/activities/detail/ActivityMetrics";
-import { ActivitySourceInfo } from "@/components/activities/detail/ActivitySourceInfo";
 import { InteractiveMultiLaneChart } from "@/components/activities/detail/InteractiveMultiLaneChart";
-import { SubjectiveFeedbackCard } from "@/components/activities/detail/SubjectiveFeedbackCard";
+import { ActivityAnalyticsTab } from "@/components/activities/detail/ActivityAnalyticsTab";
+import { ActivityPowerPanel } from "@/components/activities/detail/ActivityPowerPanel";
+import { ActivityHRPanel } from "@/components/activities/detail/ActivityHRPanel";
+import { ActivityElevationPanel } from "@/components/activities/detail/ActivityElevationPanel";
+import { ActivityMap } from "@/components/activities/detail/ActivityMap";
+import { ActivityLapsTable } from "@/components/activities/detail/ActivityLapsTable";
+import { ActivityDataPanel } from "@/components/activities/detail/ActivityDataPanel";
+import { ActivityNotesCard } from "@/components/activities/detail/ActivityNotesCard";
+
+// Services & types
 import { activitiesService } from "@/lib/services/activities";
 import { zonesService } from "@/lib/services/settings";
 import type { ActivityDetail, ActivityLap, Sport, StreamPoint } from "@/lib/types/activity";
 import type { SportZones } from "@/lib/types/settings";
 
-const SPORT_COLORS: Record<Sport, { primary: string; light: string; dark: string }> = {
-  cycling: { primary: "#3b82f6", light: "#dbeafe", dark: "#1e40af" },
-  running: { primary: "#22c55e", light: "#dcfce7", dark: "#166534" },
-  swimming: { primary: "#06b6d4", light: "#cffafe", dark: "#155e75" },
-  strength: { primary: "#f97316", light: "#ffedd5", dark: "#c2410c" },
-  other: { primary: "#6b7280", light: "#f3f4f6", dark: "#374151" },
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const SPORT_ACCENT: Record<Sport, string> = {
+  cycling:  "#3b82f6",
+  running:  "#22c55e",
+  swimming: "#06b6d4",
+  strength: "#f97316",
+  other:    "#8b5cf6",
 };
 
-const SPORT_ICONS: Record<string, string> = {
-  cycling: "🚴",
-  running: "🏃",
-  swimming: "🏊",
-  strength: "💪",
-  other: "🏋️",
-};
-
-type TabKey = "TIMELINE" | "POWER" | "HR" | "ROUTE" | "DATA";
+type TabKey = "TIMELINE" | "POWER" | "HR" | "ELEVATION" | "ROUTE" | "LAPS" | "DATA";
 
 interface Props {
   params: Promise<{ id: string }>;
 }
 
-interface HeaderMetricProps {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  detail?: string | null;
-}
-
-function formatDurationClock(seconds: number): string {
-  const totalSeconds = Math.max(0, Math.round(seconds));
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const secs = totalSeconds % 60;
-
-  if (hours > 0) {
-    return `${hours}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
-  }
-
-  return `${minutes}:${secs.toString().padStart(2, "0")}`;
-}
-
-function formatSpeedToPace(speedMps: number | null | undefined, type: "run" | "swim"): string {
-  if (speedMps == null || speedMps <= 0.1) return "--:--";
-  const totalSecs = type === "run" ? 1000 / speedMps : 100 / speedMps;
-  if (totalSecs > 1800) return "--:--";
-
-  const wholeSeconds = Math.round(totalSecs);
-  const minutes = Math.floor(wholeSeconds / 60);
-  const seconds = wholeSeconds % 60;
-  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
-}
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function resolveZoneProfile(
   zones: SportZones[],
@@ -95,113 +63,59 @@ function resolveZoneProfile(
   const matches = zones
     .filter((zone) => {
       if (zone.sport !== sport) return false;
-
-      const normalizedType = zone.zoneType?.toLowerCase() ?? "";
-      if (normalizedType === zoneType) return true;
-
-      if (zoneType === "pace") {
-        return normalizedType === "" && (zone.thresholdPace != null || zone.ftp != null);
-      }
-
-      if (zoneType === "power") {
-        return normalizedType === "" && zone.ftp != null;
-      }
-
-      return normalizedType === "" && (zone.lthr != null || zone.maxHr != null);
+      const nt = zone.zoneType?.toLowerCase() ?? "";
+      if (nt === zoneType) return true;
+      if (zoneType === "pace") return nt === "" && (zone.thresholdPace != null || zone.ftp != null);
+      if (zoneType === "power") return nt === "" && zone.ftp != null;
+      return nt === "" && (zone.lthr != null || zone.maxHr != null);
     })
-    .sort((left, right) => {
-      const rightDate = right.effectiveDate ? Date.parse(right.effectiveDate) : 0;
-      const leftDate = left.effectiveDate ? Date.parse(left.effectiveDate) : 0;
-      return rightDate - leftDate;
+    .sort((a, b) => {
+      const ad = a.effectiveDate ? Date.parse(a.effectiveDate) : 0;
+      const bd = b.effectiveDate ? Date.parse(b.effectiveDate) : 0;
+      return bd - ad;
     });
-
   return matches[0] ?? null;
 }
 
 function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
-    <div className="flex flex-col items-center justify-center py-24 text-center gap-5" role="alert">
-      <div
-        style={{
-          width: 60,
-          height: 60,
-          borderRadius: "var(--radius-lg)",
-          background: "var(--color-danger-10)",
-          border: "1px solid var(--color-danger-20)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <AlertCircle size={26} style={{ color: "var(--color-danger)" }} />
+    <div className="flex flex-col items-center justify-center py-24 gap-5 text-center" role="alert">
+      <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-red-500/20 bg-red-500/10">
+        <AlertCircle size={24} className="text-red-400" />
       </div>
       <div>
-        <h2
-          style={{
-            fontSize: "var(--text-lg)",
-            fontWeight: 600,
-            color: "var(--text-primary)",
-            marginBottom: 6,
-          }}
-        >
-          Could not load activity
-        </h2>
-        <p
-          style={{
-            fontSize: "var(--text-sm)",
-            color: "var(--text-secondary)",
-            maxWidth: 360,
-          }}
-        >
-          {message}
-        </p>
+        <h2 className="text-lg font-semibold text-text-primary">Could not load activity</h2>
+        <p className="mt-2 max-w-sm text-sm text-text-secondary">{message}</p>
       </div>
-      <Button
-        variant="secondary"
-        size="md"
-        leftIcon={<RefreshCw size={14} />}
-        onClick={onRetry}
-      >
+      <Button variant="secondary" size="md" leftIcon={<RefreshCw size={14} />} onClick={onRetry}>
         Try Again
       </Button>
     </div>
   );
 }
 
-function HeaderMetric({ icon, label, value, detail }: HeaderMetricProps) {
-  return (
-    <div className="flex items-center gap-1.5">
-      {icon}
-      <span className="text-text-muted">{label}:</span>
-      <span className="font-bold text-text-primary">{value}</span>
-      {detail ? <span className="text-text-muted text-[10px] sm:text-xs">({detail})</span> : null}
-    </div>
-  );
-}
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ActivityDetailPage({ params }: Props) {
   const { id } = use(params);
   const router = useRouter();
 
+  // ── State ──
   const [activity, setActivity] = useState<ActivityDetail | null>(null);
   const [streams, setStreams] = useState<StreamPoint[] | null>(null);
-  const [laps, setLaps] = useState<ActivityLap[] | null>(null);
+  const [laps, setLaps] = useState<ActivityLap[]>([]);
   const [athleteZones, setAthleteZones] = useState<SportZones[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
   const [activeTab, setActiveTab] = useState<TabKey>("TIMELINE");
   const [selectedTimeRange, setSelectedTimeRange] = useState<{
     startTime: number;
     endTime: number;
   } | null>(null);
-  const [noteInput, setNoteInput] = useState("");
-  const [comments, setComments] = useState<Array<{ text: string; time: string }>>([
-    {
-      text: "Capture notes about this activity and share it with your followers. Click the share name to share with others.",
-      time: "10:19 PM",
-    },
-  ]);
+  const [selectedLapIndex, setSelectedLapIndex] = useState<number | null>(null);
 
+  // ── Data loading ──
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -227,8 +141,8 @@ export default function ActivityDetailPage({ params }: Props) {
       }
 
       if (lapsResult.status === "fulfilled") {
-        const lapsData = lapsResult.value;
-        setLaps(Array.isArray(lapsData) ? lapsData : (lapsData.laps ?? []));
+        const ld = lapsResult.value;
+        setLaps(Array.isArray(ld) ? ld : (ld.laps ?? []));
       } else {
         setLaps([]);
       }
@@ -246,26 +160,48 @@ export default function ActivityDetailPage({ params }: Props) {
   }, [id]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
   }, [load]);
 
+  // ── Handlers — MUST be declared before any early returns (Rules of Hooks) ──
   const handleBack = useCallback(() => {
     router.push("/calendar");
   }, [router]);
 
-  const handleAddNote = () => {
-    if (!noteInput.trim()) return;
+  const handleSaveName = useCallback(
+    async (name: string) => {
+      const updated = await activitiesService.update(id, { name });
+      setActivity(updated);
+    },
+    [id],
+  );
 
-    const nowStr = new Date().toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+  const handleDelete = useCallback(async () => {
+    if (!window.confirm("Delete this activity? This cannot be undone.")) return;
+    await activitiesService.delete(id);
+    router.push("/activities");
+  }, [id, router]);
 
-    setComments((current) => [...current, { text: noteInput, time: nowStr }]);
-    setNoteInput("");
-  };
+  const handleLapSelect = useCallback(
+    (lapIdx: number | null, startOff: number, endOff: number) => {
+      setSelectedLapIndex(lapIdx);
+      if (lapIdx == null) {
+        setSelectedTimeRange(null);
+      } else {
+        setSelectedTimeRange({ startTime: startOff, endTime: endOff });
+      }
+    },
+    [],
+  );
 
+  const handleDescriptionSaved = useCallback(
+    (desc: string | null) => {
+      setActivity((prev) => prev ? { ...prev, description: desc } : prev);
+    },
+    [],
+  );
+
+  // ── Early returns (no hooks below this line) ──
   if (loading) {
     return (
       <main id="activity-detail" className="flex-1 px-4 py-5 lg:px-6">
@@ -282,18 +218,10 @@ export default function ActivityDetailPage({ params }: Props) {
     );
   }
 
-  const sportColor = SPORT_COLORS[activity.sport] ?? SPORT_COLORS.other;
-  const dateFormatted = new Date(activity.startedAt).toLocaleDateString("en-US", {
-    weekday: "short",
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-
+  // ── Derived data (no hooks — pure computations from state) ──
   const streamPoints = streams ?? [];
-  const hasTelemetry = streamPoints.length > 0;
+  const sportColor = SPORT_ACCENT[activity.sport] ?? SPORT_ACCENT.other;
+
   const powerZoneConfig = resolveZoneProfile(athleteZones, activity.sport, "power");
   const heartRateZoneConfig = resolveZoneProfile(athleteZones, activity.sport, "heart_rate");
   const paceZoneConfig =
@@ -301,480 +229,170 @@ export default function ActivityDetailPage({ params }: Props) {
       ? resolveZoneProfile(athleteZones, activity.sport, "pace")
       : null;
 
-  const distanceLabel =
-    activity.sport === "swimming"
-      ? activity.distanceMeters != null
-        ? `${Math.round(activity.distanceMeters)} m`
-        : "--"
-      : activity.distanceMeters != null
-        ? `${(activity.distanceMeters / 1000).toFixed(2)} km`
-        : "--";
-  const durationLabel = formatDurationClock(activity.durationSeconds);
-  const primarySpeedLabel =
-    activity.sport === "running"
-      ? activity.avgSpeed != null
-        ? `${formatSpeedToPace(activity.avgSpeed, "run")}/km`
-        : "--"
-      : activity.sport === "swimming"
-        ? activity.avgSpeed != null
-          ? `${formatSpeedToPace(activity.avgSpeed, "swim")}/100m`
-          : "--"
-        : activity.avgSpeed != null
-          ? `${(activity.avgSpeed * 3.6).toFixed(1)} km/h`
-          : "--";
+  const hasPower = streamPoints.some((p) => p.power != null && p.power > 0);
+  const hasHR = streamPoints.some((p) => p.hr != null && p.hr > 0);
+  const hasGPS = streamPoints.some((p) => p.lat != null);
+  const hasAlt = streamPoints.some((p) => p.altitude != null);
 
-  const intensityFactorPct =
-    activity.intensityFactor != null ? `${Math.round(activity.intensityFactor * 100)}% IF` : null;
-  const loadLabel = activity.tss != null ? Math.round(activity.tss).toString() : null;
+  const isPaceActivity = activity.sport === "running" || activity.sport === "swimming";
+  const powerTabLabel = isPaceActivity ? "PACE" : "POWER";
 
-  const headerMetrics: Array<{
-    key: string;
-    icon: React.ReactNode;
-    label: string;
-    value: string;
-    detail?: string | null;
-  }> = [
-    {
-      key: "distance",
-      icon: <Compass size={14} className="text-text-muted shrink-0" />,
-      label: "Dist",
-      value: distanceLabel,
-    },
-    {
-      key: "time",
-      icon: <Timer size={14} className="text-text-muted shrink-0" />,
-      label: "Time",
-      value: durationLabel,
-    },
-    {
-      key: "speed",
-      icon: <Activity size={14} className="text-text-muted shrink-0" />,
-      label: activity.sport === "running" || activity.sport === "swimming" ? "Pace" : "Speed",
-      value: primarySpeedLabel,
-    },
+  const tabs: Array<{ key: TabKey; label: string; show: boolean }> = [
+    { key: "TIMELINE", label: "TIMELINE", show: true },
+    { key: "POWER", label: powerTabLabel, show: true },
+    { key: "HR", label: "HR", show: hasHR || activity.avgHeartRate != null },
+    { key: "ELEVATION", label: "ELEVATION", show: hasAlt || (activity.elevationGainMeters ?? 0) > 0 },
+    { key: "ROUTE", label: "ROUTE", show: hasGPS },
+    { key: "LAPS", label: `LAPS (${laps.length})`, show: laps.length > 0 },
+    { key: "DATA", label: "DATA", show: true },
   ];
 
-  if (activity.sport === "cycling") {
-    if (loadLabel) {
-      headerMetrics.push({
-        key: "tss",
-        icon: <Flame size={14} className="text-accent shrink-0" />,
-        label: "TSS",
-        value: loadLabel,
-        detail: intensityFactorPct,
-      });
-    }
-    if (activity.avgPower != null) {
-      headerMetrics.push({
-        key: "power",
-        icon: <Zap size={14} className="text-fitness shrink-0" />,
-        label: "PWR",
-        value: `${activity.avgPower}W`,
-        detail: activity.normalizedPower != null ? `${activity.normalizedPower}W NP` : null,
-      });
-    }
-    if (activity.avgHeartRate != null) {
-      headerMetrics.push({
-        key: "hr",
-        icon: <Heart size={14} className="text-danger shrink-0" />,
-        label: "HR",
-        value: `${activity.avgHeartRate} bpm`,
-        detail: activity.maxHeartRate != null ? `Max ${activity.maxHeartRate}` : null,
-      });
-    }
-    if (activity.avgCadence != null) {
-      headerMetrics.push({
-        key: "cadence",
-        icon: <Gauge size={14} className="text-warning shrink-0" />,
-        label: "CAD",
-        value: `${activity.avgCadence} rpm`,
-      });
-    }
-    if (activity.calories != null) {
-      headerMetrics.push({
-        key: "calories",
-        icon: <Award size={14} className="text-form shrink-0" />,
-        label: "CAL",
-        value: `${activity.calories} kcal`,
-      });
-    }
-  } else if (activity.sport === "running") {
-    if (loadLabel) {
-      headerMetrics.push({
-        key: "rtss",
-        icon: <Flame size={14} className="text-accent shrink-0" />,
-        label: "rTSS",
-        value: loadLabel,
-        detail: intensityFactorPct,
-      });
-    }
-    if (activity.avgHeartRate != null) {
-      headerMetrics.push({
-        key: "hr",
-        icon: <Heart size={14} className="text-danger shrink-0" />,
-        label: "HR",
-        value: `${activity.avgHeartRate} bpm`,
-        detail: activity.maxHeartRate != null ? `Max ${activity.maxHeartRate}` : null,
-      });
-    }
-    if (activity.avgCadence != null) {
-      headerMetrics.push({
-        key: "cadence",
-        icon: <Gauge size={14} className="text-warning shrink-0" />,
-        label: "CAD",
-        value: `${activity.avgCadence} spm`,
-      });
-    }
-    if (activity.calories != null) {
-      headerMetrics.push({
-        key: "calories",
-        icon: <Award size={14} className="text-form shrink-0" />,
-        label: "CAL",
-        value: `${activity.calories} kcal`,
-      });
-    }
-  } else if (activity.sport === "swimming") {
-    if (loadLabel) {
-      headerMetrics.push({
-        key: "stss",
-        icon: <Flame size={14} className="text-accent shrink-0" />,
-        label: "sTSS",
-        value: loadLabel,
-        detail: intensityFactorPct,
-      });
-    }
-    if (activity.avgCadence != null) {
-      headerMetrics.push({
-        key: "stroke-rate",
-        icon: <Gauge size={14} className="text-warning shrink-0" />,
-        label: "Stroke",
-        value: `${activity.avgCadence} spm`,
-      });
-    }
-    if (activity.avgHeartRate != null) {
-      headerMetrics.push({
-        key: "hr",
-        icon: <Heart size={14} className="text-danger shrink-0" />,
-        label: "HR",
-        value: `${activity.avgHeartRate} bpm`,
-        detail: activity.maxHeartRate != null ? `Max ${activity.maxHeartRate}` : null,
-      });
-    }
-    if (activity.calories != null) {
-      headerMetrics.push({
-        key: "calories",
-        icon: <Award size={14} className="text-form shrink-0" />,
-        label: "CAL",
-        value: `${activity.calories} kcal`,
-      });
-    }
-  } else {
-    if (loadLabel) {
-      headerMetrics.push({
-        key: "hrtss",
-        icon: <Flame size={14} className="text-accent shrink-0" />,
-        label: "Load",
-        value: loadLabel,
-      });
-    }
-    if (activity.avgHeartRate != null) {
-      headerMetrics.push({
-        key: "hr",
-        icon: <Heart size={14} className="text-danger shrink-0" />,
-        label: "HR",
-        value: `${activity.avgHeartRate} bpm`,
-        detail: activity.maxHeartRate != null ? `Max ${activity.maxHeartRate}` : null,
-      });
-    }
-    if (activity.calories != null) {
-      headerMetrics.push({
-        key: "calories",
-        icon: <Award size={14} className="text-form shrink-0" />,
-        label: "CAL",
-        value: `${activity.calories} kcal`,
-      });
-    }
-  }
+  const visibleTabs = tabs.filter((t) => t.show);
+  const effectiveTab = visibleTabs.some((t) => t.key === activeTab) ? activeTab : "TIMELINE";
 
-  const powerTabLabel =
-    activity.sport === "running" || activity.sport === "swimming" ? "PACE" : "POWER";
-
+  // ── Render ──
   return (
     <main
       id="activity-detail"
-      className="flex-1 bg-[var(--bg-default)] text-[var(--text-primary)]"
-      style={{ display: "flex", flexDirection: "column", height: "100%", overflowY: "auto" }}
+      className="flex h-full flex-col overflow-hidden bg-bg-default text-text-primary"
     >
-      <div className="relative flex shrink-0 flex-col gap-3 border-b border-border-subtle bg-bg-surface/50 p-4 shadow-sm backdrop-blur-md sm:px-6 sm:py-5">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={handleBack}
-              className="flex h-8 w-8 items-center justify-center rounded-full border border-border-default bg-bg-surface text-text-secondary shadow-sm transition-all duration-200 hover:border-text-secondary hover:bg-bg-elevated hover:text-text-primary"
-              title="Back to Calendar"
-            >
-              <ChevronLeft size={16} />
-            </button>
+      {/* Hero header */}
+      <ActivityHeroHeader
+        activity={activity}
+        points={streamPoints}
+        onBack={handleBack}
+        onSaveName={handleSaveName}
+        onDelete={handleDelete}
+      />
 
-            <div className="flex items-center gap-0.5 rounded-lg border border-border-subtle/50 bg-bg-elevated/40 p-0.5 shadow-sm">
-              <button className="flex h-6 w-6 items-center justify-center rounded bg-transparent text-text-muted transition-colors hover:bg-bg-input hover:text-text-primary">
-                <ChevronLeft size={14} />
-              </button>
-              <button className="flex h-6 w-6 items-center justify-center rounded bg-transparent text-text-muted transition-colors hover:bg-bg-input hover:text-text-primary">
-                <ChevronRight size={14} />
-              </button>
-            </div>
+      {/* Zone intensity bar */}
+      <ActivityZoneIntensityBar
+        points={streamPoints}
+        sport={activity.sport}
+        powerZones={powerZoneConfig}
+        hrZones={heartRateZoneConfig}
+      />
 
-            <div className="ml-1 flex flex-wrap items-center gap-2">
-              <span className="text-xl sm:text-2xl">{SPORT_ICONS[activity.sport] ?? "🏋️"}</span>
-              <h1 className="text-base font-bold tracking-tight text-text-primary sm:text-lg">
-                {activity.name || `${activity.sport.charAt(0).toUpperCase() + activity.sport.slice(1)} Activity`}
-              </h1>
-              <span className="px-1 text-xs font-normal text-text-muted">|</span>
-              <span className="font-mono text-[10px] font-semibold uppercase tracking-wider text-text-muted">
-                {dateFormatted}
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button className="flex items-center gap-1.5 rounded-lg border border-border-default bg-bg-surface px-3 py-1.5 text-xs font-semibold text-text-secondary shadow-sm transition-colors hover:bg-bg-elevated hover:text-text-primary">
-              <Share2 size={12} />
-              <span>Share</span>
-            </button>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 border-t border-border-subtle/30 pt-3 text-xs text-text-secondary sm:flex sm:flex-wrap sm:items-center sm:gap-x-6 sm:gap-y-2 sm:text-[14px]">
-          {headerMetrics.map((metric, index) => (
-            <React.Fragment key={metric.key}>
-              <HeaderMetric
-                icon={metric.icon}
-                label={metric.label}
-                value={metric.value}
-                detail={metric.detail}
-              />
-              {index < headerMetrics.length - 1 ? (
-                <span className="hidden select-none text-text-muted/40 sm:inline">·</span>
-              ) : null}
-            </React.Fragment>
-          ))}
-        </div>
-      </div>
-
-      <div className="relative z-10 flex shrink-0 items-center gap-2 overflow-x-auto whitespace-nowrap border-b border-border-subtle bg-bg-elevated/40 px-3 py-2 scrollbar-none sm:px-5">
-        {(["TIMELINE", "POWER", "HR", "ROUTE", "DATA"] as const).map((tab) => {
-          const isActive = activeTab === tab;
-          const displayLabel = tab === "POWER" ? powerTabLabel : tab;
-
+      {/* Tab bar */}
+      <div
+        id="activity-tabs"
+        className="z-10 flex shrink-0 items-center gap-0.5 overflow-x-auto border-b border-border-subtle bg-bg-elevated/60 px-2 py-1.5 scrollbar-none backdrop-blur-sm sm:gap-1 sm:px-4 sm:py-2"
+      >
+        {visibleTabs.map((tab) => {
+          const isActive = effectiveTab === tab.key;
           return (
             <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`shrink-0 cursor-pointer select-none rounded-full border px-4 py-1.5 text-xs font-bold transition-all duration-200 ${
+              key={tab.key}
+              id={`tab-${tab.key.toLowerCase()}`}
+              onClick={() => setActiveTab(tab.key)}
+              className={`shrink-0 cursor-pointer select-none rounded-full border px-3 py-1 text-[11px] font-bold tracking-wide transition-all duration-200 sm:px-4 sm:py-1.5 sm:text-xs ${
                 isActive
                   ? "border-border-default bg-bg-surface text-accent shadow-sm"
                   : "border-transparent bg-transparent text-text-secondary hover:text-text-primary"
               }`}
-              style={{ boxShadow: isActive ? "0 2px 8px rgba(0, 0, 0, 0.15)" : "none" }}
             >
-              {displayLabel}
+              {tab.label}
             </button>
           );
         })}
       </div>
 
-      <div className="flex flex-1 flex-col lg:flex-row">
-        <div className="flex min-w-0 flex-1 flex-col gap-3 p-3 sm:gap-5 sm:p-5">
-          {activeTab === "TIMELINE" ? (
-            <>
-              <InteractiveMultiLaneChart
-                points={streamPoints}
-                sport={activity.sport}
-                selectedRange={selectedTimeRange}
-                onRangeSelect={setSelectedTimeRange}
-              />
+      {/* Main content + sidebar */}
+      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+        {/* Main panel */}
+        <div
+          id="activity-main-panel"
+          className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4"
+        >
+          <div className="flex flex-col gap-4">
 
-              <div className="rounded-lg border border-border-subtle bg-bg-surface p-4">
-                <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-text-muted">
-                  <Info size={12} />
-                  Telemetry Integrity
-                </div>
-                <p className="text-sm text-text-secondary">
-                  {hasTelemetry
-                    ? "Timeline selection uses full parsed telemetry from the uploaded file. The chart is visually downsampled only for browser performance; the range selector and analytics tabs still calculate from the real stream."
-                    : "This upload does not include telemetry streams. Summary cards, laps, and source details still show the parsed activity data that was persisted."}
-                </p>
-              </div>
-            </>
-          ) : null}
-
-          {activeTab === "POWER" ? (
-            activity.sport === "running" || activity.sport === "swimming" ? (
-              <ActivityAnalyticsTab
-                mode="pace"
-                activity={activity}
-                points={streamPoints}
-                zoneConfig={paceZoneConfig}
-              />
-            ) : (
-              <ActivityAnalyticsTab
-                mode="power"
-                activity={activity}
-                points={streamPoints}
-                zoneConfig={powerZoneConfig}
-              />
-            )
-          ) : null}
-
-          {activeTab === "HR" ? (
-            <ActivityAnalyticsTab
-              mode="heart_rate"
-              activity={activity}
-              points={streamPoints}
-              zoneConfig={heartRateZoneConfig}
-            />
-          ) : null}
-
-          {activeTab === "ROUTE" ? (
-            <div
-              style={{
-                minHeight: "450px",
-                position: "relative",
-                zIndex: 1,
-                border: "1px solid var(--border-subtle)",
-                borderRadius: "var(--radius-md)",
-                overflow: "hidden",
-              }}
-            >
-              <ActivityMap points={streamPoints} sportColor={sportColor.primary} />
-            </div>
-          ) : null}
-
-          {activeTab === "DATA" ? (
-            <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-              <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-                <ActivityLaps
-                  laps={laps}
+            {/* TIMELINE */}
+            {effectiveTab === "TIMELINE" && (
+              <>
+                <InteractiveMultiLaneChart
+                  points={streamPoints}
                   sport={activity.sport}
                   selectedRange={selectedTimeRange}
-                  onSelectLapRange={setSelectedTimeRange}
+                  onRangeSelect={setSelectedTimeRange}
                 />
-                <ActivityMetrics activity={activity} />
+                {streamPoints.length === 0 && (
+                  <div className="rounded-xl border border-dashed border-border-default bg-bg-elevated/30 p-6 text-center text-sm text-text-secondary">
+                    This activity has no telemetry streams — only summary metrics are available.
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* POWER / PACE */}
+            {effectiveTab === "POWER" && (
+              isPaceActivity ? (
+                <ActivityAnalyticsTab
+                  mode="pace"
+                  activity={activity}
+                  points={streamPoints}
+                  zoneConfig={paceZoneConfig}
+                />
+              ) : (
+                <ActivityPowerPanel
+                  activity={activity}
+                  points={streamPoints}
+                  zoneConfig={powerZoneConfig}
+                />
+              )
+            )}
+
+            {/* HR */}
+            {effectiveTab === "HR" && (
+              <ActivityHRPanel
+                activity={activity}
+                points={streamPoints}
+                zoneConfig={heartRateZoneConfig}
+              />
+            )}
+
+            {/* ELEVATION */}
+            {effectiveTab === "ELEVATION" && (
+              <ActivityElevationPanel activity={activity} points={streamPoints} />
+            )}
+
+            {/* ROUTE */}
+            {effectiveTab === "ROUTE" && (
+              <div
+                className="relative overflow-hidden rounded-2xl border border-border-subtle"
+                style={{ minHeight: "clamp(280px, 50vw, 520px)" }}
+              >
+                <ActivityMap points={streamPoints} sportColor={sportColor} />
               </div>
-              <ActivitySourceInfo activity={activity} />
-            </div>
-          ) : null}
+            )}
+
+            {/* LAPS */}
+            {effectiveTab === "LAPS" && (
+              <ActivityLapsTable
+                laps={laps}
+                sport={activity.sport}
+                selectedLapIndex={selectedLapIndex}
+                onSelectLap={handleLapSelect}
+              />
+            )}
+
+            {/* DATA */}
+            {effectiveTab === "DATA" && (
+              <ActivityDataPanel activity={activity} />
+            )}
+
+          </div>
         </div>
 
-        <div className="flex h-auto w-full flex-col overflow-hidden border-t border-border-subtle bg-bg-elevated lg:h-full lg:w-[320px] lg:min-w-[320px] lg:border-t-0 lg:border-l">
-          <SubjectiveFeedbackCard sport={activity.sport} />
-
-          <div className="flex min-h-[300px] flex-1 flex-col overflow-hidden">
-            <div
-              style={{
-                padding: "12px 16px",
-                borderBottom: "1px solid var(--border-subtle)",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
-              <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-text-primary">
-                <span>📝</span>
-                <span>Notes & Comments</span>
-              </div>
-              <div style={{ display: "flex", gap: "10px", color: "var(--text-secondary)" }}>
-                <button
-                  style={{ border: "none", background: "none", cursor: "pointer", color: "inherit" }}
-                  title="Attach File"
-                >
-                  <Paperclip size={16} />
-                </button>
-                <button
-                  style={{ border: "none", background: "none", cursor: "pointer", color: "inherit" }}
-                  title="Share notes"
-                >
-                  <Share2 size={16} />
-                </button>
-              </div>
-            </div>
-
-            <div
-              style={{
-                flex: 1,
-                padding: "16px",
-                overflowY: "auto",
-                display: "flex",
-                flexDirection: "column",
-                gap: "14px",
-              }}
-            >
-              {comments.map((comment, index) => (
-                <div
-                  key={index}
-                  style={{
-                    padding: "10px 12px",
-                    background: "var(--bg-surface)",
-                    border: "1px solid var(--border-subtle)",
-                    borderRadius: "var(--radius-md)",
-                    fontSize: "12px",
-                    lineHeight: "1.5",
-                  }}
-                >
-                  <div style={{ color: "var(--text-secondary)", marginBottom: "4px" }}>{comment.text}</div>
-                  <div style={{ textAlign: "right", fontSize: "10px", color: "var(--text-muted)" }}>
-                    {comment.time}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div
-              style={{
-                padding: "12px 16px",
-                borderTop: "1px solid var(--border-subtle)",
-                background: "var(--bg-surface)",
-                display: "flex",
-                flexDirection: "column",
-                gap: "8px",
-              }}
-            >
-              <textarea
-                placeholder="Type a note or comment..."
-                value={noteInput}
-                onChange={(e) => setNoteInput(e.target.value)}
-                rows={2}
-                style={{
-                  width: "100%",
-                  background: "var(--bg-input)",
-                  border: "1px solid var(--border-default)",
-                  borderRadius: "var(--radius-sm)",
-                  padding: "8px 10px",
-                  color: "var(--text-primary)",
-                  fontSize: "12px",
-                  outline: "none",
-                  resize: "none",
-                  fontFamily: "inherit",
-                }}
-              />
-              <button
-                onClick={handleAddNote}
-                style={{
-                  background: "var(--color-accent)",
-                  color: "white",
-                  border: "none",
-                  padding: "6px 12px",
-                  borderRadius: "var(--radius-sm)",
-                  fontSize: "11px",
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  alignSelf: "flex-end",
-                }}
-              >
-                Add Note
-              </button>
-            </div>
+        <div
+          id="activity-sidebar"
+          className="flex shrink-0 flex-col border-t border-border-subtle bg-bg-elevated/30 lg:w-[300px] lg:border-l lg:border-t-0 lg:overflow-y-auto"
+        >
+          <div className="p-4">
+            <ActivityNotesCard
+              activityId={activity.id}
+              description={activity.description}
+              onDescriptionSaved={handleDescriptionSaved}
+            />
           </div>
         </div>
       </div>

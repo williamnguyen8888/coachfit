@@ -61,16 +61,17 @@ export interface ActivityLap {
 
 /** A single data-point in a stream */
 export interface StreamPoint {
-  t: number;          // seconds from start
-  hr?: number;        // bpm
-  power?: number;     // watts
-  cadence?: number;   // rpm
-  speed?: number;     // m/s
-  altitude?: number;  // meters
-  lat?: number;
-  lng?: number;
-  distance?: number;  // meters from start
-  grade?: number;     // percent
+  t: number;            // seconds from activity start
+  hr?: number;          // bpm
+  power?: number;       // watts
+  cadence?: number;     // rpm
+  speed?: number;       // m/s
+  altitude?: number;    // meters
+  lat?: number;         // decimal degrees
+  lng?: number;         // decimal degrees
+  distance?: number;    // meters from start (cumulative)
+  grade?: number;       // percent
+  temperature?: number; // °C
 }
 
 /** Response from GET /activities/{id}/streams */

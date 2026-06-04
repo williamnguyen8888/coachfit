@@ -1,5 +1,6 @@
 package com.coachfit.activity.application.service;
 
+import com.coachfit.activity.application.port.in.UploadActivityUseCase;
 import com.coachfit.activity.application.port.out.ActivityLapPersistencePort;
 import com.coachfit.activity.application.port.out.ActivityLapPersistencePort.LapData;
 import com.coachfit.activity.application.port.out.ActivityPersistencePort;
