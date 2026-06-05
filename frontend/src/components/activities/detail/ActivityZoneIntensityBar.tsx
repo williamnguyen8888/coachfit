@@ -3,14 +3,18 @@
  * Compact zone-distribution overview bar — shows time-in-zone proportions
  * as a colored segmented bar + legend. Displayed prominently below the hero.
  * Works for power, HR, and pace zones.
+ *
+ * When no zones are configured, shows a subtle hint instead of disappearing silently.
  */
 "use client";
 
 import * as React from "react";
 import { useMemo } from "react";
+import { Settings } from "lucide-react";
+import { useRouter } from "next/navigation";
 import type { StreamPoint, Sport } from "@/lib/types/activity";
 import type { SportZones, ZoneDefinition } from "@/lib/types/settings";
-import { buildSeries, totalDuration, fmtDuration } from "@/lib/utils/streamUtils";
+import { buildSeries, fmtDuration } from "@/lib/utils/streamUtils";
 
 const ZONE_COLORS = [
   "#64748b", // Z1 — recovery (gray-blue)
@@ -27,6 +31,8 @@ interface Props {
   sport: Sport;
   powerZones: SportZones | null;
   hrZones: SportZones | null;
+  /** If true, shows a hint when no zones are configured (default: true) */
+  showHintWhenEmpty?: boolean;
 }
 
 interface ZoneSlice {
@@ -68,7 +74,15 @@ function buildZoneSlices(
   });
 }
 
-export function ActivityZoneIntensityBar({ points, sport, powerZones, hrZones }: Props) {
+export function ActivityZoneIntensityBar({
+  points,
+  sport,
+  powerZones,
+  hrZones,
+  showHintWhenEmpty = true,
+}: Props) {
+  const router = useRouter();
+
   const powerSlices = useMemo(() => {
     if (!powerZones?.zones?.length) return [];
     const series = buildSeries(points, (p) => p.power, 0);
@@ -84,7 +98,26 @@ export function ActivityZoneIntensityBar({ points, sport, powerZones, hrZones }:
   const slices = powerSlices.length > 0 ? powerSlices : hrSlices;
   const label = powerSlices.length > 0 ? "Power Zones" : hrSlices.length > 0 ? "HR Zones" : null;
 
-  if (slices.length === 0 || !label) return null;
+  // No zones configured — show hint instead of silently disappearing
+  if (slices.length === 0 || !label) {
+    if (!showHintWhenEmpty) return null;
+    return (
+      <div className="shrink-0 border-b border-border-subtle bg-bg-elevated/20 px-4 py-2 sm:px-6">
+        <div className="flex items-center gap-2">
+          <Settings size={12} className="shrink-0 text-text-muted" />
+          <p className="text-[11px] text-text-muted">
+            Configure training zones to see zone distribution —{" "}
+            <button
+              onClick={() => router.push("/settings")}
+              className="font-semibold text-accent/70 underline-offset-2 hover:text-accent hover:underline"
+            >
+              Open Settings
+            </button>
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   const hasData = slices.some((s) => s.pct > 0);
   if (!hasData) return null;
@@ -95,7 +128,7 @@ export function ActivityZoneIntensityBar({ points, sport, powerZones, hrZones }:
     >
       <div className="flex items-center gap-3">
         {/* Label */}
-        <span className="shrink-0 text-[10px] font-bold uppercase tracking-widest text-text-muted">
+        <span className="shrink-0 text-[11px] font-bold uppercase tracking-widest text-text-muted">
           {label}
         </span>
 
@@ -124,7 +157,7 @@ export function ActivityZoneIntensityBar({ points, sport, powerZones, hrZones }:
                   className="h-2 w-2 rounded-full"
                   style={{ background: s.color }}
                 />
-                <span className="text-[10px] font-semibold text-text-muted">
+                <span className="text-[11px] font-semibold text-text-muted">
                   Z{s.zone} {s.pct.toFixed(0)}%
                 </span>
               </div>

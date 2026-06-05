@@ -5,16 +5,16 @@
  * Layout:
  *   - Hero header with gradient, sport badge, inline name editing
  *   - Zone intensity bar (power or HR zones)
- *   - Tab bar: TIMELINE | POWER/PACE | HR | ELEVATION | ROUTE | LAPS | DATA
+ *   - Tab bar: TIMELINE | POWER/PACE | HR | ELEVATION | ROUTE | LAPS | DATA (+ More overflow)
  *   - Full-width main content area
- *   - Right sidebar: Coach feedback + Notes (persistent)
+ *   - Right sidebar: Quick Stats + Notes (persistent)
  */
 "use client";
 
 import * as React from "react";
-import { use, useCallback, useEffect, useState } from "react";
+import { use, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertCircle, RefreshCw } from "lucide-react";
+import { AlertCircle, ChevronDown, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 
 // Detail components
@@ -32,6 +32,8 @@ import { ActivityDataPanel } from "@/components/activities/detail/ActivityDataPa
 import { ActivityNotesCard } from "@/components/activities/detail/ActivityNotesCard";
 import { ActivityRunningFormPanel } from "@/components/activities/detail/ActivityRunningFormPanel";
 import { ActivitySplitsPanel } from "@/components/activities/detail/ActivitySplitsPanel";
+import { ActivityQuickStats } from "@/components/activities/detail/ActivityQuickStats";
+import { DeleteConfirmModal } from "@/components/activities/detail/DeleteConfirmModal";
 
 // Services & types
 import { activitiesService } from "@/lib/services/activities";
@@ -50,6 +52,9 @@ const SPORT_ACCENT: Record<Sport, string> = {
   walking:  "#a78bfa",
   other:    "#8b5cf6",
 };
+
+/** Max number of tabs shown directly (rest go into "More" dropdown) */
+const MAX_VISIBLE_TABS = 5;
 
 type TabKey = "TIMELINE" | "POWER" | "HR" | "ELEVATION" | "ROUTE" | "LAPS" | "RUNNING_FORM" | "SPLITS" | "DATA";
 
@@ -98,6 +103,108 @@ function ErrorState({ message, onRetry }: { message: string; onRetry: () => void
   );
 }
 
+// ─── Tab overflow "More" dropdown ─────────────────────────────────────────────
+
+interface TabBarProps {
+  visibleTabs: Array<{ key: TabKey; label: string }>;
+  effectiveTab: TabKey;
+  onSelectTab: (key: TabKey) => void;
+}
+
+function TabBar({ visibleTabs, effectiveTab, onSelectTab }: TabBarProps) {
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreRef = useRef<HTMLDivElement>(null);
+
+  const primaryTabs = visibleTabs.slice(0, MAX_VISIBLE_TABS);
+  const overflowTabs = visibleTabs.slice(MAX_VISIBLE_TABS);
+  const activeInOverflow = overflowTabs.some((t) => t.key === effectiveTab);
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    if (!moreOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (moreRef.current && !moreRef.current.contains(e.target as Node)) {
+        setMoreOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [moreOpen]);
+
+  return (
+    <div
+      id="activity-tabs"
+      className="z-10 flex shrink-0 items-center gap-0.5 overflow-x-auto border-b border-border-subtle bg-bg-elevated/60 px-2 py-1.5 scrollbar-none backdrop-blur-sm sm:gap-1 sm:px-4 sm:py-2"
+    >
+      {primaryTabs.map((tab) => {
+        const isActive = effectiveTab === tab.key;
+        return (
+          <button
+            key={tab.key}
+            id={`tab-${tab.key.toLowerCase()}`}
+            onClick={() => onSelectTab(tab.key)}
+            className={`shrink-0 cursor-pointer select-none rounded-full border px-3 py-1 text-xs font-bold tracking-wide transition-all duration-200 sm:px-4 sm:py-1.5 ${
+              isActive
+                ? "border-border-default bg-bg-surface text-accent shadow-sm"
+                : "border-transparent bg-transparent text-text-secondary hover:text-text-primary"
+            }`}
+          >
+            {tab.label}
+          </button>
+        );
+      })}
+
+      {overflowTabs.length > 0 && (
+        <div ref={moreRef} className="relative shrink-0">
+          <button
+            id="tab-more-btn"
+            onClick={() => setMoreOpen((o) => !o)}
+            className={`flex shrink-0 cursor-pointer select-none items-center gap-1 rounded-full border px-3 py-1 text-xs font-bold tracking-wide transition-all duration-200 sm:px-4 sm:py-1.5 ${
+              activeInOverflow
+                ? "border-border-default bg-bg-surface text-accent shadow-sm"
+                : "border-transparent bg-transparent text-text-secondary hover:text-text-primary"
+            }`}
+            aria-expanded={moreOpen}
+            aria-haspopup="listbox"
+          >
+            {activeInOverflow
+              ? (overflowTabs.find((t) => t.key === effectiveTab)?.label ?? "More")
+              : "More"}
+            <ChevronDown size={11} className={`transition-transform ${moreOpen ? "rotate-180" : ""}`} />
+          </button>
+
+          {moreOpen && (
+            <div
+              role="listbox"
+              className="absolute left-0 top-full z-30 mt-1 min-w-[160px] overflow-hidden rounded-xl border border-border-subtle bg-bg-surface shadow-lg"
+            >
+              {overflowTabs.map((tab) => {
+                const isActive = effectiveTab === tab.key;
+                return (
+                  <button
+                    key={tab.key}
+                    role="option"
+                    aria-selected={isActive}
+                    id={`tab-more-${tab.key.toLowerCase()}`}
+                    onClick={() => { onSelectTab(tab.key); setMoreOpen(false); }}
+                    className={`flex w-full items-center px-4 py-2.5 text-left text-xs font-bold tracking-wide transition-colors ${
+                      isActive
+                        ? "bg-accent/10 text-accent"
+                        : "text-text-secondary hover:bg-bg-elevated hover:text-text-primary"
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ActivityDetailPage({ params }: Props) {
@@ -118,6 +225,13 @@ export default function ActivityDetailPage({ params }: Props) {
     endTime: number;
   } | null>(null);
   const [selectedLapIndex, setSelectedLapIndex] = useState<number | null>(null);
+
+  // Delete modal state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Download state
+  const [isDownloading, setIsDownloading] = useState(false);
 
   // ── Data loading ──
   const load = useCallback(async () => {
@@ -169,7 +283,8 @@ export default function ActivityDetailPage({ params }: Props) {
 
   // ── Handlers — MUST be declared before any early returns (Rules of Hooks) ──
   const handleBack = useCallback(() => {
-    router.push("/calendar");
+    // Use router.back() to return to wherever the user came from (activities list, calendar, etc.)
+    router.back();
   }, [router]);
 
   const handleSaveName = useCallback(
@@ -180,11 +295,37 @@ export default function ActivityDetailPage({ params }: Props) {
     [id],
   );
 
-  const handleDelete = useCallback(async () => {
-    if (!window.confirm("Delete this activity? This cannot be undone.")) return;
-    await activitiesService.delete(id);
-    router.push("/activities");
+  const handleDeleteRequest = useCallback(() => {
+    setShowDeleteModal(true);
+  }, []);
+
+  const handleDeleteConfirm = useCallback(async () => {
+    setIsDeleting(true);
+    try {
+      await activitiesService.delete(id);
+      setShowDeleteModal(false);
+      router.push("/activities");
+    } catch {
+      setIsDeleting(false);
+    }
   }, [id, router]);
+
+  const handleDeleteCancel = useCallback(() => {
+    if (!isDeleting) setShowDeleteModal(false);
+  }, [isDeleting]);
+
+  const handleDownload = useCallback(async () => {
+    if (isDownloading) return;
+    setIsDownloading(true);
+    try {
+      const res = await activitiesService.getDownloadUrl(id);
+      window.open(res.url, "_blank");
+    } catch {
+      // silently fail — could add a toast notification here
+    } finally {
+      setIsDownloading(false);
+    }
+  }, [id, isDownloading]);
 
   const handleLapSelect = useCallback(
     (lapIdx: number | null, startOff: number, endOff: number) => {
@@ -242,15 +383,15 @@ export default function ActivityDetailPage({ params }: Props) {
   const powerTabLabel = isPaceActivity ? "PACE" : "POWER";
 
   const tabs: Array<{ key: TabKey; label: string; show: boolean }> = [
-    { key: "TIMELINE", label: "TIMELINE", show: true },
-    { key: "POWER", label: powerTabLabel, show: true },
+    { key: "TIMELINE", label: "Timeline", show: true },
+    { key: "POWER", label: powerTabLabel === "PACE" ? "Pace" : "Power", show: true },
     { key: "HR", label: "HR", show: hasHR || activity.avgHeartRate != null },
-    { key: "ELEVATION", label: "ELEVATION", show: hasAlt || (activity.elevationGainMeters ?? 0) > 0 },
-    { key: "ROUTE", label: "ROUTE", show: hasGPS },
-    { key: "LAPS", label: `LAPS (${laps.length})`, show: laps.length > 0 },
+    { key: "ELEVATION", label: "Elevation", show: hasAlt || (activity.elevationGainMeters ?? 0) > 0 },
+    { key: "ROUTE", label: "Route", show: hasGPS },
+    { key: "LAPS", label: `Laps (${laps.length})`, show: laps.length > 0 },
     {
       key: "RUNNING_FORM",
-      label: "RUNNING FORM",
+      label: "Form",
       show:
         activity.sport === "running" &&
         (activity.avgVerticalOscillation != null ||
@@ -259,10 +400,10 @@ export default function ActivityDetailPage({ params }: Props) {
     },
     {
       key: "SPLITS",
-      label: "SPLITS",
+      label: "Splits",
       show: streamPoints.some((p) => p.distance != null),
     },
-    { key: "DATA", label: "DATA", show: true },
+    { key: "DATA", label: "Data", show: true },
   ];
 
   const visibleTabs = tabs.filter((t) => t.show);
@@ -270,153 +411,143 @@ export default function ActivityDetailPage({ params }: Props) {
 
   // ── Render ──
   return (
-    <main
-      id="activity-detail"
-      className="flex h-full flex-col overflow-hidden bg-bg-default text-text-primary"
-    >
-      {/* Hero header */}
-      <ActivityHeroHeader
-        activity={activity}
-        points={streamPoints}
-        onBack={handleBack}
-        onSaveName={handleSaveName}
-        onDelete={handleDelete}
-      />
-
-      {/* Zone intensity bar */}
-      <ActivityZoneIntensityBar
-        points={streamPoints}
-        sport={activity.sport}
-        powerZones={powerZoneConfig}
-        hrZones={heartRateZoneConfig}
-      />
-
-      {/* Tab bar */}
-      <div
-        id="activity-tabs"
-        className="z-10 flex shrink-0 items-center gap-0.5 overflow-x-auto border-b border-border-subtle bg-bg-elevated/60 px-2 py-1.5 scrollbar-none backdrop-blur-sm sm:gap-1 sm:px-4 sm:py-2"
+    <>
+      <main
+        id="activity-detail"
+        className="flex h-full flex-col overflow-hidden bg-bg-primary text-text-primary"
       >
-        {visibleTabs.map((tab) => {
-          const isActive = effectiveTab === tab.key;
-          return (
-            <button
-              key={tab.key}
-              id={`tab-${tab.key.toLowerCase()}`}
-              onClick={() => setActiveTab(tab.key)}
-              className={`shrink-0 cursor-pointer select-none rounded-full border px-3 py-1 text-[11px] font-bold tracking-wide transition-all duration-200 sm:px-4 sm:py-1.5 sm:text-xs ${
-                isActive
-                  ? "border-border-default bg-bg-surface text-accent shadow-sm"
-                  : "border-transparent bg-transparent text-text-secondary hover:text-text-primary"
-              }`}
-            >
-              {tab.label}
-            </button>
-          );
-        })}
-      </div>
+        {/* Hero header */}
+        <ActivityHeroHeader
+          activity={activity}
+          points={streamPoints}
+          onBack={handleBack}
+          onSaveName={handleSaveName}
+          onDelete={handleDeleteRequest}
+          onDownload={activity.rawFileFormat ? handleDownload : undefined}
+          isDownloading={isDownloading}
+        />
 
-      {/* Main content + sidebar */}
-      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-        {/* Main panel */}
-        <div
-          id="activity-main-panel"
-          className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4"
-        >
-          <div className="flex flex-col gap-4">
+        {/* Zone intensity bar */}
+        <ActivityZoneIntensityBar
+          points={streamPoints}
+          sport={activity.sport}
+          powerZones={powerZoneConfig}
+          hrZones={heartRateZoneConfig}
+        />
 
-            {/* TIMELINE */}
-            {effectiveTab === "TIMELINE" && (
-              <>
-                <InteractiveMultiLaneChart
+        {/* Tab bar with overflow "More" dropdown */}
+        <TabBar
+          visibleTabs={visibleTabs}
+          effectiveTab={effectiveTab}
+          onSelectTab={setActiveTab}
+        />
+
+        {/* Main content + sidebar */}
+        <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+          {/* Main panel */}
+          <div
+            id="activity-main-panel"
+            className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4"
+          >
+            <div className="flex flex-col gap-4">
+
+              {/* TIMELINE */}
+              {effectiveTab === "TIMELINE" && (
+                <>
+                  <InteractiveMultiLaneChart
+                    points={streamPoints}
+                    sport={activity.sport}
+                    selectedRange={selectedTimeRange}
+                    onRangeSelect={setSelectedTimeRange}
+                    laps={laps}
+                  />
+                  {streamPoints.length === 0 && (
+                    <div className="rounded-xl border border-dashed border-border-default bg-bg-elevated/30 p-6 text-center text-sm text-text-secondary">
+                      This activity has no telemetry streams — only summary metrics are available.
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* POWER / PACE */}
+              {effectiveTab === "POWER" && (
+                isPaceActivity ? (
+                  <ActivityAnalyticsTab
+                    mode="pace"
+                    activity={activity}
+                    points={streamPoints}
+                    zoneConfig={paceZoneConfig}
+                  />
+                ) : (
+                  <ActivityPowerPanel
+                    activity={activity}
+                    points={streamPoints}
+                    zoneConfig={powerZoneConfig}
+                  />
+                )
+              )}
+
+              {/* HR */}
+              {effectiveTab === "HR" && (
+                <ActivityHRPanel
+                  activity={activity}
                   points={streamPoints}
-                  sport={activity.sport}
-                  selectedRange={selectedTimeRange}
-                  onRangeSelect={setSelectedTimeRange}
+                  zoneConfig={heartRateZoneConfig}
+                />
+              )}
+
+              {/* ELEVATION */}
+              {effectiveTab === "ELEVATION" && (
+                <ActivityElevationPanel activity={activity} points={streamPoints} />
+              )}
+
+              {/* ROUTE */}
+              {effectiveTab === "ROUTE" && (
+                <div
+                  className="relative overflow-hidden rounded-2xl border border-border-subtle"
+                  style={{ minHeight: "clamp(280px, 50vw, 520px)" }}
+                >
+                  <ActivityMap points={streamPoints} sportColor={sportColor} />
+                </div>
+              )}
+
+              {/* LAPS */}
+              {effectiveTab === "LAPS" && (
+                <ActivityLapsTable
                   laps={laps}
+                  sport={activity.sport}
+                  selectedLapIndex={selectedLapIndex}
+                  onSelectLap={handleLapSelect}
                 />
-                {streamPoints.length === 0 && (
-                  <div className="rounded-xl border border-dashed border-border-default bg-bg-elevated/30 p-6 text-center text-sm text-text-secondary">
-                    This activity has no telemetry streams — only summary metrics are available.
-                  </div>
-                )}
-              </>
-            )}
+              )}
 
-            {/* POWER / PACE */}
-            {effectiveTab === "POWER" && (
-              isPaceActivity ? (
-                <ActivityAnalyticsTab
-                  mode="pace"
-                  activity={activity}
-                  points={streamPoints}
-                  zoneConfig={paceZoneConfig}
-                />
-              ) : (
-                <ActivityPowerPanel
-                  activity={activity}
-                  points={streamPoints}
-                  zoneConfig={powerZoneConfig}
-                />
-              )
-            )}
+              {/* DATA */}
+              {effectiveTab === "DATA" && (
+                <ActivityDataPanel activity={activity} />
+              )}
 
-            {/* HR */}
-            {effectiveTab === "HR" && (
-              <ActivityHRPanel
-                activity={activity}
-                points={streamPoints}
-                zoneConfig={heartRateZoneConfig}
-              />
-            )}
+              {/* RUNNING FORM */}
+              {effectiveTab === "RUNNING_FORM" && (
+                <ActivityRunningFormPanel activity={activity} points={streamPoints} />
+              )}
 
-            {/* ELEVATION */}
-            {effectiveTab === "ELEVATION" && (
-              <ActivityElevationPanel activity={activity} points={streamPoints} />
-            )}
+              {/* SPLITS */}
+              {effectiveTab === "SPLITS" && (
+                <ActivitySplitsPanel activity={activity} points={streamPoints} />
+              )}
 
-            {/* ROUTE */}
-            {effectiveTab === "ROUTE" && (
-              <div
-                className="relative overflow-hidden rounded-2xl border border-border-subtle"
-                style={{ minHeight: "clamp(280px, 50vw, 520px)" }}
-              >
-                <ActivityMap points={streamPoints} sportColor={sportColor} />
-              </div>
-            )}
-
-            {/* LAPS */}
-            {effectiveTab === "LAPS" && (
-              <ActivityLapsTable
-                laps={laps}
-                sport={activity.sport}
-                selectedLapIndex={selectedLapIndex}
-                onSelectLap={handleLapSelect}
-              />
-            )}
-
-            {/* DATA */}
-            {effectiveTab === "DATA" && (
-              <ActivityDataPanel activity={activity} />
-            )}
-
-            {/* RUNNING FORM */}
-            {effectiveTab === "RUNNING_FORM" && (
-              <ActivityRunningFormPanel activity={activity} points={streamPoints} />
-            )}
-
-            {/* SPLITS */}
-            {effectiveTab === "SPLITS" && (
-              <ActivitySplitsPanel activity={activity} points={streamPoints} />
-            )}
-
+            </div>
           </div>
-        </div>
 
-        <div
-          id="activity-sidebar"
-          className="flex shrink-0 flex-col border-t border-border-subtle bg-bg-elevated/30 lg:w-[300px] lg:border-l lg:border-t-0 lg:overflow-y-auto"
-        >
-          <div className="p-4">
+          {/* Sidebar — Quick Stats + Notes */}
+          <div
+            id="activity-sidebar"
+            className="flex shrink-0 flex-col gap-4 border-t border-border-subtle bg-bg-elevated/30 p-4 lg:w-[300px] lg:border-l lg:border-t-0 lg:overflow-y-auto"
+          >
+            {/* Training Load quick stats */}
+            <ActivityQuickStats activity={activity} />
+
+            {/* Notes */}
             <ActivityNotesCard
               activityId={activity.id}
               description={activity.description}
@@ -424,7 +555,17 @@ export default function ActivityDetailPage({ params }: Props) {
             />
           </div>
         </div>
-      </div>
-    </main>
+      </main>
+
+      {/* Delete confirmation modal — rendered outside main to avoid clipping */}
+      {showDeleteModal && (
+        <DeleteConfirmModal
+          activityName={activity.name ?? `${activity.sport} Activity`}
+          isDeleting={isDeleting}
+          onConfirm={() => void handleDeleteConfirm()}
+          onCancel={handleDeleteCancel}
+        />
+      )}
+    </>
   );
 }

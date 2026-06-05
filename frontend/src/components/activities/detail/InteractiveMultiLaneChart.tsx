@@ -163,6 +163,8 @@ export function InteractiveMultiLaneChart({
   } | null>(null);
   const [hoverData, setHoverData] = useState<{ time: number; point: ChartPoint } | null>(null);
   const [isMobile, setIsMobile] = useState(false);
+  // Track which lanes are collapsed (key = lane.key)
+  const [collapsedLanes, setCollapsedLanes] = useState<Set<string>>(new Set());
 
   const selectedRange =
     selectedRangeProp !== undefined ? selectedRangeProp : internalSelectedRange;
@@ -447,6 +449,27 @@ export function InteractiveMultiLaneChart({
     setSelectedRange(null);
   };
 
+  const toggleLaneCollapse = (key: string) => {
+    setCollapsedLanes((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  };
+
+  const allCollapsed = activeLanes.length > 0 && activeLanes.every((l) => collapsedLanes.has(l.key));
+  const toggleAllCollapse = () => {
+    if (allCollapsed) {
+      setCollapsedLanes(new Set());
+    } else {
+      setCollapsedLanes(new Set(activeLanes.map((l) => l.key)));
+    }
+  };
+
   if (!points.length) {
     return (
       <div className="flex flex-col items-center justify-center p-12 text-text-muted">
@@ -504,6 +527,15 @@ export function InteractiveMultiLaneChart({
         </div>
 
         <div className="flex items-center gap-3 self-end text-xs font-semibold sm:self-auto">
+          {/* Collapse all toggle */}
+          <button
+            onClick={toggleAllCollapse}
+            className="flex items-center gap-1 rounded-lg border border-border-subtle bg-bg-elevated px-2.5 py-1.5 text-[11px] font-semibold text-text-secondary transition-colors hover:text-text-primary"
+            title={allCollapsed ? "Expand all lanes" : "Collapse all lanes"}
+          >
+            {allCollapsed ? "Expand All" : "Collapse All"}
+          </button>
+
           <div className="flex items-center gap-1.5 rounded-lg border border-border-subtle bg-bg-elevated px-2.5 py-1.5 font-mono text-[11px] text-text-secondary shadow-sm">
             {hoverData ? (
               <>
@@ -598,141 +630,167 @@ export function InteractiveMultiLaneChart({
         </div>
       ) : null}
 
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-0">
         {activeLanes.map((lane, activeIndex) => {
           const isLast = activeIndex === activeLanes.length - 1;
           const stats = laneStats.find((entry) => entry.key === lane.key);
+          const isCollapsed = collapsedLanes.has(lane.key);
 
           if (!stats) return null;
 
           return (
             <div
               key={lane.key}
-              className="relative h-[180px] w-full border-b border-border-subtle/50 py-2 last:border-b-0 sm:h-[150px]"
-              style={{ touchAction: "pan-y" }}
+              className="w-full border-b border-border-subtle/50 last:border-b-0"
             >
-              <div className="pointer-events-none absolute left-10 top-2 z-10 flex max-w-[calc(100%-100px)] flex-col gap-0.5 rounded-md border border-border-subtle/50 bg-bg-surface/85 px-2.5 py-1 shadow-sm backdrop-blur-md">
-                <div className="flex items-center gap-1.5">
-                  <span style={{ color: lane.color }} className="flex shrink-0 items-center gap-1">
-                    {lane.icon}
-                    <span className="text-[10px] font-extrabold uppercase tracking-wider">
-                      {lane.label}
-                    </span>
+              {/* Lane header row — always visible, click to collapse/expand */}
+              <div
+                className="flex cursor-pointer select-none items-center gap-2 px-2 py-2 transition-colors hover:bg-bg-elevated/30"
+                onClick={() => toggleLaneCollapse(lane.key)}
+                role="button"
+                aria-expanded={!isCollapsed}
+                aria-label={`${isCollapsed ? "Expand" : "Collapse"} ${lane.label} lane`}
+              >
+                {/* Collapse chevron */}
+                <span
+                  className="shrink-0 text-text-muted transition-transform duration-200"
+                  style={{ transform: isCollapsed ? "rotate(-90deg)" : "rotate(0deg)" }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
+                    <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </span>
+
+                {/* Lane label + color dot */}
+                <span
+                  className="flex shrink-0 items-center gap-1.5"
+                  style={{ color: lane.color }}
+                >
+                  {lane.icon}
+                  <span className="text-[11px] font-extrabold uppercase tracking-wider">
+                    {lane.label}
                   </span>
-                  {hoverData ? (
-                    <span className="font-mono text-xs font-extrabold" style={{ color: lane.color }}>
-                      {formatValue(lane, hoverData.point[lane.key])}
-                    </span>
-                  ) : (
-                    <span className="font-mono text-[10px] font-semibold text-text-secondary">
-                      {formatStats(lane, stats.average, stats.minValue, stats.maxValue)}
-                    </span>
-                  )}
-                </div>
+                </span>
+
+                {/* Stats summary */}
+                <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-text-secondary">
+                  {hoverData
+                    ? formatValue(lane, hoverData.point[lane.key])
+                    : formatStats(lane, stats.average, stats.minValue, stats.maxValue)
+                  }
+                </span>
               </div>
 
-              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-                <AreaChart
-                  data={displayData}
-                  syncId="activityTelemetry"
-                  margin={{ top: 22, right: 10, left: -32, bottom: isLast ? 10 : 4 }}
-                  onMouseDown={handleMouseDown}
-                  onMouseMove={(event) => {
-                    handleChartMouseMove(event);
-                    handleMouseMove(event);
-                  }}
-                  onMouseUp={handleMouseUp}
-                  onMouseLeave={handleChartMouseLeave}
-                  onTouchStart={handleChartMouseMove}
-                  onTouchMove={handleChartMouseMove}
-                  onTouchEnd={handleChartMouseLeave}
+              {/* Chart body — hidden when collapsed */}
+              {!isCollapsed && (
+                <div
+                  className="relative h-[160px] w-full py-1 sm:h-[140px]"
+                  style={{ touchAction: "pan-y" }}
                 >
-                  <defs>
-                    <linearGradient id={`grad-${lane.key}`} x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={lane.color} stopOpacity={0.16} />
-                      <stop offset="95%" stopColor={lane.color} stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
+                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                    <AreaChart
+                      data={displayData}
+                      syncId="activityTelemetry"
+                      margin={{ top: 8, right: 10, left: -32, bottom: isLast ? 10 : 4 }}
+                      onMouseDown={handleMouseDown}
+                      onMouseMove={(event) => {
+                        handleChartMouseMove(event);
+                        handleMouseMove(event);
+                      }}
+                      onMouseUp={handleMouseUp}
+                      onMouseLeave={handleChartMouseLeave}
+                      onTouchStart={handleChartMouseMove}
+                      onTouchMove={handleChartMouseMove}
+                      onTouchEnd={handleChartMouseLeave}
+                    >
+                      <defs>
+                        <linearGradient id={`grad-${lane.key}`} x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor={lane.color} stopOpacity={0.16} />
+                          <stop offset="95%" stopColor={lane.color} stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
 
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke="var(--border-subtle)"
-                    strokeOpacity={0.35}
-                    vertical={false}
-                  />
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        stroke="var(--border-subtle)"
+                        strokeOpacity={0.35}
+                        vertical={false}
+                      />
 
-                  <XAxis
-                    dataKey="t"
-                    hide={!isLast}
-                    tickFormatter={formatTime}
-                    tick={{ fill: "var(--text-muted)", fontSize: 9 }}
-                    axisLine={{ stroke: "var(--border-subtle)" }}
-                    tickLine={false}
-                  />
+                      <XAxis
+                        dataKey="t"
+                        hide={!isLast || isCollapsed}
+                        tickFormatter={formatTime}
+                        tick={{ fill: "var(--text-muted)", fontSize: 9 }}
+                        axisLine={{ stroke: "var(--border-subtle)" }}
+                        tickLine={false}
+                      />
 
-                  <YAxis
-                    yAxisId={lane.key}
-                    domain={[stats.minScale, stats.maxScale]}
-                    reversed={lane.isPace}
-                    tickFormatter={lane.isPace ? formatSecondsToPace : undefined}
-                    tick={{ fill: "var(--text-muted)", fontSize: 9 }}
-                    axisLine={false}
-                    tickLine={false}
-                  />
+                      <YAxis
+                        yAxisId={lane.key}
+                        domain={[stats.minScale, stats.maxScale]}
+                        reversed={lane.isPace}
+                        tickFormatter={lane.isPace ? formatSecondsToPace : undefined}
+                        tick={{ fill: "var(--text-muted)", fontSize: 9 }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
 
-                  <Tooltip
-                    content={() => null}
-                    cursor={{
-                      stroke: "var(--text-primary)",
-                      strokeWidth: 1.2,
-                      strokeDasharray: "3,3",
-                    }}
-                  />
+                      <Tooltip
+                        content={() => null}
+                        cursor={{
+                          stroke: "var(--text-primary)",
+                          strokeWidth: 1.2,
+                          strokeDasharray: "3,3",
+                        }}
+                      />
 
-                  <Area
-                    yAxisId={lane.key}
-                    type="monotone"
-                    dataKey={lane.key}
-                    stroke={lane.color}
-                    strokeWidth={1.8}
-                    fill={`url(#grad-${lane.key})`}
-                    dot={false}
-                    activeDot={{ r: 4, fill: lane.color }}
-                    connectNulls
-                  />
+                      <Area
+                        yAxisId={lane.key}
+                        type="monotone"
+                        dataKey={lane.key}
+                        stroke={lane.color}
+                        strokeWidth={1.8}
+                        fill={`url(#grad-${lane.key})`}
+                        dot={false}
+                        activeDot={{ r: 4, fill: lane.color }}
+                        connectNulls
+                      />
 
-                  {/* Lap boundary markers */}
-                  {laps && laps.length > 1 && (() => {
-                    let offset = 0;
-                    return laps
-                      .slice(0, -1)  // skip last lap (end of activity)
-                      .map((lap, idx) => {
-                        const lapDur = lap.durationSeconds ?? 0;
-                        offset += lapDur;
-                        return (
-                          <ReferenceLine
-                            key={`lap-${idx}`}
-                            yAxisId={lane.key}
-                            x={offset}
-                            stroke="rgba(255,255,255,0.2)"
-                            strokeDasharray="4 3"
-                            strokeWidth={1}
-                          />
-                        );
-                      });
-                  })()}
+                      {/* Lap boundary markers */}
+                      {laps && laps.length > 1 && (() => {
+                        let offset = 0;
+                        return laps
+                          .slice(0, -1)
+                          .map((lap, idx) => {
+                            const lapDur = lap.durationSeconds ?? 0;
+                            offset += lapDur;
+                            return (
+                              <ReferenceLine
+                                key={`lap-${idx}`}
+                                yAxisId={lane.key}
+                                x={offset}
+                                stroke="rgba(255,255,255,0.2)"
+                                strokeDasharray="4 3"
+                                strokeWidth={1}
+                              />
+                            );
+                          });
+                      })()}
 
-                  {refAreaLeft != null && refAreaRight != null ? (
-                    <ReferenceArea
-                      yAxisId={lane.key}
-                      x1={refAreaLeft}
-                      x2={refAreaRight}
-                      fill="var(--color-accent)"
-                      fillOpacity={0.1}
-                    />
-                  ) : null}
-                </AreaChart>
-              </ResponsiveContainer>
+                      {refAreaLeft != null && refAreaRight != null ? (
+                        <ReferenceArea
+                          yAxisId={lane.key}
+                          x1={refAreaLeft}
+                          x2={refAreaRight}
+                          fill="var(--color-accent)"
+                          fillOpacity={0.1}
+                        />
+                      ) : null}
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
             </div>
           );
         })}

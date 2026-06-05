@@ -4,7 +4,7 @@
  *
  * Zone 1 — Identity bar: back | sport badge | name (editable) | date | actions
  * Zone 2 — Primary metrics: 4-tile grid (2×2 mobile, 4×1 desktop)
- * Zone 3 — Analytics bar: all secondary stats as compact chips (1 scrollable row)
+ * Zone 3 — Analytics bar: secondary stats as compact chips (1 scrollable row)
  */
 "use client";
 
@@ -15,8 +15,8 @@ import {
   ChevronLeft,
   Download,
   Edit3,
+  Loader2,
   MoreVertical,
-  Thermometer,
   Trash2,
   X,
 } from "lucide-react";
@@ -61,7 +61,7 @@ interface Tile {
   id: string;
   label: string;
   value: string;
-  sub?: string;   // smaller line below value
+  sub?: string;
   accent?: boolean;
 }
 
@@ -80,7 +80,7 @@ function buildPrimaryTiles(a: ActivityDetail): Tile[] {
   // ── Distance tile ──
   const distanceTile: Tile = {
     id: "distance",
-    label: isSwim ? "Distance" : "Distance",
+    label: "Distance",
     value: a.distanceMeters == null
       ? "—"
       : isSwim
@@ -135,11 +135,13 @@ function buildPrimaryTiles(a: ActivityDetail): Tile[] {
 
   // ── 4th tile — elevation (cycling/running) or HR (others) ──
   let fourthTile: Tile;
-  if (!isStrength && a.elevationGainMeters != null && a.elevationGainMeters > 0) {
+  const hasElevation = !isStrength && a.elevationGainMeters != null && a.elevationGainMeters > 0;
+
+  if (hasElevation) {
     fourthTile = {
       id: "elevation",
       label: "Elevation",
-      value: `+${Math.round(a.elevationGainMeters)} m`,
+      value: `+${Math.round(a.elevationGainMeters!)} m`,
     };
   } else if (a.avgHeartRate != null) {
     fourthTile = {
@@ -159,11 +161,14 @@ function buildPrimaryTiles(a: ActivityDetail): Tile[] {
   return [distanceTile, durationTile, speedTile, fourthTile];
 }
 
-/** Secondary chips — all data that didn't fit in primary tiles */
+/**
+ * Secondary chips — only metrics NOT already shown in primary tiles.
+ * Avoids duplicate display of Avg HR when it's already the 4th tile.
+ */
 function buildChips(a: ActivityDetail, avgTemp: number | null): Chip[] {
   const chips: Chip[] = [];
 
-  // Training load (highest priority)
+  // Training load
   if (a.tss != null) {
     const tssLabel = a.sport === "running" ? "rTSS"
       : a.sport === "swimming" ? "sTSS"
@@ -176,11 +181,7 @@ function buildChips(a: ActivityDetail, avgTemp: number | null): Chip[] {
 
   // Power
   if (a.normalizedPower != null) {
-    chips.push({
-      id: "np",
-      label: "NP",
-      value: `${a.normalizedPower} W`,
-    });
+    chips.push({ id: "np", label: "NP", value: `${a.normalizedPower} W` });
   }
   if (a.avgPower != null) {
     chips.push({
@@ -193,23 +194,30 @@ function buildChips(a: ActivityDetail, avgTemp: number | null): Chip[] {
     chips.push({ id: "maxpow", label: "Max Power", value: `${a.maxPower} W` });
   }
 
-  // HR (if not already primary)
-  if (a.avgHeartRate != null) {
-    chips.push({ id: "avghr", label: "Avg HR", value: `${a.avgHeartRate} bpm` });
-  }
-  if (a.maxHeartRate != null) {
-    chips.push({ id: "maxhr", label: "Max HR", value: `${a.maxHeartRate} bpm` });
+  // HR — only show in chips if NOT already shown as the 4th primary tile
+  const hrIsInPrimaryTile =
+    (a.elevationGainMeters == null || a.elevationGainMeters <= 0 || a.sport === "strength") &&
+    a.avgHeartRate != null;
+
+  if (!hrIsInPrimaryTile) {
+    if (a.avgHeartRate != null) {
+      chips.push({ id: "avghr", label: "Avg HR", value: `${a.avgHeartRate} bpm` });
+    }
+    if (a.maxHeartRate != null) {
+      chips.push({ id: "maxhr", label: "Max HR", value: `${a.maxHeartRate} bpm` });
+    }
+  } else if (a.maxHeartRate != null) {
+    // 4th tile already shows avg HR with max HR as sub-text — skip both from chips
+    // (sub text handles max HR display)
   }
 
   // Cadence
   if (a.avgCadence != null) {
-    const cadLabel = a.sport === "running" ? "Cadence" : "Cadence";
-    const cadUnit  = a.sport === "running" ? " spm" : " rpm";
-    chips.push({ id: "cad", label: cadLabel, value: `${a.avgCadence}${cadUnit}` });
+    const cadUnit = a.sport === "running" ? " spm" : " rpm";
+    chips.push({ id: "cad", label: "Cadence", value: `${a.avgCadence}${cadUnit}` });
   }
 
-  // Elevation (if in primary it's already shown — only add descent-style if elevation was the 4th)
-  // Calories (if not already in primary tiles)
+  // Calories — skip if already the speed/3rd tile for strength
   if (a.calories != null && a.sport !== "strength") {
     chips.push({ id: "cal", label: "Calories", value: `${a.calories.toLocaleString()} kcal` });
   }
@@ -218,9 +226,6 @@ function buildChips(a: ActivityDetail, avgTemp: number | null): Chip[] {
   if (avgTemp != null) {
     chips.push({ id: "temp", label: "Temp", value: `${avgTemp}°C` });
   }
-
-  // Moving time (if different, and not already sub-text of duration in primary)
-  // It IS already shown as sub of duration tile, so skip here
 
   return chips;
 }
@@ -241,11 +246,21 @@ interface Props {
   onBack: () => void;
   onSaveName: (name: string) => Promise<void>;
   onDelete: () => void;
+  onDownload?: () => void;
+  isDownloading?: boolean;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function ActivityHeroHeader({ activity, points, onBack, onSaveName, onDelete }: Props) {
+export function ActivityHeroHeader({
+  activity,
+  points,
+  onBack,
+  onSaveName,
+  onDelete,
+  onDownload,
+  isDownloading = false,
+}: Props) {
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState(activity.name ?? "");
   const [saving, setSaving] = useState(false);
@@ -256,6 +271,8 @@ export function ActivityHeroHeader({ activity, points, onBack, onSaveName, onDel
   const primaryTiles = buildPrimaryTiles(activity);
   const avgTemp      = avgTemperature(points);
   const chips        = buildChips(activity, avgTemp);
+
+  const hasDownload = activity.rawFileFormat != null;
 
   const dateFormatted = new Date(activity.startedAt).toLocaleDateString("en-US", {
     weekday: "short",
@@ -307,7 +324,7 @@ export function ActivityHeroHeader({ activity, points, onBack, onSaveName, onDel
           id="hero-back-btn"
           onClick={onBack}
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white/80 backdrop-blur transition-all hover:bg-white/20 hover:text-white"
-          aria-label="Back"
+          aria-label="Go back"
         >
           <ChevronLeft size={16} />
         </button>
@@ -327,7 +344,7 @@ export function ActivityHeroHeader({ activity, points, onBack, onSaveName, onDel
         {/* Name — takes remaining space */}
         <div className="min-w-0 flex-1">
           {editingName ? (
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-2">
               <input
                 id="activity-name-input"
                 autoFocus
@@ -341,39 +358,42 @@ export function ActivityHeroHeader({ activity, points, onBack, onSaveName, onDel
                 placeholder="Activity name"
                 disabled={saving}
               />
+              {/* Larger touch targets for confirm/cancel (32×32) */}
               <button
                 id="name-save-btn"
                 onClick={() => void commitEdit()}
                 disabled={saving}
-                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-green-500 text-white hover:bg-green-400 disabled:opacity-50"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-green-500 text-white hover:bg-green-400 disabled:opacity-50"
+                aria-label="Save name"
               >
-                <Check size={12} />
+                {saving ? <Loader2 size={13} className="animate-spin" /> : <Check size={14} />}
               </button>
               <button
                 id="name-cancel-btn"
                 onClick={cancelEdit}
-                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white/70 hover:bg-white/20"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white/70 hover:bg-white/20"
+                aria-label="Cancel edit"
               >
-                <X size={12} />
+                <X size={14} />
               </button>
             </div>
           ) : (
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1.5">
               <h1 className="truncate text-sm font-bold text-white sm:text-base">
                 {activity.name || `${activity.sport.charAt(0).toUpperCase() + activity.sport.slice(1)} Activity`}
               </h1>
               <button
                 id="name-edit-btn"
                 onClick={startEdit}
-                className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-white/40 hover:bg-white/10 hover:text-white/80"
+                className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-white/40 hover:bg-white/10 hover:text-white/80"
                 aria-label="Edit name"
               >
-                <Edit3 size={11} />
+                <Edit3 size={12} />
               </button>
             </div>
           )}
           {/* Date + time */}
-          <p className="mt-0.5 truncate text-[11px] text-white/45">
+          <p className="mt-0.5 truncate text-xs text-white/45">
             {dateFormatted} · {timeFormatted}
             {activity.source && activity.source !== "upload" && (
               <span className="capitalize"> · {activity.source}</span>
@@ -384,15 +404,23 @@ export function ActivityHeroHeader({ activity, points, onBack, onSaveName, onDel
           </p>
         </div>
 
-        {/* Actions — download + "..." menu */}
+        {/* Actions — download + "…" menu */}
         <div className="relative flex shrink-0 items-center gap-1.5">
-          <button
-            id="hero-download-btn"
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/20 bg-white/10 text-white/80 backdrop-blur transition-all hover:bg-white/20"
-            aria-label="Download file"
-          >
-            <Download size={14} />
-          </button>
+          {hasDownload && (
+            <button
+              id="hero-download-btn"
+              onClick={onDownload}
+              disabled={isDownloading || !onDownload}
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/20 bg-white/10 text-white/80 backdrop-blur transition-all hover:bg-white/20 disabled:opacity-50"
+              aria-label="Download original file"
+              title={`Download .${activity.rawFileFormat?.toLowerCase()} file`}
+            >
+              {isDownloading
+                ? <Loader2 size={13} className="animate-spin text-white" />
+                : <Download size={14} />
+              }
+            </button>
+          )}
           <button
             id="hero-more-btn"
             onClick={() => setMenuOpen((o) => !o)}
@@ -409,11 +437,11 @@ export function ActivityHeroHeader({ activity, points, onBack, onSaveName, onDel
                 className="fixed inset-0 z-10"
                 onClick={() => setMenuOpen(false)}
               />
-              <div className="absolute right-0 top-10 z-20 min-w-[140px] overflow-hidden rounded-xl border border-white/15 bg-slate-900/95 shadow-2xl backdrop-blur">
+              <div className="absolute right-0 top-10 z-20 min-w-[160px] overflow-hidden rounded-xl border border-white/15 bg-slate-900/95 shadow-2xl backdrop-blur">
                 <button
                   id="menu-delete-btn"
                   onClick={() => { setMenuOpen(false); onDelete(); }}
-                  className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm font-medium text-red-400 hover:bg-red-500/10"
+                  className="flex w-full items-center gap-2.5 px-4 py-3 text-left text-sm font-medium text-red-400 hover:bg-red-500/10"
                 >
                   <Trash2 size={14} />
                   Delete activity
@@ -434,14 +462,17 @@ export function ActivityHeroHeader({ activity, points, onBack, onSaveName, onDel
             key={tile.id}
             className={[
               "flex flex-col gap-0.5 px-4 py-3",
-              // vertical divider between tiles
-              i < 3 ? "md:border-r border-white/8" : "",
-              // on mobile 2×2: right border for col-0, bottom border for row-0
-              i % 2 === 0 ? "border-r border-white/8 md:border-r-0" : "",
-              i < 2 ? "border-b border-white/8 md:border-b-0" : "",
+              // Desktop: vertical divider between all tiles except last
+              i < 3 ? "md:border-r md:border-white/10" : "",
+              // Mobile 2×2: right border for left column only (col 0, 2)
+              i % 2 === 0 ? "border-r border-white/10 md:border-r-0" : "",
+              // Mobile 2×2: bottom border for top row only (tile 0, 1)
+              i < 2 ? "border-b border-white/10 md:border-b-0" : "",
+              // Re-apply desktop right border for tile 0 and 2 which had it cleared
+              i < 3 ? "md:[border-right:1px_solid_rgba(255,255,255,0.10)]" : "",
             ].join(" ")}
           >
-            <span className="text-[9px] font-bold uppercase tracking-widest text-white/40">
+            <span className="text-[11px] font-bold uppercase tracking-widest text-white/40">
               {tile.label}
             </span>
             <span
@@ -451,7 +482,7 @@ export function ActivityHeroHeader({ activity, points, onBack, onSaveName, onDel
               {tile.value}
             </span>
             {tile.sub && (
-              <span className="text-[10px] font-medium text-white/40">{tile.sub}</span>
+              <span className="text-[11px] font-medium text-white/40">{tile.sub}</span>
             )}
           </div>
         ))}
@@ -465,9 +496,9 @@ export function ActivityHeroHeader({ activity, points, onBack, onSaveName, onDel
         >
           {chips.map((chip, i) => (
             <React.Fragment key={chip.id}>
-              {i > 0 && <span className="shrink-0 text-[10px] text-white/20">·</span>}
+              {i > 0 && <span className="shrink-0 text-[11px] text-white/20">·</span>}
               <div className="flex shrink-0 items-baseline gap-1 px-3 py-2">
-                <span className="text-[9px] font-semibold uppercase tracking-widest text-white/35">
+                <span className="text-[11px] font-semibold uppercase tracking-widest text-white/35">
                   {chip.label}
                 </span>
                 <span className="text-xs font-bold text-white/80">{chip.value}</span>
