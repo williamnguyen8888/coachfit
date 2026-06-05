@@ -23,6 +23,7 @@ export interface CalendarEventChipProps {
   compact?: boolean;
   onClick?: (event: CalendarEvent) => void;
   onAnalysisClick?: (eventId: string) => void;
+  onLinkActivity?: (event: CalendarEvent) => void;
   // Drag props
   draggable?: boolean;
   onDragStart?: (e: React.DragEvent) => void;
@@ -71,7 +72,7 @@ export function CalendarEventChip(props: CalendarEventChipProps) {
   if (isCompletedWithActivity) {
     card = <ActivityCard {...props} draggable={isDraggable} />;
   } else if (isWorkout) {
-    card = <WorkoutCard {...props} draggable={isDraggable} />;
+    card = <WorkoutCard {...props} draggable={isDraggable} onLinkActivity={props.onLinkActivity} />;
   } else {
     card = <MinimalEventChip {...props} draggable={isDraggable} />;
   }

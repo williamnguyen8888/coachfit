@@ -101,6 +101,18 @@ interface CalendarState {
    */
   moveEvent: (eventId: string, toDate: string) => Promise<void>;
 
+  /**
+   * Manually link an activity to a workout calendar event.
+   * Calls PUT /calendar/{id}/link-activity?activityId=... then re-fetches.
+   */
+  linkActivity: (eventId: string, activityId: string) => Promise<void>;
+
+  /**
+   * Manually unlink an activity from a calendar event.
+   * Calls PUT /calendar/{id}/unlink-activity then re-fetches.
+   */
+  unlinkActivity: (eventId: string) => Promise<void>;
+
   // Internal helpers
   _upsertEvent: (event: CalendarEvent) => void;
   _removeEvent: (id: string) => void;
@@ -254,17 +266,18 @@ export const useCalendarStore = create<CalendarState>()(
       // ── CRUD ──────────────────────────────────────────────────────────────
 
       createEvent: async (payload) => {
+        // Backend creates the event AND may auto-link an existing activity.
+        // Re-fetch to get the actual state (including any auto-link side-effects).
         const event = await calendarService.create(payload);
-        get()._upsertEvent(event);
+        await get().fetchCurrentRange(true);
         return event;
       },
 
       updateEvent: async (id, payload) => {
+        // Build full payload (backend requires date + eventType + title every time).
         const existing = get().events.find((e) => e.id === id);
         if (!existing) return;
 
-        // Build the full request payload for the backend.
-        // It requires date, eventType, and title.
         const fullPayload: UpdateCalendarPayload = {
           date: payload.date ?? existing.date,
           eventType: payload.eventType ?? existing.eventType,
@@ -273,145 +286,49 @@ export const useCalendarStore = create<CalendarState>()(
           workoutId: payload.workoutId !== undefined ? payload.workoutId : (existing.workout?.id ?? undefined),
         };
 
-        const dateChanged = fullPayload.date !== existing.date;
-        const previousEvents = get().events;
-        const previousById = get().eventsByDate;
-
-        if (dateChanged) {
-          // Optimistic update for date change
-          set((state) => {
-            const nextEvents = state.events.map((e) => {
-              if (e.id === id) {
-                if (e.workout && e.activity) {
-                  return {
-                    ...e,
-                    date: fullPayload.date!,
-                    title: fullPayload.title!,
-                    notes: fullPayload.notes ?? null,
-                    activity: null,
-                    complianceScore: null,
-                    status: "planned" as const,
-                  };
-                }
-                return {
-                  ...e,
-                  date: fullPayload.date!,
-                  title: fullPayload.title!,
-                  notes: fullPayload.notes ?? null,
-                };
-              }
-              return e;
-            });
-
-            if (existing.workout && existing.activity) {
-              const tempActivityEvent: CalendarEvent = {
-                id: `activity-event-temp-${existing.activity.id}`,
-                date: existing.date,
-                eventType: "workout",
-                title: existing.activity.name || existing.title || "Activity",
-                status: "completed",
-                workout: null,
-                activity: existing.activity,
-                complianceScore: null,
-                orderIndex: 999,
-                assignedBy: null,
-                notes: null,
-                garminWorkoutId: null,
-                garminScheduledId: null,
-                garminSyncedAt: null,
-              };
-              nextEvents.push(tempActivityEvent);
-            }
-
-            return {
-              events: nextEvents,
-              eventsByDate: groupByDate(nextEvents),
-            };
-          });
-        } else {
-          // Standard optimistic update
-          set((state) => {
-            const target = state.events.find((e) => e.id === id);
-            if (!target) return {};
-            const updated = {
-              ...target,
-              date: fullPayload.date!,
-              eventType: fullPayload.eventType!,
-              title: fullPayload.title!,
-              notes: fullPayload.notes ?? null,
-              workout: fullPayload.workoutId
-                ? {
-                    id: fullPayload.workoutId,
-                    sport: target.workout?.sport ?? "other",
-                    estimatedDuration: target.workout?.estimatedDuration ?? null,
-                    estimatedTss: target.workout?.estimatedTss ?? null,
-                    estimatedDistance: target.workout?.estimatedDistance ?? null,
-                  }
-                : null,
-            };
-            const next = state.events.map((e) => e.id === id ? updated : e);
-            return { events: next, eventsByDate: groupByDate(next) };
-          });
-        }
-
+        // Backend is source of truth: call API, then re-fetch.
+        // Backend handles: unlink/re-link activity, auto-link on reschedule, status transitions.
         try {
           await calendarService.update(id, fullPayload);
           await get().fetchCurrentRange(true);
         } catch (err) {
-          // Rollback on error
-          set({ events: previousEvents, eventsByDate: previousById });
           set({ error: err instanceof Error ? err.message : "Failed to update calendar event" });
           throw err;
         }
       },
 
       deleteEvent: async (id) => {
-        await calendarService.delete(id);
-        get()._removeEvent(id);
+        try {
+          await calendarService.delete(id);
+          // Re-fetch instead of local remove: backend may have cleaned up linked events.
+          await get().fetchCurrentRange(true);
+        } catch (err) {
+          set({ error: err instanceof Error ? err.message : "Failed to delete calendar event" });
+          throw err;
+        }
       },
 
       markComplete: async (id) => {
-        // BUG-03: Guard — only "partial" events can be manually completed (state machine).
-        const event = get().events.find((e) => e.id === id);
-        if (!event) return;
-        if (event.status !== "partial") {
-          console.warn(
-            `markComplete called on event with status "${event.status}". Only "partial" events can be completed.`
-          );
-          return;
-        }
-
-        // Snapshot for rollback
-        const previousEvents   = get().events;
-        const previousById     = get().eventsByDate;
-
-        // Optimistic update
-        set((state) => {
-          const next = state.events.map((e) =>
-            e.id === id ? { ...e, status: "completed" as const } : e,
-          );
-          return { events: next, eventsByDate: groupByDate(next) };
-        });
-
+        // No frontend guard — backend enforces state machine (only partial → completed).
+        // Backend returns 409 if the current status does not allow this transition.
         try {
           await calendarService.markComplete(id);
+          await get().fetchCurrentRange(true);
         } catch (err) {
-          // BUG-03: Rollback optimistic update on failure
-          set({ events: previousEvents, eventsByDate: previousById });
           set({ error: err instanceof Error ? err.message : "Failed to complete calendar event" });
           throw err;
         }
       },
 
       markSkipped: async (id) => {
-        // Backend returns void — optimistically patch status in local state
-        await calendarService.markSkipped(id);
-        set((state) => {
-          const next = state.events.map((e) =>
-            e.id === id ? { ...e, status: "skipped" as const } : e,
-          );
-          return { events: next, eventsByDate: groupByDate(next) };
-        });
+        // No frontend guard — backend enforces state machine (only planned → skipped).
+        try {
+          await calendarService.markSkipped(id);
+          await get().fetchCurrentRange(true);
+        } catch (err) {
+          set({ error: err instanceof Error ? err.message : "Failed to skip calendar event" });
+          throw err;
+        }
       },
 
       reorderEvents: async (date, orderedIds) => {
@@ -442,70 +359,27 @@ export const useCalendarStore = create<CalendarState>()(
       },
 
       moveEvent: async (eventId, toDate) => {
-        // Snapshot for rollback
-        const previousEvents = get().events;
-        const previousById = get().eventsByDate;
-
         // Find the event
         const event = get().events.find((e) => e.id === eventId);
         if (!event) return;
-        if (event.activity && !event.workout) return;
 
-        // Optimistic update: move event to new date with orderIndex at end of target day
-        const targetDayEvents = get().eventsByDate[toDate] ?? [];
-        const newOrderIndex = targetDayEvents.length;
+        // Snapshot for visual rollback
+        const previousEvents = get().events;
+        const previousById   = get().eventsByDate;
 
+        // Optimistic: ONLY move the visual position. Do NOT touch activity/status/complianceScore.
+        // Backend decides what happens to the link (unlink? auto-relink? keep?). We'll re-fetch
+        // to get the true state. The card shows a loading shimmer while we wait.
         set((state) => {
-          const nextEvents = state.events.map((e) => {
-            if (e.id === eventId) {
-              // If it's a workout with a linked activity, moving it unlinks the activity
-              if (e.workout && e.activity) {
-                return {
-                  ...e,
-                  date: toDate,
-                  orderIndex: newOrderIndex,
-                  activity: null,
-                  complianceScore: null,
-                  status: "planned" as const,
-                };
-              }
-              return { ...e, date: toDate, orderIndex: newOrderIndex };
-            }
-            return e;
-          });
-
-          // If the moved event was a workout and had a linked activity,
-          // create a temporary standalone activity event on the old date so the user
-          // immediately sees the activity stay behind!
-          if (event.workout && event.activity) {
-            const tempActivityEvent: CalendarEvent = {
-              id: `activity-event-temp-${event.activity.id}`,
-              date: event.date,
-              eventType: "workout",
-              title: event.activity.name || event.title || "Activity",
-              status: "completed",
-              workout: null,
-              activity: event.activity,
-              complianceScore: null,
-              orderIndex: 999,
-              assignedBy: null,
-              notes: null,
-              garminWorkoutId: null,
-              garminScheduledId: null,
-              garminSyncedAt: null,
-            };
-            nextEvents.push(tempActivityEvent);
-          }
-
-          return {
-            events: nextEvents,
-            eventsByDate: groupByDate(nextEvents),
-          };
+          const targetDayEvents = state.eventsByDate[toDate] ?? [];
+          const newOrderIndex = targetDayEvents.length;
+          const nextEvents = state.events.map((e) =>
+            e.id === eventId ? { ...e, date: toDate, orderIndex: newOrderIndex } : e
+          );
+          return { events: nextEvents, eventsByDate: groupByDate(nextEvents) };
         });
 
         try {
-          // Backend returns void — we already applied the optimistic update.
-          // We must send the full details because the backend PUT /calendar/{id} validates eventType & title.
           await calendarService.update(eventId, {
             date: toDate,
             eventType: event.eventType,
@@ -513,12 +387,32 @@ export const useCalendarStore = create<CalendarState>()(
             notes: event.notes ?? undefined,
             workoutId: event.workout?.id ?? undefined,
           });
-          // Fetch the updated calendar from the backend to replace temporary IDs with actuals & resolve auto-matching
+          // Re-fetch to resolve the true state (backend may have auto-relinked, unlinked, etc.)
           await get().fetchCurrentRange(true);
         } catch (err) {
-          // Rollback
+          // Rollback visual move
           set({ events: previousEvents, eventsByDate: previousById });
           set({ error: err instanceof Error ? err.message : "Failed to move calendar event" });
+          throw err;
+        }
+      },
+
+      linkActivity: async (eventId, activityId) => {
+        try {
+          await calendarService.linkActivity(eventId, activityId);
+          await get().fetchCurrentRange(true);
+        } catch (err) {
+          set({ error: err instanceof Error ? err.message : "Failed to link activity" });
+          throw err;
+        }
+      },
+
+      unlinkActivity: async (eventId) => {
+        try {
+          await calendarService.unlinkActivity(eventId);
+          await get().fetchCurrentRange(true);
+        } catch (err) {
+          set({ error: err instanceof Error ? err.message : "Failed to unlink activity" });
           throw err;
         }
       },

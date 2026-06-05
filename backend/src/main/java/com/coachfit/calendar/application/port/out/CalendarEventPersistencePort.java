@@ -42,8 +42,9 @@ public interface CalendarEventPersistencePort {
 
     /**
      * Unlinks an activity from an event, resetting status to 'planned'.
+     * Requires {@code userId} for defense-in-depth ownership check.
      */
-    void unlinkActivity(UUID eventId);
+    void unlinkActivity(UUID eventId, UUID userId);
 
     /**
      * Reassigns {@code order_index} values in batch.
@@ -63,6 +64,12 @@ public interface CalendarEventPersistencePort {
      * Finds planned uncompleted workout events for a user on a specific date.
      */
     List<CalendarEventSummary> findPlannedWorkoutsByDate(UUID userId, LocalDate date);
+
+    /**
+     * Finds skipped workout events for a user on a specific date.
+     * Used for ±1-day auto-link window: a high-confidence match can restore a skipped event.
+     */
+    List<CalendarEventSummary> findSkippedWorkoutsByDate(UUID userId, LocalDate date);
 
     /**
      * Finds the user's timezone from their settings, defaulting to Asia/Ho_Chi_Minh.

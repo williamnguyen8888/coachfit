@@ -154,16 +154,21 @@ class CalendarEventPersistenceAdapter implements CalendarEventPersistencePort {
 
     @Override
     @Transactional
-    public void unlinkActivity(UUID eventId) {
+    public void unlinkActivity(UUID eventId, UUID userId) {
+        // userId is included for defense-in-depth: even if a bug leaks a wrong eventId,
+        // this WHERE clause ensures we never touch another user's event.
         jdbcClient.sql("""
                 UPDATE calendar_events
                    SET activity_id      = null,
                        compliance_score = null,
                        status           = 'planned',
                        updated_at       = now()
-                 WHERE id = :id AND deleted_at IS NULL
+                 WHERE id      = :id
+                   AND user_id = :userId
+                   AND deleted_at IS NULL
                 """)
-                .param("id", eventId)
+                .param("id",     eventId)
+                .param("userId", userId)
                 .update();
     }
 
@@ -396,11 +401,66 @@ class CalendarEventPersistenceAdapter implements CalendarEventPersistencePort {
     @Override
     @Transactional
     public void createStandaloneActivityEvent(UUID userId, LocalDate date, UUID activityId, String name, String sport) {
+        // Compute the next order_index rather than hardcoding 999, so multiple standalone
+        // activities on the same day sort deterministically.
+        Integer maxIdx = jdbcClient.sql("""
+                SELECT MAX(order_index) FROM calendar_events
+                 WHERE user_id    = :userId
+                   AND date       = :date
+                   AND deleted_at IS NULL
+                """)
+                .param("userId", userId)
+                .param("date",   date)
+                .query(Integer.class)
+                .optional()
+                .orElse(null);
+        short nextIdx = (short) (maxIdx != null ? maxIdx + 1 : 0);
+
         CalendarEventEntity entity = new CalendarEventEntity(userId, date, "workout", name);
         entity.activityId = activityId;
-        entity.status = "completed";
-        entity.orderIndex = 999;
+        entity.status     = "completed";
+        entity.orderIndex = nextIdx;
         repo.saveAndFlush(entity);
+    }
+
+    @Override
+    public List<CalendarEventSummary> findSkippedWorkoutsByDate(UUID userId, LocalDate date) {
+        return jdbcClient.sql("""
+                SELECT c.id, c.user_id, c.date, c.event_type, c.workout_id, c.activity_id,
+                       c.title, c.description, c.status, c.order_index, c.compliance_score,
+                       w.sport AS workout_sport, w.estimated_duration_seconds AS workout_duration,
+                       w.estimated_tss AS workout_tss, w.steps AS workout_steps
+                  FROM calendar_events c
+                  JOIN workouts w ON w.id = c.workout_id AND w.deleted_at IS NULL
+                 WHERE c.user_id = :userId
+                   AND c.date = :date
+                   AND c.event_type = 'workout'
+                   AND c.status = 'skipped'
+                   AND c.activity_id IS NULL
+                   AND c.deleted_at IS NULL
+                 ORDER BY c.order_index ASC
+                """)
+                .param("userId", userId)
+                .param("date",   date)
+                .query((rs, rowNum) -> new CalendarEventSummary(
+                        rs.getObject("id", UUID.class),
+                        rs.getObject("user_id", UUID.class),
+                        rs.getObject("date", LocalDate.class),
+                        rs.getString("event_type"),
+                        rs.getObject("workout_id", UUID.class),
+                        rs.getObject("activity_id", UUID.class),
+                        rs.getString("title"),
+                        rs.getString("description"),
+                        rs.getString("status"),
+                        rs.getShort("order_index"),
+                        rs.getBigDecimal("compliance_score"),
+                        rs.getString("workout_sport"),
+                        nullableInt(rs, "workout_duration"),
+                        rs.getBigDecimal("workout_tss"),
+                        rs.getString("workout_steps"),
+                        null, null, null, null, null, null, null, null, null
+                ))
+                .list();
     }
 
     @Override

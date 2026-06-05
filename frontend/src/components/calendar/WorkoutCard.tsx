@@ -2,21 +2,8 @@
 
 // src/components/calendar/WorkoutCard.tsx
 // Rich card for planned workouts (intervals.icu style).
-//
-// Layout (week view):
-// ┌──────────────────────────────┐
-// │ 🏊  40m               1.4km │  ← Sport-tinted header
-// │         Load 48              │  ← Load score
-// │ ▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮ │  ← Step visualization
-// │  Pool Swim: Aerobic Endurance│  ← Workout name
-// └──────────────────────────────┘
-//
-// Layout (month view / compact):
-// ┌────────────────────┐
-// │ 🏊 40m  Load 48    │
-// │ Workout name...    │
-// └────────────────────┘
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { CalendarEvent } from "@/lib/types/calendar";
 import {
@@ -28,6 +15,7 @@ import {
   formatDistance,
 } from "./calendarUtils";
 import { WorkoutStepViz } from "./WorkoutStepViz";
+import { useCalendarStore } from "@/stores/calendar.store";
 
 // ─── Sport SVG icon ───────────────────────────────────────────────────────────
 
@@ -93,6 +81,7 @@ export interface WorkoutCardProps {
   event: CalendarEvent;
   compact?: boolean;
   onClick?: (event: CalendarEvent) => void;
+  onLinkActivity?: (event: CalendarEvent) => void;
   draggable?: boolean;
   onDragStart?: (e: React.DragEvent) => void;
   onDragEnd?: () => void;
@@ -111,6 +100,7 @@ export function WorkoutCard({
   event,
   compact = false,
   onClick,
+  onLinkActivity,
   draggable,
   onDragStart,
   onDragEnd,
@@ -123,6 +113,8 @@ export function WorkoutCard({
   onSkip,
 }: WorkoutCardProps) {
   const router = useRouter();
+  const unlinkActivity = useCalendarStore((s) => s.unlinkActivity);
+  const [unlinking, setUnlinking] = useState(false);
   const sport = event.workout?.sport ?? "other";
   const sportHex = getSportHex(sport);
   const dist = getZoneDistribution(sport, event.status);
@@ -375,7 +367,7 @@ export function WorkoutCard({
           </div>
         )}
 
-        {/* ── Workout title & Garmin Sync Badge ───────────────────── */}
+        {/* ── Workout title, Garmin badge & Link controls ───────── */}
         <div
           style={{
             padding: "4px 8px 7px",
@@ -403,6 +395,81 @@ export function WorkoutCard({
             {event.title}
           </span>
           {!isSkipped && renderGarminSyncBadge(Boolean(event.garminWorkoutId))}
+
+          {/* Link / Unlink activity buttons */}
+          {!compact && event.workout && (
+            <>
+              {/* Unlink: only when activity is present */}
+              {event.activity && (
+                <button
+                  type="button"
+                  className="cal-quick-action"
+                  disabled={unlinking}
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    setUnlinking(true);
+                    try {
+                      await unlinkActivity(event.id);
+                    } finally {
+                      setUnlinking(false);
+                    }
+                  }}
+                  aria-label="Unlink activity from this workout"
+                  title="Unlink activity"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 3,
+                    padding: "2px 6px",
+                    borderRadius: 5,
+                    background: "rgba(239,68,68,0.08)",
+                    border: "1px solid rgba(239,68,68,0.2)",
+                    color: unlinking ? "var(--text-muted)" : "#ef4444",
+                    fontSize: 9,
+                    fontWeight: 700,
+                    cursor: unlinking ? "not-allowed" : "pointer",
+                    transition: "all 120ms ease-out",
+                    whiteSpace: "nowrap",
+                    flexShrink: 0,
+                  }}
+                >
+                  {unlinking ? "…" : "⛓ Unlink"}
+                </button>
+              )}
+
+              {/* Link: only when no activity yet */}
+              {!event.activity && isPlanned && onLinkActivity && (
+                <button
+                  type="button"
+                  className="cal-quick-action"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onLinkActivity(event);
+                  }}
+                  aria-label="Link an activity to this workout"
+                  title="Link activity"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 3,
+                    padding: "2px 6px",
+                    borderRadius: 5,
+                    background: "rgba(16,185,129,0.08)",
+                    border: "1px solid rgba(16,185,129,0.2)",
+                    color: "#10b981",
+                    fontSize: 9,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    transition: "all 120ms ease-out",
+                    whiteSpace: "nowrap",
+                    flexShrink: 0,
+                  }}
+                >
+                  ⛓ Link
+                </button>
+              )}
+            </>
+          )}
         </div>
 
         {/* ── Quick action buttons ────────────────────────────────── */}

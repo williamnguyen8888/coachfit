@@ -21,6 +21,7 @@ import { useDragDrop } from "@/hooks/useDragDrop";
 import { CalendarEventChip } from "./CalendarEventChip";
 import { CalendarEventModal } from "./CalendarEventModal";
 import { ActivityAnalysisModal } from "./ActivityAnalysisModal";
+import { LinkActivityModal } from "./LinkActivityModal";
 import { DailyWellnessSummary } from "./DailyWellnessSummary";
 import { WeeklySummaryColumn } from "./WeeklySummaryColumn";
 import { addLocalDays, toLocalDateString } from "@/lib/utils";
@@ -128,6 +129,7 @@ interface DayColumnProps {
   events: CalendarEvent[];
   onEventClick: (event: CalendarEvent) => void;
   onAnalysisClick?: (eventId: string) => void;
+  onLinkActivity?: (event: CalendarEvent) => void;
   onAddClick: (date: string) => void;
   isDragOver: boolean;
   isSameDay: boolean;
@@ -151,6 +153,7 @@ function DayColumn({
   events,
   onEventClick,
   onAnalysisClick,
+  onLinkActivity,
   onAddClick,
   isDragOver,
   isSameDay,
@@ -461,6 +464,7 @@ function DayColumn({
                   event={event}
                   onClick={onEventClick}
                   onAnalysisClick={onAnalysisClick}
+                  onLinkActivity={onLinkActivity}
                   draggable={!isMobile}
                   onDragStart={chipDragProps.onDragStart}
                   onDragEnd={chipDragProps.onDragEnd}
@@ -612,6 +616,7 @@ export function WeekView() {
   >(null);
   const closeModal = useCallback(() => setModalState(null), []);
   const [analysisEventId, setAnalysisEventId] = useState<string | null>(null);
+  const [linkActivityEvent, setLinkActivityEvent] = useState<CalendarEvent | null>(null);
 
   // Swipe gesture (mobile)
   const touchStartX   = useRef<number | null>(null);
@@ -738,6 +743,7 @@ export function WeekView() {
               events={eventsByDate[date] ?? []}
               onEventClick={(event) => setModalState({ mode: "edit", event })}
               onAnalysisClick={(id) => setAnalysisEventId(id)}
+              onLinkActivity={(event) => setLinkActivityEvent(event)}
               onAddClick={(d) => setModalState({ mode: "create", date: d })}
               isDragOver={isDragOver}
               isSameDay={isSameDayReorder}
@@ -846,6 +852,14 @@ export function WeekView() {
 
       {analysisEventId && (
         <ActivityAnalysisModal eventId={analysisEventId} onClose={() => setAnalysisEventId(null)} />
+      )}
+
+      {/* Link Activity Modal */}
+      {linkActivityEvent && (
+        <LinkActivityModal
+          event={linkActivityEvent}
+          onClose={() => setLinkActivityEvent(null)}
+        />
       )}
     </>
   );

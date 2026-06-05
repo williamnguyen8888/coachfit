@@ -92,13 +92,26 @@ export const calendarService = {
   syncToGarmin: (id: string): Promise<GarminSyncResult> =>
     api.post<GarminSyncResult>(`/calendar/${id}/sync-garmin`),
 
-  /**
-   * DELETE /calendar/{id}/sync-garmin
-   * Remove a previously synced workout from the user's Garmin Connect calendar.
-   * No-op if the event was never synced.
-   */
   removeFromGarmin: (id: string): Promise<void> =>
     api.delete<void>(`/calendar/${id}/sync-garmin`),
+
+  /**
+   * PUT /calendar/{id}/link-activity?activityId=...
+   * Manually link an existing activity to a workout calendar event.
+   * Backend validates: event must be a workout type, sport must match.
+   * Returns void — re-fetch calendar to get updated state.
+   */
+  linkActivity: (eventId: string, activityId: string): Promise<void> =>
+    api.put<void>(`/calendar/${eventId}/link-activity?activityId=${activityId}`),
+
+  /**
+   * PUT /calendar/{id}/unlink-activity
+   * Manually unlink an activity from a calendar event.
+   * Backend handles: workout event → revert to planned; standalone → soft-delete.
+   * Returns void — re-fetch calendar to get updated state.
+   */
+  unlinkActivity: (eventId: string): Promise<void> =>
+    api.put<void>(`/calendar/${eventId}/unlink-activity`),
 };
 
 /** Response from POST /calendar/{id}/sync-garmin */

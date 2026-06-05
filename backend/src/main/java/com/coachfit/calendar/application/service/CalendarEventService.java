@@ -136,7 +136,7 @@ public class CalendarEventService
 
         if (dateChanged) {
             if (existing.activityId() != null) {
-                port.unlinkActivity(eventId);
+                port.unlinkActivity(eventId, userId);
                 port.createStandaloneActivityEvent(
                         userId,
                         existing.date(),
@@ -159,7 +159,7 @@ public class CalendarEventService
                         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Activity not found"));
                 if (updated.workoutSport() != null && activityDetails.sport() != null
                         && !SportNormalizer.sameSport(updated.workoutSport(), activityDetails.sport())) {
-                    port.unlinkActivity(eventId);
+                    port.unlinkActivity(eventId, userId);
                     port.createStandaloneActivityEvent(
                             userId,
                             existing.date(),
@@ -181,7 +181,7 @@ public class CalendarEventService
                     }
                 }
             } else {
-                port.unlinkActivity(eventId);
+                port.unlinkActivity(eventId, userId);
                 port.createStandaloneActivityEvent(
                         userId,
                         existing.date(),
@@ -337,7 +337,7 @@ public class CalendarEventService
         if (event.workoutId() == null) {
             port.softDelete(eventId);
         } else {
-            port.unlinkActivity(eventId);
+            port.unlinkActivity(eventId, userId);
             port.createStandaloneActivityEvent(
                     userId,
                     event.date(),
