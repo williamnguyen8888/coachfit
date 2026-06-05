@@ -15,19 +15,11 @@ import java.math.RoundingMode;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
-/**
- * JPA + JdbcClient adapter implementing {@link ActivityPersistencePort}.
- *
- * <p>JPA is used for inserts (via {@link ActivityEntity}).
- * JdbcClient handles the dedup check, soft-delete, and findById to avoid
- * pulling the full entity on hot paths.
- */
 @Repository
 class ActivityPersistenceAdapter implements ActivityPersistencePort {
 
@@ -38,8 +30,6 @@ class ActivityPersistenceAdapter implements ActivityPersistencePort {
         this.repo       = repo;
         this.jdbcClient = jdbcClient;
     }
-
-    // ── Manual upload path ────────────────────────────────────────────────────
 
     @Override
     public Optional<UUID> findDuplicate(UUID userId, Instant startedAt, String sport, int durationSeconds) {
@@ -67,26 +57,43 @@ class ActivityPersistenceAdapter implements ActivityPersistencePort {
         ActivityEntity e = new ActivityEntity(userId, "manual", null,
                 parsed.sport(), parsed.name(), parsed.startedAt(), parsed.durationSeconds());
 
-        e.subSport            = parsed.subSport();
-        e.movingTimeSeconds   = parsed.movingTimeSeconds();
-        e.distanceMeters      = parsed.distanceMeters();
-        e.elevationGainMeters = parsed.elevationGainMeters();
-        e.calories            = parsed.calories();
-        e.avgHeartRate        = parsed.avgHeartRate();
-        e.maxHeartRate        = parsed.maxHeartRate();
-        e.avgPower            = parsed.avgPower();
-        e.maxPower            = parsed.maxPower();
-        e.normalizedPower     = parsed.normalizedPower();
-        e.intensityFactor     = parsed.intensityFactor();
-        e.tss                 = parsed.tss();
-        e.avgCadence          = parsed.avgCadence();
-        e.avgSpeed            = parsed.avgSpeed();
-        e.startLat            = parsed.startLat() != null
+        e.subSport                   = parsed.subSport();
+        e.movingTimeSeconds          = parsed.movingTimeSeconds();
+        e.distanceMeters             = parsed.distanceMeters();
+        e.elevationGainMeters        = parsed.elevationGainMeters();
+        e.totalDescentMeters         = parsed.totalDescentMeters();
+        e.calories                   = parsed.calories();
+        e.avgHeartRate               = parsed.avgHeartRate();
+        e.maxHeartRate               = parsed.maxHeartRate();
+        e.avgPower                   = parsed.avgPower();
+        e.maxPower                   = parsed.maxPower();
+        e.normalizedPower            = parsed.normalizedPower();
+        e.intensityFactor            = parsed.intensityFactor();
+        e.tss                        = parsed.tss();
+        e.avgCadence                 = parsed.avgCadence();
+        e.avgSpeed                   = parsed.avgSpeed();
+        e.maxSpeed                   = parsed.maxSpeed();
+        e.avgTemperature             = parsed.avgTemperature();
+        e.minAltitude                = parsed.minAltitude();
+        e.maxAltitude                = parsed.maxAltitude();
+        e.aerobicTrainingEffect      = parsed.aerobicTrainingEffect();
+        e.anaerobicTrainingEffect    = parsed.anaerobicTrainingEffect();
+        e.avgVerticalOscillation     = parsed.avgVerticalOscillation();
+        e.avgGroundContactTime       = parsed.avgGroundContactTime();
+        e.avgStepLength              = parsed.avgStepLength();
+        e.avgVerticalRatio           = parsed.avgVerticalRatio();
+        e.leftRightBalance           = parsed.leftRightBalance();
+        e.avgLeftPedalSmoothness     = parsed.avgLeftPedalSmoothness();
+        e.avgLeftTorqueEffectiveness = parsed.avgLeftTorqueEffectiveness();
+        e.poolLength                 = parsed.poolLength();
+        e.swimStroke                 = parsed.swimStroke();
+        e.avgSwolf                   = parsed.avgSwolf();
+        e.startLat                   = parsed.startLat() != null
                 ? BigDecimal.valueOf(parsed.startLat()).setScale(7, RoundingMode.HALF_UP) : null;
-        e.startLng            = parsed.startLng() != null
+        e.startLng                   = parsed.startLng() != null
                 ? BigDecimal.valueOf(parsed.startLng()).setScale(7, RoundingMode.HALF_UP) : null;
-        e.rawFilePath         = rawFilePath;
-        e.rawFileFormat       = rawFileFormat;
+        e.rawFilePath                = rawFilePath;
+        e.rawFileFormat              = rawFileFormat;
 
         return repo.save(e).id;
     }
@@ -103,21 +110,11 @@ class ActivityPersistenceAdapter implements ActivityPersistencePort {
                 .orElseThrow(() -> new IllegalStateException("Activity not found after save: " + activityId));
     }
 
-    // ── Shared paths ──────────────────────────────────────────────────────────
-
     @Override
     @Transactional
-    public UUID save(UUID userId,
-                     String source,
-                     String sourceId,
-                     String sport,
-                     String subSport,
-                     String name,
-                     Instant startedAt,
-                     int durationSeconds,
-                     BigDecimal distanceMeters,
-                     BigDecimal elevationGainMeters) {
-
+    public UUID save(UUID userId, String source, String sourceId, String sport, String subSport,
+                     String name, Instant startedAt, int durationSeconds,
+                     BigDecimal distanceMeters, BigDecimal elevationGainMeters) {
         ActivityEntity entity = new ActivityEntity(userId, source, sourceId, sport, name,
                 startedAt, durationSeconds);
         entity.subSport            = subSport;
@@ -166,9 +163,9 @@ class ActivityPersistenceAdapter implements ActivityPersistencePort {
     public void updateFromStrava(UUID activityId, String name, String description,
                                  Integer avgHeartRate, Integer maxHeartRate,
                                  Integer avgPower, Integer maxPower, Integer normalizedPower,
-                                 java.math.BigDecimal tss, java.math.BigDecimal intensityFactor,
-                                 Integer avgCadence, java.math.BigDecimal distanceMeters,
-                                 Integer calories, java.math.BigDecimal elevationGainMeters) {
+                                 BigDecimal tss, BigDecimal intensityFactor,
+                                 Integer avgCadence, BigDecimal distanceMeters,
+                                 Integer calories, BigDecimal elevationGainMeters) {
         jdbcClient.sql("""
                 UPDATE activities SET
                     name                  = COALESCE(:name, name),
@@ -216,9 +213,6 @@ class ActivityPersistenceAdapter implements ActivityPersistencePort {
                 .update();
     }
 
-    // ── Read API ──────────────────────────────────────────────────────────────
-
-    /** Allowlisted sort columns to prevent SQL injection from user-supplied sort params. */
     private static final Set<String> ALLOWED_SORT_FIELDS = Set.of(
             "startedAt", "durationSeconds", "distanceMeters", "tss", "createdAt"
     );
@@ -230,7 +224,7 @@ class ActivityPersistenceAdapter implements ActivityPersistencePort {
             case "distanceMeters"  -> "distance_meters";
             case "tss"             -> "tss";
             case "createdAt"       -> "created_at";
-            default                -> "started_at";  // safe fallback
+            default                -> "started_at";
         };
     }
 
@@ -239,12 +233,9 @@ class ActivityPersistenceAdapter implements ActivityPersistencePort {
                                        Instant from, Instant to,
                                        int page, int size,
                                        String sortField, String sortDir) {
-
-        String col = toColumnName(
-                ALLOWED_SORT_FIELDS.contains(sortField) ? sortField : "startedAt");
+        String col = toColumnName(ALLOWED_SORT_FIELDS.contains(sortField) ? sortField : "startedAt");
         String dir = "asc".equalsIgnoreCase(sortDir) ? "ASC" : "DESC";
 
-        // Build dynamic WHERE clause
         StringBuilder sql = new StringBuilder("""
                 SELECT id, sport, name, started_at, duration_seconds,
                        distance_meters, avg_heart_rate, avg_power, tss, source
@@ -308,10 +299,19 @@ class ActivityPersistenceAdapter implements ActivityPersistencePort {
         return jdbcClient.sql("""
                 SELECT a.id, a.sport, a.sub_sport, a.name, a.description,
                        a.started_at, a.duration_seconds, a.moving_time_seconds,
-                       a.distance_meters, a.elevation_gain_meters, a.calories,
+                       a.distance_meters, a.elevation_gain_meters, a.total_descent_meters,
+                       a.calories,
                        a.avg_heart_rate, a.max_heart_rate,
                        a.avg_power, a.max_power, a.normalized_power,
-                       a.intensity_factor, a.tss, a.avg_cadence, a.avg_speed,
+                       a.intensity_factor, a.tss, a.avg_cadence,
+                       a.avg_speed, a.max_speed,
+                       a.avg_temperature, a.min_altitude, a.max_altitude,
+                       a.aerobic_training_effect, a.anaerobic_training_effect,
+                       a.avg_vertical_oscillation, a.avg_ground_contact_time,
+                       a.avg_step_length, a.avg_vertical_ratio,
+                       a.left_right_balance, a.avg_left_pedal_smoothness,
+                       a.avg_left_torque_effectiveness,
+                       a.pool_length, a.swim_stroke, a.avg_swolf,
                        a.start_lat, a.start_lng,
                        a.gear_id, g.name AS gear_name,
                        a.source, a.raw_file_format
@@ -339,6 +339,7 @@ class ActivityPersistenceAdapter implements ActivityPersistencePort {
                             nullableInt(rs, "moving_time_seconds"),
                             rs.getBigDecimal("distance_meters"),
                             rs.getBigDecimal("elevation_gain_meters"),
+                            rs.getBigDecimal("total_descent_meters"),
                             nullableInt(rs, "calories"),
                             nullableInt(rs, "avg_heart_rate"),
                             nullableInt(rs, "max_heart_rate"),
@@ -349,6 +350,22 @@ class ActivityPersistenceAdapter implements ActivityPersistencePort {
                             rs.getBigDecimal("tss"),
                             nullableInt(rs, "avg_cadence"),
                             rs.getBigDecimal("avg_speed"),
+                            rs.getBigDecimal("max_speed"),
+                            nullableInt(rs, "avg_temperature"),
+                            rs.getBigDecimal("min_altitude"),
+                            rs.getBigDecimal("max_altitude"),
+                            rs.getBigDecimal("aerobic_training_effect"),
+                            rs.getBigDecimal("anaerobic_training_effect"),
+                            rs.getBigDecimal("avg_vertical_oscillation"),
+                            rs.getBigDecimal("avg_ground_contact_time"),
+                            rs.getBigDecimal("avg_step_length"),
+                            rs.getBigDecimal("avg_vertical_ratio"),
+                            rs.getBigDecimal("left_right_balance"),
+                            rs.getBigDecimal("avg_left_pedal_smoothness"),
+                            rs.getBigDecimal("avg_left_torque_effectiveness"),
+                            rs.getBigDecimal("pool_length"),
+                            rs.getString("swim_stroke"),
+                            rs.getBigDecimal("avg_swolf"),
                             rs.getBigDecimal("start_lat"),
                             rs.getBigDecimal("start_lng"),
                             gear,
@@ -382,8 +399,6 @@ class ActivityPersistenceAdapter implements ActivityPersistencePort {
         return updated > 0;
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
-
     @Override
     public Optional<String> findRawFilePath(UUID userId, UUID activityId) {
         return jdbcClient.sql("""
@@ -409,4 +424,3 @@ class ActivityPersistenceAdapter implements ActivityPersistencePort {
         return ts != null ? ts.toInstant() : null;
     }
 }
-

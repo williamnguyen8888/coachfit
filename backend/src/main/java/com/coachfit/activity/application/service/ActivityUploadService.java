@@ -164,9 +164,13 @@ public class ActivityUploadService implements UploadActivityUseCase {
                         lap.maxHeartRate(),
                         lap.avgPower(),
                         lap.maxPower(),
+                        lap.normalizedPower(),
                         lap.avgCadence(),
                         lap.avgPace(),
-                        lap.elevationGain()))
+                        lap.maxSpeed(),
+                        lap.elevationGain(),
+                        lap.elevationDescent(),
+                        lap.lapTrigger()))
                 .collect(Collectors.toList());
     }
 

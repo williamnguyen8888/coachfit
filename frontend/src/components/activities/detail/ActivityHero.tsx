@@ -24,6 +24,8 @@ const sportColorVar: Record<Sport, string> = {
   running:  "var(--sport-running)",
   swimming: "var(--sport-swimming)",
   strength: "var(--sport-strength)",
+  hiking:   "#84cc16",
+  walking:  "#a78bfa",
   other:    "var(--sport-other)",
 };
 

@@ -423,9 +423,13 @@ public class StravaActivitySyncService {
                     lap.maxHeartrate()     != null ? lap.maxHeartrate().intValue() : null,
                     lap.averageWatts()     != null ? lap.averageWatts().intValue() : null,
                     lap.maxWatts(),
+                    null,  // normalizedPower
                     lap.averageCadence()   != null ? lap.averageCadence().intValue() : null,
-                    null, // pace not in Strava lap data
-                    null  // elevation gain not in Strava lap data
+                    null,  // avgPace
+                    null,  // maxSpeed
+                    null,  // elevationGain
+                    null,  // elevationDescent
+                    null   // lapTrigger
             ));
         }
         return result;

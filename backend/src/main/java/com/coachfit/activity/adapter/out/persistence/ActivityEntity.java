@@ -56,6 +56,9 @@ class ActivityEntity {
     @Column(name = "elevation_gain_meters", precision = 8, scale = 2)
     BigDecimal elevationGainMeters;
 
+    @Column(name = "total_descent_meters", precision = 8, scale = 2)
+    BigDecimal totalDescentMeters;
+
     @Column(name = "calories")
     Integer calories;
 
@@ -86,8 +89,59 @@ class ActivityEntity {
     @Column(name = "avg_pace", precision = 8, scale = 2)
     BigDecimal avgPace;
 
-    @Column(name = "avg_speed", precision = 8, scale = 2)
+    @Column(name = "avg_speed", precision = 8, scale = 4)
     BigDecimal avgSpeed;
+
+    @Column(name = "max_speed", precision = 8, scale = 4)
+    BigDecimal maxSpeed;
+
+    @Column(name = "avg_temperature")
+    Integer avgTemperature;
+
+    @Column(name = "min_altitude", precision = 8, scale = 2)
+    BigDecimal minAltitude;
+
+    @Column(name = "max_altitude", precision = 8, scale = 2)
+    BigDecimal maxAltitude;
+
+    @Column(name = "aerobic_training_effect", precision = 3, scale = 1)
+    BigDecimal aerobicTrainingEffect;
+
+    @Column(name = "anaerobic_training_effect", precision = 3, scale = 1)
+    BigDecimal anaerobicTrainingEffect;
+
+    // Running dynamics
+    @Column(name = "avg_vertical_oscillation", precision = 6, scale = 1)
+    BigDecimal avgVerticalOscillation;
+
+    @Column(name = "avg_ground_contact_time", precision = 7, scale = 1)
+    BigDecimal avgGroundContactTime;
+
+    @Column(name = "avg_step_length", precision = 7, scale = 1)
+    BigDecimal avgStepLength;
+
+    @Column(name = "avg_vertical_ratio", precision = 5, scale = 2)
+    BigDecimal avgVerticalRatio;
+
+    // Cycling technique
+    @Column(name = "left_right_balance", precision = 5, scale = 1)
+    BigDecimal leftRightBalance;
+
+    @Column(name = "avg_left_pedal_smoothness", precision = 5, scale = 1)
+    BigDecimal avgLeftPedalSmoothness;
+
+    @Column(name = "avg_left_torque_effectiveness", precision = 5, scale = 1)
+    BigDecimal avgLeftTorqueEffectiveness;
+
+    // Swimming
+    @Column(name = "pool_length", precision = 6, scale = 1)
+    BigDecimal poolLength;
+
+    @Column(name = "swim_stroke", length = 20)
+    String swimStroke;
+
+    @Column(name = "avg_swolf", precision = 5, scale = 1)
+    BigDecimal avgSwolf;
 
     @Column(name = "start_lat", precision = 10, scale = 7)
     BigDecimal startLat;

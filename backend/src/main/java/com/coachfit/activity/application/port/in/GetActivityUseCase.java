@@ -7,24 +7,10 @@ import java.util.UUID;
 /**
  * Input port: get the full detail of a single activity
  * (GET /api/v1/activities/{id}).
- *
- * <p>The returned {@link ActivityDetail} maps directly to the response body
- * documented in docs/05-api-design.md §GET /activities/{id}.
  */
 public interface GetActivityUseCase {
 
-    /**
-     * Loads the full detail view of an activity belonging to the user.
-     *
-     * @param userId     authenticated user — used for ownership verification
-     * @param activityId requested activity UUID
-     * @return full activity detail
-     * @throws org.springframework.web.server.ResponseStatusException 404 if not found / deleted
-     * @throws org.springframework.security.access.AccessDeniedException if the activity belongs to another user
-     */
     ActivityDetail get(UUID userId, UUID activityId);
-
-    // ── Result type ───────────────────────────────────────────────────────────
 
     record GearRef(UUID id, String name) {}
 
@@ -39,6 +25,7 @@ public interface GetActivityUseCase {
             Integer    movingTimeSeconds,
             BigDecimal distanceMeters,
             BigDecimal elevationGainMeters,
+            BigDecimal totalDescentMeters,
             Integer    calories,
             Integer    avgHeartRate,
             Integer    maxHeartRate,
@@ -49,6 +36,22 @@ public interface GetActivityUseCase {
             BigDecimal tss,
             Integer    avgCadence,
             BigDecimal avgSpeed,
+            BigDecimal maxSpeed,
+            Integer    avgTemperature,
+            BigDecimal minAltitude,
+            BigDecimal maxAltitude,
+            BigDecimal aerobicTrainingEffect,
+            BigDecimal anaerobicTrainingEffect,
+            BigDecimal avgVerticalOscillation,
+            BigDecimal avgGroundContactTime,
+            BigDecimal avgStepLength,
+            BigDecimal avgVerticalRatio,
+            BigDecimal leftRightBalance,
+            BigDecimal avgLeftPedalSmoothness,
+            BigDecimal avgLeftTorqueEffectiveness,
+            BigDecimal poolLength,
+            String     swimStroke,
+            BigDecimal avgSwolf,
             BigDecimal startLat,
             BigDecimal startLng,
             GearRef    gear,

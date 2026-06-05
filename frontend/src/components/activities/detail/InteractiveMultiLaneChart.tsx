@@ -6,19 +6,21 @@ import {
   AreaChart,
   CartesianGrid,
   ReferenceArea,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
-import { Activity, Award, Heart, Info, RefreshCw, Zap, ZoomIn } from "lucide-react";
-import type { StreamPoint } from "@/lib/types/activity";
+import { Activity, Award, Heart, Info, RefreshCw, Thermometer, TrendingUp, Zap, ZoomIn } from "lucide-react";
+import type { ActivityLap, StreamPoint } from "@/lib/types/activity";
 
 export interface InteractiveMultiLaneChartProps {
   points: StreamPoint[];
   sport: string;
   selectedRange?: { startTime: number; endTime: number } | null;
   onRangeSelect?: (range: { startTime: number; endTime: number } | null) => void;
+  laps?: ActivityLap[];
 }
 
 type ChartPoint = StreamPoint & {
@@ -105,6 +107,8 @@ function buildLaneDefinitions(sport: string): LaneDefinition[] {
       { key: "hr", color: "#EF4444", label: "Heart Rate", unit: "bpm", icon: <Heart size={12} /> },
       { key: "cadence", color: "#A855F7", label: "Cadence", unit: "spm", icon: <Activity size={12} /> },
       { key: "altitude", color: "#10B981", label: "Altitude", unit: "m", icon: <Award size={12} /> },
+      { key: "temperature", color: "#f59e0b", label: "Temperature", unit: "°C", icon: <Thermometer size={12} /> },
+      { key: "grade", color: "#8b5cf6", label: "Grade", unit: "%", icon: <TrendingUp size={12} /> },
     ];
   }
 
@@ -113,6 +117,7 @@ function buildLaneDefinitions(sport: string): LaneDefinition[] {
       { key: "paceSecs", color: "#06B6D4", label: "Swim Pace", unit: "/100m", icon: <Zap size={12} />, isPace: true },
       { key: "hr", color: "#EF4444", label: "Heart Rate", unit: "bpm", icon: <Heart size={12} /> },
       { key: "cadence", color: "#A855F7", label: "Stroke Rate", unit: "spm", icon: <Activity size={12} /> },
+      { key: "temperature", color: "#f59e0b", label: "Temperature", unit: "°C", icon: <Thermometer size={12} /> },
     ];
   }
 
@@ -121,6 +126,8 @@ function buildLaneDefinitions(sport: string): LaneDefinition[] {
     { key: "hr", color: "#EF4444", label: "Heart Rate", unit: "bpm", icon: <Heart size={12} /> },
     { key: "cadence", color: "#A855F7", label: "Cadence", unit: "rpm", icon: <Activity size={12} /> },
     { key: "altitude", color: "#10B981", label: "Altitude", unit: "m", icon: <Award size={12} /> },
+    { key: "temperature", color: "#f59e0b", label: "Temperature", unit: "°C", icon: <Thermometer size={12} /> },
+    { key: "grade", color: "#8b5cf6", label: "Grade", unit: "%", icon: <TrendingUp size={12} /> },
   ];
 }
 
@@ -145,6 +152,7 @@ export function InteractiveMultiLaneChart({
   sport,
   selectedRange: selectedRangeProp,
   onRangeSelect,
+  laps,
 }: InteractiveMultiLaneChartProps) {
   const [zoomRange, setZoomRange] = useState<{ startTime: number; endTime: number } | null>(null);
   const [refAreaLeft, setRefAreaLeft] = useState<number | null>(null);
@@ -692,6 +700,27 @@ export function InteractiveMultiLaneChart({
                     activeDot={{ r: 4, fill: lane.color }}
                     connectNulls
                   />
+
+                  {/* Lap boundary markers */}
+                  {laps && laps.length > 1 && (() => {
+                    let offset = 0;
+                    return laps
+                      .slice(0, -1)  // skip last lap (end of activity)
+                      .map((lap, idx) => {
+                        const lapDur = lap.durationSeconds ?? 0;
+                        offset += lapDur;
+                        return (
+                          <ReferenceLine
+                            key={`lap-${idx}`}
+                            yAxisId={lane.key}
+                            x={offset}
+                            stroke="rgba(255,255,255,0.2)"
+                            strokeDasharray="4 3"
+                            strokeWidth={1}
+                          />
+                        );
+                      });
+                  })()}
 
                   {refAreaLeft != null && refAreaRight != null ? (
                     <ReferenceArea

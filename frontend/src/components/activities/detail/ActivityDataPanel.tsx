@@ -12,6 +12,9 @@ import {
   Database,
   Download,
   Info,
+  Activity,
+  Bike,
+  Waves,
 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import type { ActivityDetail, Sport } from "@/lib/types/activity";
@@ -130,6 +133,89 @@ function buildPowerSection(activity: ActivityDetail): DataRow[] {
   return rows.filter(Boolean) as DataRow[];
 }
 
+function buildExtendedSection(activity: ActivityDetail): DataRow[] {
+  const rows: Array<DataRow | null> = [
+    activity.maxSpeed != null
+      ? {
+          label: "Max Speed",
+          value: activity.sport === "running"
+            ? fmtPace(1000 / activity.maxSpeed, "/km")
+            : `${(activity.maxSpeed * 3.6).toFixed(1)} km/h`,
+        }
+      : null,
+    activity.totalDescentMeters != null && activity.totalDescentMeters > 0
+      ? { label: "Total Descent", value: `-${Math.round(activity.totalDescentMeters)} m` }
+      : null,
+    activity.avgTemperature != null
+      ? { label: "Avg Temperature", value: `${activity.avgTemperature.toFixed(1)} °C` }
+      : null,
+    activity.minAltitude != null
+      ? { label: "Min Altitude", value: `${Math.round(activity.minAltitude)} m` }
+      : null,
+    activity.maxAltitude != null
+      ? { label: "Max Altitude", value: `${Math.round(activity.maxAltitude)} m` }
+      : null,
+    activity.aerobicTrainingEffect != null
+      ? { label: "Aerobic Training Effect", value: activity.aerobicTrainingEffect.toFixed(1), emphasis: true }
+      : null,
+    activity.anaerobicTrainingEffect != null
+      ? { label: "Anaerobic Training Effect", value: activity.anaerobicTrainingEffect.toFixed(1), emphasis: true }
+      : null,
+  ];
+  return rows.filter(Boolean) as DataRow[];
+}
+
+function buildRunningDynamicsSection(activity: ActivityDetail): DataRow[] {
+  if (activity.sport !== "running") return [];
+  const rows: Array<DataRow | null> = [
+    activity.avgVerticalOscillation != null
+      ? { label: "Avg Vertical Oscillation", value: `${activity.avgVerticalOscillation.toFixed(1)} mm` }
+      : null,
+    activity.avgGroundContactTime != null
+      ? { label: "Avg Ground Contact Time", value: `${Math.round(activity.avgGroundContactTime)} ms` }
+      : null,
+    activity.avgStepLength != null
+      ? { label: "Avg Step Length", value: `${(activity.avgStepLength / 1000).toFixed(2)} m` }
+      : null,
+    activity.avgVerticalRatio != null
+      ? { label: "Vertical Ratio", value: `${activity.avgVerticalRatio.toFixed(1)} %` }
+      : null,
+  ];
+  return rows.filter(Boolean) as DataRow[];
+}
+
+function buildCyclingTechSection(activity: ActivityDetail): DataRow[] {
+  if (activity.sport !== "cycling") return [];
+  const rows: Array<DataRow | null> = [
+    activity.leftRightBalance != null
+      ? { label: "L/R Balance", value: `${activity.leftRightBalance}% / ${100 - activity.leftRightBalance}%` }
+      : null,
+    activity.avgLeftPedalSmoothness != null
+      ? { label: "Pedal Smoothness", value: `${activity.avgLeftPedalSmoothness.toFixed(1)} %` }
+      : null,
+    activity.avgLeftTorqueEffectiveness != null
+      ? { label: "Torque Effectiveness", value: `${activity.avgLeftTorqueEffectiveness.toFixed(1)} %` }
+      : null,
+  ];
+  return rows.filter(Boolean) as DataRow[];
+}
+
+function buildSwimmingSection(activity: ActivityDetail): DataRow[] {
+  if (activity.sport !== "swimming") return [];
+  const rows: Array<DataRow | null> = [
+    activity.swimStroke != null
+      ? { label: "Swim Stroke", value: activity.swimStroke }
+      : null,
+    activity.poolLength != null
+      ? { label: "Pool Length", value: `${activity.poolLength} m` }
+      : null,
+    activity.avgSwolf != null
+      ? { label: "SWOLF", value: `${activity.avgSwolf.toFixed(0)}` }
+      : null,
+  ];
+  return rows.filter(Boolean) as DataRow[];
+}
+
 function DataSection({ title, rows }: { title: string; rows: DataRow[] }) {
   if (rows.length === 0) return null;
   return (
@@ -181,6 +267,10 @@ export function ActivityDataPanel({ activity }: Props) {
   const perfSection = buildPerformanceSection(activity);
   const hrSection = buildHRSection(activity);
   const powerSection = buildPowerSection(activity);
+  const extendedSection = buildExtendedSection(activity);
+  const runningDynamicsSection = buildRunningDynamicsSection(activity);
+  const cyclingTechSection = buildCyclingTechSection(activity);
+  const swimmingSection = buildSwimmingSection(activity);
 
   return (
     <div className="flex flex-col gap-5">
@@ -195,6 +285,76 @@ export function ActivityDataPanel({ activity }: Props) {
           <DataSection title="Performance" rows={perfSection} />
           {hrSection.length > 0 && <DataSection title="Heart Rate" rows={hrSection} />}
           {powerSection.length > 0 && <DataSection title="Power & Training Load" rows={powerSection} />}
+          {extendedSection.length > 0 && <DataSection title="Extended Metrics" rows={extendedSection} />}
+
+          {/* Running dynamics — conditional */}
+          {runningDynamicsSection.length > 0 && (
+            <div>
+              <div className="mb-2 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-text-muted">
+                <Activity size={11} />
+                Running Dynamics
+              </div>
+              <div className="rounded-xl border border-border-subtle overflow-hidden">
+                {runningDynamicsSection.map((row, i) => (
+                  <div
+                    key={row.label}
+                    className={`flex items-center justify-between px-4 py-2.5 text-xs ${
+                      i < runningDynamicsSection.length - 1 ? "border-b border-border-subtle/50" : ""
+                    } ${i % 2 === 0 ? "bg-bg-elevated/20" : ""}`}
+                  >
+                    <span className="text-text-secondary">{row.label}</span>
+                    <span className="font-semibold text-text-primary">{row.value ?? "—"}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Cycling technique — conditional */}
+          {cyclingTechSection.length > 0 && (
+            <div>
+              <div className="mb-2 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-text-muted">
+                <Bike size={11} />
+                Cycling Technique
+              </div>
+              <div className="rounded-xl border border-border-subtle overflow-hidden">
+                {cyclingTechSection.map((row, i) => (
+                  <div
+                    key={row.label}
+                    className={`flex items-center justify-between px-4 py-2.5 text-xs ${
+                      i < cyclingTechSection.length - 1 ? "border-b border-border-subtle/50" : ""
+                    } ${i % 2 === 0 ? "bg-bg-elevated/20" : ""}`}
+                  >
+                    <span className="text-text-secondary">{row.label}</span>
+                    <span className="font-semibold text-text-primary">{row.value ?? "—"}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Swimming — conditional */}
+          {swimmingSection.length > 0 && (
+            <div>
+              <div className="mb-2 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-text-muted">
+                <Waves size={11} />
+                Swimming
+              </div>
+              <div className="rounded-xl border border-border-subtle overflow-hidden">
+                {swimmingSection.map((row, i) => (
+                  <div
+                    key={row.label}
+                    className={`flex items-center justify-between px-4 py-2.5 text-xs ${
+                      i < swimmingSection.length - 1 ? "border-b border-border-subtle/50" : ""
+                    } ${i % 2 === 0 ? "bg-bg-elevated/20" : ""}`}
+                  >
+                    <span className="text-text-secondary">{row.label}</span>
+                    <span className="font-semibold text-text-primary">{row.value ?? "—"}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Gear */}
           {activity.gear && (

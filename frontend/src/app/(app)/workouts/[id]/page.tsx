@@ -55,6 +55,8 @@ const SPORT_COLOR: Record<Sport, string> = {
   running: "#22C55E",
   swimming: "#06B6D4",
   strength: "#F97316",
+  hiking: "#84cc16",
+  walking: "#a78bfa",
   other: "#6B7280",
 };
 
@@ -63,6 +65,8 @@ const SPORT_EMOJI: Record<Sport, string> = {
   running: "🏃",
   swimming: "🏊",
   strength: "🏋️",
+  hiking: "🥾",
+  walking: "🚶",
   other: "🎯",
 };
 

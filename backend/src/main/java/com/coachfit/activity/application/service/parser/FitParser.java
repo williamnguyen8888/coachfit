@@ -9,6 +9,7 @@ import com.garmin.fit.Decode;
 import com.garmin.fit.FitRuntimeException;
 import com.garmin.fit.LapMesg;
 import com.garmin.fit.LapMesgListener;
+import com.garmin.fit.LapTrigger;
 import com.garmin.fit.MesgBroadcaster;
 import com.garmin.fit.RecordMesg;
 import com.garmin.fit.RecordMesgListener;
@@ -16,6 +17,7 @@ import com.garmin.fit.SessionMesg;
 import com.garmin.fit.SessionMesgListener;
 import com.garmin.fit.Sport;
 import com.garmin.fit.SubSport;
+import com.garmin.fit.SwimStroke;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -29,6 +31,9 @@ import java.util.List;
 
 /**
  * Parses Garmin FIT binary files using the official Garmin FIT SDK.
+ * Extracts session, lap, and record (stream) data including extended metrics:
+ * elevation descent, max speed, Garmin Training Effect, running dynamics,
+ * cycling technique, and swimming metrics.
  */
 @Component
 public class FitParser {
@@ -69,78 +74,125 @@ public class FitParser {
     private ParsedActivity buildParsedActivity(SessionMesg session,
                                                List<LapMesg> lapMesgs,
                                                List<RecordMesg> records) {
-        String sport = mapSport(session.getSport());
+        String sport    = mapSport(session.getSport());
         String subSport = mapSubSport(session.getSubSport());
-        String name = buildName(sport);
+        String name     = buildName(sport);
 
-        Instant startedAt = fitTimestampToInstant(session.getStartTime());
-        int durationSeconds = roundSeconds(session.getTotalElapsedTime());
-        Integer movingTime = firstNonNull(
+        Instant startedAt     = fitTimestampToInstant(session.getStartTime());
+        int durationSeconds   = roundSeconds(session.getTotalElapsedTime());
+        Integer movingTime    = firstNonNull(
                 roundSecondsOrNull(session.getTotalMovingTime()),
                 roundSecondsOrNull(session.getTotalTimerTime()));
 
-        BigDecimal distanceMeters = scaledDecimal(session.getTotalDistance(), 2);
-        BigDecimal elevationGain = session.getTotalAscent() != null
+        BigDecimal distanceMeters  = scaledDecimal(session.getTotalDistance(), 2);
+        BigDecimal elevationGain   = session.getTotalAscent() != null
                 ? BigDecimal.valueOf(session.getTotalAscent()).setScale(2, RoundingMode.HALF_UP)
                 : null;
-        Integer calories = session.getTotalCalories();
-        Integer avgHr = toInteger(session.getAvgHeartRate());
-        Integer maxHr = toInteger(session.getMaxHeartRate());
-        Integer avgPower = session.getAvgPower();
-        Integer maxPower = session.getMaxPower();
+        BigDecimal totalDescent    = session.getTotalDescent() != null
+                ? BigDecimal.valueOf(session.getTotalDescent()).setScale(2, RoundingMode.HALF_UP)
+                : null;
+
+        Integer calories     = session.getTotalCalories();
+        Integer avgHr        = toInteger(session.getAvgHeartRate());
+        Integer maxHr        = toInteger(session.getMaxHeartRate());
+        Integer avgPower     = session.getAvgPower();
+        Integer maxPower     = session.getMaxPower();
         Integer normalizedPower = session.getNormalizedPower();
         BigDecimal intensityFactor = scaledDecimal(session.getIntensityFactor(), 3);
-        BigDecimal tss = scaledDecimal(session.getTrainingStressScore(), 2);
-        Integer avgCadence = sessionAverageCadence(sport, session);
+        BigDecimal tss         = scaledDecimal(session.getTrainingStressScore(), 2);
+        Integer avgCadence     = sessionAverageCadence(sport, session);
+
         BigDecimal avgSpeed = scaledDecimal(
                 firstNonNull(session.getEnhancedAvgSpeed(), session.getAvgSpeed()), 4);
+        BigDecimal maxSpeed = scaledDecimal(
+                firstNonNull(session.getEnhancedMaxSpeed(), session.getMaxSpeed()), 4);
 
+        // Temperature
+        Integer avgTemperature = session.getAvgTemperature() != null
+                ? session.getAvgTemperature().intValue() : null;
+
+        // Altitude range
+        BigDecimal minAltitude = scaledDecimal(
+                firstNonNull(session.getEnhancedMinAltitude(), session.getMinAltitude()), 2);
+        BigDecimal maxAltitude = scaledDecimal(
+                firstNonNull(session.getEnhancedMaxAltitude(), session.getMaxAltitude()), 2);
+
+        // Garmin Training Effect — correct method names in SDK 21.x
+        BigDecimal aerobicTE   = scaledDecimal(session.getTotalTrainingEffect(), 1);
+        BigDecimal anaerobicTE = scaledDecimal(session.getTotalAnaerobicTrainingEffect(), 1);
+
+        // Running dynamics — correct method names in SDK 21.x
+        BigDecimal avgVertOsc  = scaledDecimal(session.getAvgVerticalOscillation(), 1);
+        BigDecimal avgGct      = scaledDecimal(session.getAvgStanceTime(), 1);  // getAvgStanceTime = GCT
+        BigDecimal avgStepLen  = session.getAvgStepLength() != null
+                ? BigDecimal.valueOf(session.getAvgStepLength()).setScale(1, RoundingMode.HALF_UP)
+                : null;
+        BigDecimal avgVertRatio = scaledDecimal(session.getAvgVerticalRatio(), 2);
+
+        // Cycling technique
+        BigDecimal lrBalance   = session.getLeftRightBalance() != null
+                ? BigDecimal.valueOf(session.getLeftRightBalance()).setScale(1, RoundingMode.HALF_UP)
+                : null;
+        BigDecimal pedalSmooth = scaledDecimal(session.getAvgLeftPedalSmoothness(), 1);
+        BigDecimal torqueEff   = scaledDecimal(session.getAvgLeftTorqueEffectiveness(), 1);
+
+        // Swimming — SDK uses getAvgStrokeCount / getSwimStroke / getPoolLength
+        BigDecimal poolLength  = scaledDecimal(session.getPoolLength(), 1);
+        String swimStroke      = mapSwimStroke(session.getSwimStroke());
+        // SWOLF = not a direct session field in SDK 21.x; derive if needed from lap data
+        BigDecimal avgSwolf    = null;
+
+        // GPS start position
         Double startLat = session.getStartPositionLat() != null
-                ? semicircleToDegree(session.getStartPositionLat())
-                : null;
+                ? semicircleToDegree(session.getStartPositionLat()) : null;
         Double startLng = session.getStartPositionLong() != null
-                ? semicircleToDegree(session.getStartPositionLong())
-                : null;
+                ? semicircleToDegree(session.getStartPositionLong()) : null;
         if (startLat == null || startLng == null) {
-            double[] fallbackStart = firstRecordedCoordinates(records);
-            if (startLat == null && !Double.isNaN(fallbackStart[0])) startLat = fallbackStart[0];
-            if (startLng == null && !Double.isNaN(fallbackStart[1])) startLng = fallbackStart[1];
+            double[] fallback = firstRecordedCoordinates(records);
+            if (startLat == null && !Double.isNaN(fallback[0])) startLat = fallback[0];
+            if (startLng == null && !Double.isNaN(fallback[1])) startLng = fallback[1];
         }
 
-        List<ParsedLap> laps = buildLaps(lapMesgs, sport);
-        ParsedStreams streams = buildStreams(records, startedAt);
+        List<ParsedLap>  laps    = buildLaps(lapMesgs, sport);
+        ParsedStreams     streams = buildStreams(records, startedAt);
 
         return new ParsedActivity(
-                sport,
-                subSport,
-                name,
-                startedAt,
-                durationSeconds,
-                movingTime,
-                distanceMeters,
-                elevationGain,
+                sport, subSport, name, startedAt,
+                durationSeconds, movingTime,
+                distanceMeters, elevationGain, totalDescent,
                 calories,
-                avgHr,
-                maxHr,
-                avgPower,
-                maxPower,
-                normalizedPower,
-                intensityFactor,
-                tss,
+                avgHr, maxHr,
+                avgPower, maxPower, normalizedPower,
+                intensityFactor, tss,
                 avgCadence,
-                avgSpeed,
-                startLat,
-                startLng,
-                laps,
-                streams
+                avgSpeed, maxSpeed,
+                avgTemperature,
+                minAltitude, maxAltitude,
+                aerobicTE, anaerobicTE,
+                avgVertOsc, avgGct, avgStepLen, avgVertRatio,
+                lrBalance, pedalSmooth, torqueEff,
+                poolLength, swimStroke, avgSwolf,
+                startLat, startLng,
+                laps, streams
         );
     }
+
+    // ── Laps ──────────────────────────────────────────────────────────────────
 
     private List<ParsedLap> buildLaps(List<LapMesg> lapMesgs, String sport) {
         List<ParsedLap> laps = new ArrayList<>();
         for (int i = 0; i < lapMesgs.size(); i++) {
             LapMesg lap = lapMesgs.get(i);
+
             Float lapSpeed = firstNonNull(lap.getEnhancedAvgSpeed(), lap.getAvgSpeed());
+            Float lapMaxSpeedRaw = firstNonNull(lap.getEnhancedMaxSpeed(), lap.getMaxSpeed());
+
+            BigDecimal lapDescent = lap.getTotalDescent() != null
+                    ? BigDecimal.valueOf(lap.getTotalDescent()).setScale(2, RoundingMode.HALF_UP)
+                    : null;
+
+            String trigger = mapLapTrigger(lap.getLapTrigger());
+
             laps.add(new ParsedLap(
                     i,
                     lap.getStartTime() != null ? fitTimestampToInstant(lap.getStartTime()) : null,
@@ -150,42 +202,41 @@ public class FitParser {
                     toInteger(lap.getMaxHeartRate()),
                     lap.getAvgPower(),
                     lap.getMaxPower(),
+                    lap.getNormalizedPower(),
                     lapAverageCadence(sport, lap),
                     deriveAveragePace(sport, lapSpeed),
+                    scaledDecimal(lapMaxSpeedRaw, 4),
                     lap.getTotalAscent() != null
                             ? BigDecimal.valueOf(lap.getTotalAscent()).setScale(2, RoundingMode.HALF_UP)
-                            : null
+                            : null,
+                    lapDescent,
+                    trigger
             ));
         }
         return laps;
     }
+
+    // ── Streams ────────────────────────────────────────────────────────────────
 
     private ParsedStreams buildStreams(List<RecordMesg> records, Instant activityStart) {
         if (records.isEmpty()) return ParsedStreams.empty();
 
         long startEpoch = activityStart.getEpochSecond();
 
-        List<Integer> timestamps = new ArrayList<>();
-        List<Short> heartRate = new ArrayList<>();
-        List<Short> power = new ArrayList<>();
-        List<Short> cadence = new ArrayList<>();
-        List<Float> speed = new ArrayList<>();
-        List<Float> altitude = new ArrayList<>();
-        List<Double> latitude = new ArrayList<>();
-        List<Double> longitude = new ArrayList<>();
-        List<Float> distance = new ArrayList<>();
-        List<Short> temperature = new ArrayList<>();
-        List<Float> grade = new ArrayList<>();
+        List<Integer> timestamps  = new ArrayList<>();
+        List<Short>   heartRate   = new ArrayList<>();
+        List<Short>   power       = new ArrayList<>();
+        List<Short>   cadence     = new ArrayList<>();
+        List<Float>   speed       = new ArrayList<>();
+        List<Float>   altitude    = new ArrayList<>();
+        List<Double>  latitude    = new ArrayList<>();
+        List<Double>  longitude   = new ArrayList<>();
+        List<Float>   distance    = new ArrayList<>();
+        List<Short>   temperature = new ArrayList<>();
+        List<Float>   grade       = new ArrayList<>();
 
-        boolean hasHr = false;
-        boolean hasPower = false;
-        boolean hasCadence = false;
-        boolean hasSpeed = false;
-        boolean hasAlt = false;
-        boolean hasGps = false;
-        boolean hasDist = false;
-        boolean hasTemp = false;
-        boolean hasGrade = false;
+        boolean hasHr = false, hasPower = false, hasCadence = false, hasSpeed = false;
+        boolean hasAlt = false, hasGps = false, hasDist = false, hasTemp = false, hasGrade = false;
 
         for (RecordMesg r : records) {
             if (r.getTimestamp() == null) continue;
@@ -193,42 +244,22 @@ public class FitParser {
             int elapsed = (int) (r.getTimestamp().getDate().toInstant().getEpochSecond() - startEpoch);
             timestamps.add(elapsed);
 
-            if (r.getHeartRate() != null) {
-                heartRate.add(r.getHeartRate().shortValue());
-                hasHr = true;
-            } else {
-                heartRate.add(null);
-            }
+            if (r.getHeartRate() != null) { heartRate.add(r.getHeartRate().shortValue()); hasHr = true; }
+            else heartRate.add(null);
 
-            if (r.getPower() != null) {
-                power.add(r.getPower().shortValue());
-                hasPower = true;
-            } else {
-                power.add(null);
-            }
+            if (r.getPower() != null) { power.add(r.getPower().shortValue()); hasPower = true; }
+            else power.add(null);
 
-            if (r.getCadence() != null) {
-                cadence.add(r.getCadence().shortValue());
-                hasCadence = true;
-            } else {
-                cadence.add(null);
-            }
+            if (r.getCadence() != null) { cadence.add(r.getCadence().shortValue()); hasCadence = true; }
+            else cadence.add(null);
 
             Float recordSpeed = firstNonNull(r.getEnhancedSpeed(), r.getSpeed());
-            if (recordSpeed != null) {
-                speed.add(recordSpeed);
-                hasSpeed = true;
-            } else {
-                speed.add(null);
-            }
+            if (recordSpeed != null) { speed.add(recordSpeed); hasSpeed = true; }
+            else speed.add(null);
 
             Float recordAltitude = firstNonNull(r.getEnhancedAltitude(), r.getAltitude());
-            if (recordAltitude != null) {
-                altitude.add(recordAltitude);
-                hasAlt = true;
-            } else {
-                altitude.add(null);
-            }
+            if (recordAltitude != null) { altitude.add(recordAltitude); hasAlt = true; }
+            else altitude.add(null);
 
             if (r.getPositionLat() != null && r.getPositionLong() != null) {
                 latitude.add(semicircleToDegree(r.getPositionLat()));
@@ -239,42 +270,32 @@ public class FitParser {
                 longitude.add(null);
             }
 
-            if (r.getDistance() != null) {
-                distance.add(r.getDistance());
-                hasDist = true;
-            } else {
-                distance.add(null);
-            }
+            if (r.getDistance() != null) { distance.add(r.getDistance()); hasDist = true; }
+            else distance.add(null);
 
-            if (r.getTemperature() != null) {
-                temperature.add(r.getTemperature().shortValue());
-                hasTemp = true;
-            } else {
-                temperature.add(null);
-            }
+            if (r.getTemperature() != null) { temperature.add(r.getTemperature().shortValue()); hasTemp = true; }
+            else temperature.add(null);
 
-            if (r.getGrade() != null) {
-                grade.add(r.getGrade());
-                hasGrade = true;
-            } else {
-                grade.add(null);
-            }
+            if (r.getGrade() != null) { grade.add(r.getGrade()); hasGrade = true; }
+            else grade.add(null);
         }
 
         return new ParsedStreams(
                 timestamps,
-                hasHr ? heartRate : null,
-                hasPower ? power : null,
-                hasCadence ? cadence : null,
-                hasSpeed ? speed : null,
-                hasAlt ? altitude : null,
-                hasGps ? latitude : null,
-                hasGps ? longitude : null,
-                hasDist ? distance : null,
-                hasTemp ? temperature : null,
-                hasGrade ? grade : null
+                hasHr      ? heartRate   : null,
+                hasPower   ? power       : null,
+                hasCadence ? cadence     : null,
+                hasSpeed   ? speed       : null,
+                hasAlt     ? altitude    : null,
+                hasGps     ? latitude    : null,
+                hasGps     ? longitude   : null,
+                hasDist    ? distance    : null,
+                hasTemp    ? temperature : null,
+                hasGrade   ? grade       : null
         );
     }
+
+    // ── Mapping helpers ────────────────────────────────────────────────────────
 
     private static Instant fitTimestampToInstant(DateTime dt) {
         if (dt == null) return Instant.EPOCH;
@@ -344,39 +365,60 @@ public class FitParser {
         return null;
     }
 
-    /**
-     * Maps Garmin FIT {@link Sport} enum to CoachFit sport strings.
-     * Unknown/unmapped sports fall back to "other".
-     */
     private static String mapSport(Sport sport) {
         if (sport == null) return "other";
         return switch (sport) {
-            case CYCLING -> "cycling";
-            case RUNNING -> "running";
-            case SWIMMING -> "swimming";
-            case HIKING -> "hiking";
-            case WALKING -> "walking";
-            case MULTISPORT -> "multisport";
-            case ROWING -> "rowing";
+            case CYCLING           -> "cycling";
+            case RUNNING           -> "running";
+            case SWIMMING          -> "swimming";
+            case HIKING            -> "hiking";
+            case WALKING           -> "walking";
+            case MULTISPORT        -> "multisport";
+            case ROWING            -> "rowing";
             case CROSS_COUNTRY_SKIING -> "cross_country_skiing";
-            case ALPINE_SKIING -> "alpine_skiing";
-            case SNOWBOARDING -> "snowboarding";
-            case PADDLING -> "paddling";
-            default -> "other";
+            case ALPINE_SKIING     -> "alpine_skiing";
+            case SNOWBOARDING      -> "snowboarding";
+            case PADDLING          -> "paddling";
+            default                -> "other";
         };
     }
 
     private static String mapSubSport(SubSport subSport) {
         if (subSport == null) return null;
         return switch (subSport) {
-            case ROAD -> "road";
-            case MOUNTAIN -> "mountain";
-            case TRACK -> "track";
-            case TRAIL -> "trail";
+            case ROAD             -> "road";
+            case MOUNTAIN         -> "mountain";
+            case TRACK            -> "track";
+            case TRAIL            -> "trail";
             case VIRTUAL_ACTIVITY -> "virtual";
-            case INDOOR_CYCLING -> "indoor";
-            case TREADMILL -> "treadmill";
-            default -> null;
+            case INDOOR_CYCLING   -> "indoor";
+            case TREADMILL        -> "treadmill";
+            default               -> null;
+        };
+    }
+
+    private static String mapSwimStroke(SwimStroke stroke) {
+        if (stroke == null) return null;
+        return switch (stroke) {
+            case FREESTYLE   -> "freestyle";
+            case BACKSTROKE  -> "backstroke";
+            case BREASTSTROKE -> "breaststroke";
+            case BUTTERFLY   -> "butterfly";
+            case DRILL       -> "drill";
+            case MIXED       -> "mixed";
+            default          -> null;
+        };
+    }
+
+    private static String mapLapTrigger(LapTrigger trigger) {
+        if (trigger == null) return null;
+        return switch (trigger) {
+            case MANUAL              -> "manual";
+            case DISTANCE            -> "distance";
+            case TIME                -> "time";
+            case SESSION_END         -> "session_end";
+            case FITNESS_EQUIPMENT   -> "fitness_equipment";
+            default                  -> "auto";
         };
     }
 
@@ -386,9 +428,6 @@ public class FitParser {
 
     private static class SessionHolder {
         SessionMesg mesg;
-
-        void set(SessionMesg m) {
-            this.mesg = m;
-        }
+        void set(SessionMesg m) { this.mesg = m; }
     }
 }

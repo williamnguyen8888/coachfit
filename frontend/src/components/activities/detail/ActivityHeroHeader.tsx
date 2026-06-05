@@ -30,6 +30,8 @@ const SPORT_GRADIENTS: Record<Sport, string> = {
   running:  "from-emerald-950 via-emerald-900 to-slate-900",
   swimming: "from-cyan-950 via-cyan-900 to-slate-900",
   strength: "from-orange-950 via-orange-900 to-slate-900",
+  hiking:   "from-lime-950 via-lime-900 to-slate-900",
+  walking:  "from-violet-950 via-violet-900 to-slate-900",
   other:    "from-slate-900 via-slate-800 to-slate-900",
 };
 
@@ -38,6 +40,8 @@ const SPORT_ACCENT: Record<Sport, string> = {
   running:  "#22c55e",
   swimming: "#06b6d4",
   strength: "#f97316",
+  hiking:   "#84cc16",
+  walking:  "#a78bfa",
   other:    "#8b5cf6",
 };
 
@@ -46,6 +50,8 @@ const SPORT_ICONS: Record<Sport, string> = {
   running:  "🏃",
   swimming: "🏊",
   strength: "💪",
+  hiking:   "🥾",
+  walking:  "🚶",
   other:    "🏋️",
 };
 

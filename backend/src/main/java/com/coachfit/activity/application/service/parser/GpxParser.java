@@ -92,11 +92,15 @@ public class GpxParser {
                 distanceMeters,
                 summary.avgHeartRate,
                 summary.maxHeartRate,
-                null,
-                null,
+                null,                  // avgPower
+                null,                  // maxPower
+                null,                  // normalizedPower
                 summary.avgCadence,
-                null,
-                summary.elevationGainMeters
+                null,                  // avgPace
+                null,                  // maxSpeed
+                summary.elevationGainMeters,
+                null,                  // elevationDescent
+                null                   // lapTrigger
         ));
 
         return new ParsedActivity(
@@ -105,19 +109,36 @@ public class GpxParser {
                 name,
                 startedAt,
                 durationSeconds,
-                null,
+                null,                  // movingTimeSeconds
                 distanceMeters,
                 summary.elevationGainMeters,
-                null,
+                null,                  // totalDescentMeters — not available in GPX
+                null,                  // calories
                 summary.avgHeartRate,
                 summary.maxHeartRate,
-                null,
-                null,
-                null,
-                null,
-                null,
+                null,                  // avgPower
+                null,                  // maxPower
+                null,                  // normalizedPower
+                null,                  // intensityFactor
+                null,                  // tss
                 summary.avgCadence,
                 avgSpeed,
+                null,                  // maxSpeed
+                null,                  // avgTemperature
+                null,                  // minAltitude
+                null,                  // maxAltitude
+                null,                  // aerobicTrainingEffect
+                null,                  // anaerobicTrainingEffect
+                null,                  // avgVerticalOscillation
+                null,                  // avgGroundContactTime
+                null,                  // avgStepLength
+                null,                  // avgVerticalRatio
+                null,                  // leftRightBalance
+                null,                  // avgLeftPedalSmoothness
+                null,                  // avgLeftTorqueEffectiveness
+                null,                  // poolLength
+                null,                  // swimStroke
+                null,                  // avgSwolf
                 summary.startLat,
                 summary.startLng,
                 laps,

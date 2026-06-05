@@ -99,7 +99,7 @@ export function ActivityPowerPanel({ activity, points, zoneConfig }: Props) {
     [activity.normalizedPower, activity.avgPower],
   );
   const ef = useMemo(
-    () => computeEF(activity.normalizedPower, activity.avgSpeed, activity.avgHeartRate, activity.sport),
+    () => computeEF(activity.normalizedPower, activity.avgSpeed, activity.avgHeartRate, activity.sport as "cycling" | "running" | "swimming" | "strength" | "other"),
     [activity],
   );
 
@@ -180,6 +180,23 @@ export function ActivityPowerPanel({ activity, points, zoneConfig }: Props) {
   }
   if (zoneConfig?.ftp != null) {
     tiles.push({ label: "FTP Reference", value: `${zoneConfig.ftp} W`, sub: "Threshold" });
+  }
+  if (activity.aerobicTrainingEffect != null) {
+    tiles.push({
+      label: "Aerobic Training Effect",
+      value: activity.aerobicTrainingEffect.toFixed(1),
+      sub: "Training Effect: Aerobic (1.0–5.0)",
+      accent: true,
+      description: "Aerobic training benefit: 1=Minor, 2=Maintaining, 3=Improving, 4=Highly Improving, 5=Overreaching",
+    });
+  }
+  if (activity.anaerobicTrainingEffect != null) {
+    tiles.push({
+      label: "Anaerobic Training Effect",
+      value: activity.anaerobicTrainingEffect.toFixed(1),
+      sub: "Training Effect: Anaerobic",
+      description: "Anaerobic capacity benefit from high-intensity intervals",
+    });
   }
 
   const avgPowerCalc = weightedAverage(series);

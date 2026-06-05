@@ -24,6 +24,8 @@ const SPORT_COLOR: Record<Sport, string> = {
   running: "var(--sport-running)",
   swimming: "var(--sport-swimming)",
   strength: "var(--sport-strength)",
+  hiking: "#84cc16",
+  walking: "#a78bfa",
   other: "var(--sport-other)",
 };
 
@@ -32,6 +34,8 @@ const SPORT_GLOW: Record<Sport, string> = {
   running: "var(--sport-running-glow, rgba(34, 197, 94, 0.15))",
   swimming: "var(--sport-swimming-glow, rgba(6, 182, 212, 0.15))",
   strength: "var(--sport-strength-glow, rgba(249, 115, 22, 0.15))",
+  hiking: "rgba(132, 204, 22, 0.15)",
+  walking: "rgba(167, 139, 250, 0.15)",
   other: "var(--sport-other-glow, rgba(107, 114, 128, 0.1))",
 };
 

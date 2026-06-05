@@ -45,14 +45,26 @@ class ActivityLapEntity {
     @Column(name = "max_power")
     Integer maxPower;
 
+    @Column(name = "normalized_power")
+    Integer normalizedPower;
+
     @Column(name = "avg_cadence")
     Integer avgCadence;
 
     @Column(name = "avg_pace", precision = 8, scale = 2)
     BigDecimal avgPace;
 
+    @Column(name = "max_speed", precision = 8, scale = 4)
+    BigDecimal maxSpeed;
+
     @Column(name = "elevation_gain", precision = 8, scale = 2)
     BigDecimal elevationGain;
+
+    @Column(name = "elevation_descent", precision = 8, scale = 2)
+    BigDecimal elevationDescent;
+
+    @Column(name = "lap_trigger", length = 20)
+    String lapTrigger;
 
     protected ActivityLapEntity() {}
 

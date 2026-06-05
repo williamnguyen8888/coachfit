@@ -16,6 +16,8 @@ const sportLabels: Record<Sport, string> = {
   running: "Running",
   swimming: "Swimming",
   strength: "Strength",
+  hiking: "Hiking",
+  walking: "Walking",
   other: "Other",
 };
 
@@ -24,6 +26,8 @@ const sportColors: Record<Sport, string> = {
   running: "var(--sport-running)",
   swimming: "var(--sport-swimming)",
   strength: "var(--sport-strength)",
+  hiking: "#84cc16",
+  walking: "#a78bfa",
   other: "var(--sport-other)",
 };
 
@@ -32,6 +36,8 @@ const sportGlows: Record<Sport, string> = {
   running: "rgba(34, 197, 94, 0.2)",
   swimming: "rgba(6, 182, 212, 0.2)",
   strength: "rgba(249, 115, 22, 0.2)",
+  hiking: "rgba(132, 204, 22, 0.2)",
+  walking: "rgba(167, 139, 250, 0.2)",
   other: "rgba(107, 114, 128, 0.15)",
 };
 
@@ -49,6 +55,8 @@ export function WorkoutsSummaryDashboard({
       running: 0,
       swimming: 0,
       strength: 0,
+      hiking: 0,
+      walking: 0,
       other: 0,
     };
 

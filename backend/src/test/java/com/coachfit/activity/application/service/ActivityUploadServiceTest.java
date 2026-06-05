@@ -191,9 +191,13 @@ class ActivityUploadServiceTest {
                 170,
                 220,
                 350,
+                null,                        // normalizedPower
                 88,
                 new BigDecimal("250.00"),
-                new BigDecimal("120.00")
+                null,                        // maxSpeed
+                new BigDecimal("120.00"),
+                null,                        // elevationDescent
+                "manual"                     // lapTrigger
         );
         ParsedStreams streams = new ParsedStreams(
                 List.of(0, 30),
@@ -217,6 +221,7 @@ class ActivityUploadServiceTest {
                 3500,
                 new BigDecimal("40000.00"),
                 new BigDecimal("500.00"),
+                null,                         // totalDescentMeters
                 900,
                 150,
                 178,
@@ -227,6 +232,22 @@ class ActivityUploadServiceTest {
                 new BigDecimal("82.40"),
                 89,
                 new BigDecimal("11.1111"),
+                null,                         // maxSpeed
+                null,                         // avgTemperature
+                null,                         // minAltitude
+                null,                         // maxAltitude
+                null,                         // aerobicTrainingEffect
+                null,                         // anaerobicTrainingEffect
+                null,                         // avgVerticalOscillation
+                null,                         // avgGroundContactTime
+                null,                         // avgStepLength
+                null,                         // avgVerticalRatio
+                null,                         // leftRightBalance
+                null,                         // avgLeftPedalSmoothness
+                null,                         // avgLeftTorqueEffectiveness
+                null,                         // poolLength
+                null,                         // swimStroke
+                null,                         // avgSwolf
                 10.0,
                 106.0,
                 List.of(lap),

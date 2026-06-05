@@ -34,9 +34,12 @@ type SortKey =
   | "maxHeartRate"
   | "avgPower"
   | "maxPower"
+  | "normalizedPower"
   | "avgCadence"
   | "paceOrSpeed"
-  | "elevationGain";
+  | "maxSpeed"
+  | "elevationGain"
+  | "elevationDescent";
 
 interface ColDef {
   key: SortKey;
@@ -145,6 +148,46 @@ const COLUMNS: ColDef[] = [
     visible: (_, laps) =>
       laps.some((l) => l.elevationGain != null && l.elevationGain > 0),
   },
+  {
+    key: "elevationDescent",
+    label: "↓ Desc",
+    align: "right",
+    render: (l) =>
+      l.elevationDescent != null && l.elevationDescent > 0
+        ? `-${Math.round(l.elevationDescent)} m`
+        : "—",
+    visible: (_, laps) =>
+      laps.some((l) => l.elevationDescent != null && l.elevationDescent > 0),
+  },
+  {
+    key: "normalizedPower",
+    label: "NP",
+    align: "right",
+    render: (l) => (l.normalizedPower != null ? `${l.normalizedPower} W` : "—"),
+    visible: (sport, laps) =>
+      sport === "cycling" && laps.some((l) => l.normalizedPower != null),
+  },
+  {
+    key: "maxSpeed",
+    label: "Max Speed",
+    align: "right",
+    render: (l, sport) => {
+      if (l.maxSpeed == null) return "—";
+      if (sport === "running") return fmtPace(1000 / l.maxSpeed, "/km");
+      return `${(l.maxSpeed * 3.6).toFixed(1)} km/h`;
+    },
+    visible: (_, laps) => laps.some((l) => l.maxSpeed != null),
+  },
+  {
+    key: "lapIndex" as SortKey,  // re-using lapIndex sort key for trigger (no sort)
+    label: "Trigger",
+    align: "right",
+    render: (l) => {
+      if (!l.lapTrigger) return "—";
+      return l.lapTrigger;
+    },
+    visible: (_, laps) => laps.some((l) => l.lapTrigger != null),
+  },
 ];
 
 function sortLaps(laps: ActivityLap[], key: SortKey, dir: "asc" | "desc"): ActivityLap[] {
@@ -159,8 +202,11 @@ function sortLaps(laps: ActivityLap[], key: SortKey, dir: "asc" | "desc"): Activ
     else if (key === "maxHeartRate") { av = a.maxHeartRate; bv = b.maxHeartRate; }
     else if (key === "avgPower") { av = a.avgPower; bv = b.avgPower; }
     else if (key === "maxPower") { av = a.maxPower; bv = b.maxPower; }
+    else if (key === "normalizedPower") { av = a.normalizedPower; bv = b.normalizedPower; }
     else if (key === "avgCadence") { av = a.avgCadence; bv = b.avgCadence; }
     else if (key === "elevationGain") { av = a.elevationGain; bv = b.elevationGain; }
+    else if (key === "elevationDescent") { av = a.elevationDescent; bv = b.elevationDescent; }
+    else if (key === "maxSpeed") { av = a.maxSpeed; bv = b.maxSpeed; }
     else if (key === "paceOrSpeed") {
       av = a.avgSpeed ?? (a.avgPace ? 1 / a.avgPace : null);
       bv = b.avgSpeed ?? (b.avgPace ? 1 / b.avgPace : null);
@@ -288,7 +334,7 @@ export function ActivityLapsTable({ laps, sport, selectedLapIndex, onSelectLap }
                 >
                   {visibleCols.map((col) => (
                     <td
-                      key={col.key}
+                      key={col.key + col.label}
                       className={`whitespace-nowrap px-4 py-2.5 ${
                         col.align === "right" ? "text-right" : "text-left"
                       } ${
@@ -299,7 +345,23 @@ export function ActivityLapsTable({ laps, sport, selectedLapIndex, onSelectLap }
                             : "text-text-secondary"
                       } ${isSelected ? "text-accent" : ""}`}
                     >
-                      {col.render(lap, sport) ?? "—"}
+                      {col.label === "Trigger" && col.render(lap, sport) !== "—" ? (
+                        <span
+                          className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                            col.render(lap, sport) === "manual"
+                              ? "bg-blue-500/20 text-blue-400"
+                              : col.render(lap, sport) === "distance"
+                              ? "bg-green-500/20 text-green-400"
+                              : col.render(lap, sport) === "time"
+                              ? "bg-amber-500/20 text-amber-400"
+                              : "bg-purple-500/20 text-purple-400"
+                          }`}
+                        >
+                          {col.render(lap, sport)}
+                        </span>
+                      ) : (
+                        col.render(lap, sport) ?? "—"
+                      )}
                     </td>
                   ))}
                 </tr>

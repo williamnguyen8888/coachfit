@@ -245,7 +245,7 @@ export function computeEF(
   normalizedPower: number | null | undefined,
   avgSpeed: number | null | undefined,
   avgHR: number | null | undefined,
-  sport: "cycling" | "running" | "swimming" | "strength" | "other",
+  sport: string,
 ): number | null {
   if (!avgHR || avgHR <= 0) return null;
 

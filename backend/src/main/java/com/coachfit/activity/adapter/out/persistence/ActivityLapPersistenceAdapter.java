@@ -32,9 +32,13 @@ class ActivityLapPersistenceAdapter implements ActivityLapPersistencePort {
             entity.maxHeartRate     = lap.maxHeartRate();
             entity.avgPower         = lap.avgPower();
             entity.maxPower         = lap.maxPower();
+            entity.normalizedPower  = lap.normalizedPower();
             entity.avgCadence       = lap.avgCadence();
             entity.avgPace          = lap.avgPace();
+            entity.maxSpeed         = lap.maxSpeed();
             entity.elevationGain    = lap.elevationGain();
+            entity.elevationDescent = lap.elevationDescent();
+            entity.lapTrigger       = lap.lapTrigger();
             repo.save(entity);
         }
     }
@@ -46,8 +50,10 @@ class ActivityLapPersistenceAdapter implements ActivityLapPersistencePort {
                 .map(e -> new LapData(
                         e.lapIndex, e.startTime, e.durationSeconds,
                         e.distanceMeters, e.avgHeartRate, e.maxHeartRate,
-                        e.avgPower, e.maxPower, e.avgCadence, e.avgPace,
-                        e.elevationGain))
+                        e.avgPower, e.maxPower, e.normalizedPower,
+                        e.avgCadence, e.avgPace,
+                        e.maxSpeed, e.elevationGain, e.elevationDescent,
+                        e.lapTrigger))
                 .toList();
     }
 }

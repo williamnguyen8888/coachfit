@@ -11,18 +11,7 @@ import java.util.UUID;
  */
 public interface GetActivityLapsUseCase {
 
-    /**
-     * Loads the ordered list of laps for an activity.
-     *
-     * @param userId     authenticated user — used for ownership verification
-     * @param activityId requested activity UUID
-     * @return ordered lap list (empty if no laps were recorded)
-     * @throws org.springframework.web.server.ResponseStatusException 404 if activity not found
-     * @throws org.springframework.security.access.AccessDeniedException if owned by another user
-     */
     List<LapItem> getLaps(UUID userId, UUID activityId);
-
-    // ── Result type ───────────────────────────────────────────────────────────
 
     record LapItem(
             short      lapIndex,
@@ -33,8 +22,12 @@ public interface GetActivityLapsUseCase {
             Integer    maxHeartRate,
             Integer    avgPower,
             Integer    maxPower,
+            Integer    normalizedPower,
             Integer    avgCadence,
             BigDecimal avgPace,
-            BigDecimal elevationGain
+            BigDecimal maxSpeed,
+            BigDecimal elevationGain,
+            BigDecimal elevationDescent,
+            String     lapTrigger
     ) {}
 }

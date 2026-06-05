@@ -30,6 +30,8 @@ import { ActivityMap } from "@/components/activities/detail/ActivityMap";
 import { ActivityLapsTable } from "@/components/activities/detail/ActivityLapsTable";
 import { ActivityDataPanel } from "@/components/activities/detail/ActivityDataPanel";
 import { ActivityNotesCard } from "@/components/activities/detail/ActivityNotesCard";
+import { ActivityRunningFormPanel } from "@/components/activities/detail/ActivityRunningFormPanel";
+import { ActivitySplitsPanel } from "@/components/activities/detail/ActivitySplitsPanel";
 
 // Services & types
 import { activitiesService } from "@/lib/services/activities";
@@ -44,10 +46,12 @@ const SPORT_ACCENT: Record<Sport, string> = {
   running:  "#22c55e",
   swimming: "#06b6d4",
   strength: "#f97316",
+  hiking:   "#84cc16",
+  walking:  "#a78bfa",
   other:    "#8b5cf6",
 };
 
-type TabKey = "TIMELINE" | "POWER" | "HR" | "ELEVATION" | "ROUTE" | "LAPS" | "DATA";
+type TabKey = "TIMELINE" | "POWER" | "HR" | "ELEVATION" | "ROUTE" | "LAPS" | "RUNNING_FORM" | "SPLITS" | "DATA";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -244,6 +248,20 @@ export default function ActivityDetailPage({ params }: Props) {
     { key: "ELEVATION", label: "ELEVATION", show: hasAlt || (activity.elevationGainMeters ?? 0) > 0 },
     { key: "ROUTE", label: "ROUTE", show: hasGPS },
     { key: "LAPS", label: `LAPS (${laps.length})`, show: laps.length > 0 },
+    {
+      key: "RUNNING_FORM",
+      label: "RUNNING FORM",
+      show:
+        activity.sport === "running" &&
+        (activity.avgVerticalOscillation != null ||
+          activity.avgGroundContactTime != null ||
+          streamPoints.some((p) => p.cadence != null && p.speed != null)),
+    },
+    {
+      key: "SPLITS",
+      label: "SPLITS",
+      show: streamPoints.some((p) => p.distance != null),
+    },
     { key: "DATA", label: "DATA", show: true },
   ];
 
@@ -314,6 +332,7 @@ export default function ActivityDetailPage({ params }: Props) {
                   sport={activity.sport}
                   selectedRange={selectedTimeRange}
                   onRangeSelect={setSelectedTimeRange}
+                  laps={laps}
                 />
                 {streamPoints.length === 0 && (
                   <div className="rounded-xl border border-dashed border-border-default bg-bg-elevated/30 p-6 text-center text-sm text-text-secondary">
@@ -378,6 +397,16 @@ export default function ActivityDetailPage({ params }: Props) {
             {/* DATA */}
             {effectiveTab === "DATA" && (
               <ActivityDataPanel activity={activity} />
+            )}
+
+            {/* RUNNING FORM */}
+            {effectiveTab === "RUNNING_FORM" && (
+              <ActivityRunningFormPanel activity={activity} points={streamPoints} />
+            )}
+
+            {/* SPLITS */}
+            {effectiveTab === "SPLITS" && (
+              <ActivitySplitsPanel activity={activity} points={streamPoints} />
             )}
 
           </div>

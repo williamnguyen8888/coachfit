@@ -135,8 +135,10 @@ public class ActivityQueryCommandService
                 .map(l -> new LapItem(
                         l.lapIndex(), l.startTime(), l.durationSeconds(),
                         l.distanceMeters(), l.avgHeartRate(), l.maxHeartRate(),
-                        l.avgPower(), l.maxPower(), l.avgCadence(),
-                        l.avgPace(), l.elevationGain()))
+                        l.avgPower(), l.maxPower(), l.normalizedPower(),
+                        l.avgCadence(), l.avgPace(),
+                        l.maxSpeed(), l.elevationGain(), l.elevationDescent(),
+                        l.lapTrigger()))
                 .toList();
     }
 

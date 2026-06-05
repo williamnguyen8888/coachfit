@@ -121,9 +121,13 @@ public class TcxParser {
                     maxHeartRate,
                     avgPower,
                     maxPower,
+                    null,                  // normalizedPower
                     avgCadence,
                     deriveAveragePace(sport, lap.distanceMeters, lap.totalTimeSeconds),
-                    null
+                    null,                  // maxSpeed
+                    null,                  // elevationGain
+                    null,                  // elevationDescent
+                    null                   // lapTrigger
             ));
 
             if (lap.track != null && lap.track.trackpoints != null) {
@@ -160,19 +164,36 @@ public class TcxParser {
                 buildName(sport),
                 startedAt,
                 roundDuration(totalDurationSeconds),
-                null,
+                null,                  // movingTimeSeconds
                 distance,
                 trackpointSummary.elevationGainMeters,
+                null,                  // totalDescentMeters
                 totalCalories > 0 ? totalCalories : null,
                 avgHeartRate,
                 maxHeartRate,
                 avgPower,
                 maxPower,
-                null,
-                null,
-                null,
+                null,                  // normalizedPower
+                null,                  // intensityFactor
+                null,                  // tss
                 avgCadence,
                 avgSpeed,
+                null,                  // maxSpeed
+                null,                  // avgTemperature
+                null,                  // minAltitude
+                null,                  // maxAltitude
+                null,                  // aerobicTrainingEffect
+                null,                  // anaerobicTrainingEffect
+                null,                  // avgVerticalOscillation
+                null,                  // avgGroundContactTime
+                null,                  // avgStepLength
+                null,                  // avgVerticalRatio
+                null,                  // leftRightBalance
+                null,                  // avgLeftPedalSmoothness
+                null,                  // avgLeftTorqueEffectiveness
+                null,                  // poolLength
+                null,                  // swimStroke
+                null,                  // avgSwolf
                 trackpointSummary.startLat,
                 trackpointSummary.startLng,
                 laps,

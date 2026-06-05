@@ -9,6 +9,8 @@ import * as React from "react";
 import {
   Bike,
   Footprints,
+  Mountain,
+  PersonStanding,
   Waves,
   Dumbbell,
   Activity,
@@ -38,6 +40,16 @@ const SPORT_META: Record<
     Icon: Dumbbell,
     color: "var(--sport-strength)",
     label: "Strength",
+  },
+  hiking: {
+    Icon: Mountain,
+    color: "#84cc16",
+    label: "Hiking",
+  },
+  walking: {
+    Icon: PersonStanding,
+    color: "#a78bfa",
+    label: "Walking",
   },
   other: {
     Icon: Activity,

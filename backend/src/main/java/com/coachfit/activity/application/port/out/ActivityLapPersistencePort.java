@@ -28,8 +28,12 @@ public interface ActivityLapPersistencePort {
             Integer     maxHeartRate,
             Integer     avgPower,
             Integer     maxPower,
+            Integer     normalizedPower,
             Integer     avgCadence,
             BigDecimal  avgPace,
-            BigDecimal  elevationGain
+            BigDecimal  maxSpeed,
+            BigDecimal  elevationGain,
+            BigDecimal  elevationDescent,
+            String      lapTrigger
     ) {}
 }

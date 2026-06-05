@@ -504,8 +504,14 @@ public class GarminActivitySyncService {
                     lapStart,
                     dur,
                     distM != null ? BigDecimal.valueOf(distM).setScale(2, RoundingMode.HALF_UP) : null,
-                    avgHr, maxHr, avgPwr, maxPwr, avgCad,
-                    null, null
+                    avgHr, maxHr, avgPwr, maxPwr,
+                    null,  // normalizedPower
+                    avgCad,
+                    null,  // avgPace
+                    null,  // maxSpeed
+                    null,  // elevationGain
+                    null,  // elevationDescent
+                    null   // lapTrigger
             ));
         }
         return result;

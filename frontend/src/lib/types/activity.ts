@@ -6,6 +6,8 @@ export type Sport =
   | "running"
   | "swimming"
   | "strength"
+  | "hiking"
+  | "walking"
   | "other";
 
 export type ActivitySource = "strava" | "garmin" | "manual" | "upload";
@@ -30,6 +32,7 @@ export interface ActivityDetail extends ActivitySummary {
   description: string | null;
   movingTimeSeconds: number | null;
   elevationGainMeters: number | null;
+  totalDescentMeters: number | null;
   calories: number | null;
   maxHeartRate: number | null;
   maxPower: number | null;
@@ -37,6 +40,25 @@ export interface ActivityDetail extends ActivitySummary {
   intensityFactor: number | null;
   avgCadence: number | null;
   avgSpeed: number | null;
+  maxSpeed: number | null;
+  avgTemperature: number | null;
+  minAltitude: number | null;
+  maxAltitude: number | null;
+  aerobicTrainingEffect: number | null;
+  anaerobicTrainingEffect: number | null;
+  // Running dynamics
+  avgVerticalOscillation: number | null;  // mm
+  avgGroundContactTime: number | null;    // ms
+  avgStepLength: number | null;           // mm
+  avgVerticalRatio: number | null;        // %
+  // Cycling technique
+  leftRightBalance: number | null;              // %
+  avgLeftPedalSmoothness: number | null;        // %
+  avgLeftTorqueEffectiveness: number | null;    // %
+  // Swimming
+  poolLength: number | null;   // meters
+  swimStroke: string | null;
+  avgSwolf: number | null;
   startLat: number | null;
   startLng: number | null;
   gear: { id: string; name: string } | null;
@@ -53,10 +75,14 @@ export interface ActivityLap {
   maxHeartRate: number | null;
   avgPower: number | null;
   maxPower: number | null;
+  normalizedPower: number | null;
   avgCadence: number | null;
   avgPace: number | null;
   avgSpeed: number | null;
+  maxSpeed: number | null;
   elevationGain: number | null;
+  elevationDescent: number | null;
+  lapTrigger: string | null;
 }
 
 /** A single data-point in a stream */

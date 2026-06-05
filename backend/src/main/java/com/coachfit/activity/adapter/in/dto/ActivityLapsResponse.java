@@ -21,10 +21,14 @@ public record ActivityLapsResponse(List<LapDto> laps) {
             Integer    maxHeartRate,
             Integer    avgPower,
             Integer    maxPower,
+            Integer    normalizedPower,
             Integer    avgCadence,
             BigDecimal avgPace,
             BigDecimal avgSpeed,
-            BigDecimal elevationGain
+            BigDecimal maxSpeed,
+            BigDecimal elevationGain,
+            BigDecimal elevationDescent,
+            String     lapTrigger
     ) {}
 
     public static ActivityLapsResponse from(List<LapItem> laps) {
@@ -33,8 +37,12 @@ public record ActivityLapsResponse(List<LapDto> laps) {
                         .map(l -> new LapDto(
                                 l.lapIndex(), l.startTime(), l.durationSeconds(),
                                 l.distanceMeters(), l.avgHeartRate(), l.maxHeartRate(),
-                                l.avgPower(), l.maxPower(), l.avgCadence(),
-                                l.avgPace(), deriveAverageSpeed(l), l.elevationGain()))
+                                l.avgPower(), l.maxPower(), l.normalizedPower(),
+                                l.avgCadence(), l.avgPace(),
+                                deriveAverageSpeed(l),
+                                l.maxSpeed(),
+                                l.elevationGain(), l.elevationDescent(),
+                                l.lapTrigger()))
                         .toList()
         );
     }
