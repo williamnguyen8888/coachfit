@@ -163,72 +163,61 @@ function buildPrimaryTiles(a: ActivityDetail): Tile[] {
 }
 
 /**
- * Secondary chips — only metrics NOT already shown in primary tiles.
- * Avoids duplicate display of Avg HR when it's already the 4th tile.
+ * Splits chips into: training load group (TSS/NP/IF) + other stats.
+ * Training load shown with accent highlight; others as plain chips.
  */
-function buildChips(a: ActivityDetail, avgTemp: number | null): Chip[] {
-  const chips: Chip[] = [];
+function buildChips(a: ActivityDetail, avgTemp: number | null): {
+  loadChips: Chip[];
+  otherChips: Chip[];
+} {
+  const loadChips: Chip[] = [];
+  const otherChips: Chip[] = [];
 
-  // Training load
+  // Training load group
   if (a.tss != null) {
     const tssLabel = a.sport === "running" ? "rTSS"
       : a.sport === "swimming" ? "sTSS"
       : "TSS";
-    chips.push({ id: "tss", label: tssLabel, value: Math.round(a.tss).toString() });
+    loadChips.push({ id: "tss", label: tssLabel, value: Math.round(a.tss).toString() });
+  }
+  if (a.normalizedPower != null) {
+    loadChips.push({ id: "np", label: "NP", value: `${a.normalizedPower} W` });
   }
   if (a.intensityFactor != null) {
-    chips.push({ id: "if", label: "IF", value: a.intensityFactor.toFixed(2) });
+    loadChips.push({ id: "if", label: "IF", value: a.intensityFactor.toFixed(2) });
   }
 
-  // Power
-  if (a.normalizedPower != null) {
-    chips.push({ id: "np", label: "NP", value: `${a.normalizedPower} W` });
-  }
+  // Other stats
   if (a.avgPower != null) {
-    chips.push({
-      id: "ap",
-      label: a.normalizedPower != null ? "AP" : "Avg Power",
-      value: `${a.avgPower} W`,
-    });
+    otherChips.push({ id: "ap", label: a.normalizedPower != null ? "AP" : "Avg Power", value: `${a.avgPower} W` });
   }
   if (a.maxPower != null) {
-    chips.push({ id: "maxpow", label: "Max Power", value: `${a.maxPower} W` });
+    otherChips.push({ id: "maxpow", label: "Max W", value: `${a.maxPower} W` });
   }
 
-  // HR — only show in chips if NOT already shown as the 4th primary tile
   const hrIsInPrimaryTile =
     (a.elevationGainMeters == null || a.elevationGainMeters <= 0 || a.sport === "strength") &&
     a.avgHeartRate != null;
 
-  if (!hrIsInPrimaryTile) {
-    if (a.avgHeartRate != null) {
-      chips.push({ id: "avghr", label: "Avg HR", value: `${a.avgHeartRate} bpm` });
-    }
-    if (a.maxHeartRate != null) {
-      chips.push({ id: "maxhr", label: "Max HR", value: `${a.maxHeartRate} bpm` });
-    }
-  } else if (a.maxHeartRate != null) {
-    // 4th tile already shows avg HR with max HR as sub-text — skip both from chips
-    // (sub text handles max HR display)
+  if (!hrIsInPrimaryTile && a.avgHeartRate != null) {
+    otherChips.push({ id: "avghr", label: "Avg HR", value: `${a.avgHeartRate} bpm` });
+  }
+  if (a.maxHeartRate != null && !hrIsInPrimaryTile) {
+    otherChips.push({ id: "maxhr", label: "Max HR", value: `${a.maxHeartRate} bpm` });
   }
 
-  // Cadence
   if (a.avgCadence != null) {
     const cadUnit = a.sport === "running" ? " spm" : " rpm";
-    chips.push({ id: "cad", label: "Cadence", value: `${a.avgCadence}${cadUnit}` });
+    otherChips.push({ id: "cad", label: "Cadence", value: `${a.avgCadence}${cadUnit}` });
   }
-
-  // Calories — skip if already the speed/3rd tile for strength
   if (a.calories != null && a.sport !== "strength") {
-    chips.push({ id: "cal", label: "Calories", value: `${a.calories.toLocaleString()} kcal` });
+    otherChips.push({ id: "cal", label: "Cal", value: `${a.calories.toLocaleString()} kcal` });
   }
-
-  // Temperature
   if (avgTemp != null) {
-    chips.push({ id: "temp", label: "Temp", value: `${avgTemp}°C` });
+    otherChips.push({ id: "temp", label: "Temp", value: `${avgTemp}\u00b0C` });
   }
 
-  return chips;
+  return { loadChips, otherChips };
 }
 
 function avgTemperature(points: StreamPoint[]): number | null {
@@ -281,7 +270,8 @@ export function ActivityHeroHeader({
   const gradient    = SPORT_GRADIENTS[activity.sport] ?? SPORT_GRADIENTS.other;
   const primaryTiles = buildPrimaryTiles(activity);
   const avgTemp      = avgTemperature(points);
-  const chips        = buildChips(activity, avgTemp);
+  const { loadChips, otherChips } = buildChips(activity, avgTemp);
+  const hasAnyChips = loadChips.length > 0 || otherChips.length > 0;
 
   const hasDownload = activity.rawFileFormat != null;
 
@@ -495,22 +485,26 @@ export function ActivityHeroHeader({
         ))}
       </div>
 
-      {/* ── ZONE 3: Analytics chips — collapsible on mobile ─────────────── */}
-      {chips.length > 0 && (
+      {/* ── ZONE 3: Training Load highlight + other chips ──────────────── */}
+      {hasAnyChips && (
         <div
           className="border-t border-white/8"
           style={{ borderTopColor: `${sportColor}20` }}
         >
-          {/* Toggle button — visible on mobile only (sm:hidden) */}
+          {/* Mobile toggle — sm:hidden */}
           <button
             id="chips-toggle-btn"
             onClick={() => setChipsExpanded((v) => !v)}
             className="flex w-full items-center justify-between px-4 py-1.5 sm:hidden"
             aria-expanded={chipsExpanded}
-            aria-label={chipsExpanded ? "Hide secondary stats" : "Show secondary stats"}
+            aria-label={chipsExpanded ? "Hide stats" : "Show training load & stats"}
           >
             <span className="text-[11px] font-semibold uppercase tracking-widest text-white/30">
-              {chipsExpanded ? "Less stats" : `+${chips.length} more stats`}
+              {chipsExpanded ? "Less" : (
+                loadChips.length > 0
+                  ? `Training Load + ${otherChips.length} more`
+                  : `+${otherChips.length} more stats`
+              )}
             </span>
             <ChevronDown
               size={13}
@@ -520,20 +514,43 @@ export function ActivityHeroHeader({
             />
           </button>
 
-          {/* Chips row — always visible on sm+, toggle on mobile */}
+          {/* Chips row */}
           <div
-            className={`flex items-center gap-0 overflow-x-auto scrollbar-none transition-all duration-200 ${
-              chipsExpanded ? "max-h-20 opacity-100" : "max-h-0 overflow-hidden opacity-0 sm:max-h-20 sm:opacity-100"
+            className={`flex items-center overflow-x-auto scrollbar-none transition-all duration-200 ${
+              chipsExpanded ? "max-h-12 opacity-100" : "max-h-0 overflow-hidden opacity-0 sm:max-h-12 sm:opacity-100"
             }`}
           >
-            {chips.map((chip, i) => (
+            {/* Training Load — highlighted pills */}
+            {loadChips.length > 0 && (
+              <div className="flex shrink-0 items-center gap-0 border-r border-white/10 pr-1">
+                {loadChips.map((chip) => (
+                  <div key={chip.id} className="flex shrink-0 items-baseline gap-1 px-3 py-2">
+                    <span
+                      className="text-[11px] font-bold uppercase tracking-widest"
+                      style={{ color: `${sportColor}90` }}
+                    >
+                      {chip.label}
+                    </span>
+                    <span
+                      className="text-sm font-bold"
+                      style={{ color: sportColor }}
+                    >
+                      {chip.value}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Other stats — subtle */}
+            {otherChips.map((chip, i) => (
               <React.Fragment key={chip.id}>
                 {i > 0 && <span className="shrink-0 text-[11px] text-white/20">·</span>}
                 <div className="flex shrink-0 items-baseline gap-1 px-3 py-2">
-                  <span className="text-[11px] font-semibold uppercase tracking-widest text-white/35">
+                  <span className="text-[11px] font-semibold uppercase tracking-widest text-white/30">
                     {chip.label}
                   </span>
-                  <span className="text-xs font-bold text-white/80">{chip.value}</span>
+                  <span className="text-xs font-bold text-white/70">{chip.value}</span>
                 </div>
               </React.Fragment>
             ))}

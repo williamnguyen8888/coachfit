@@ -103,7 +103,7 @@ function ErrorState({ message, onRetry }: { message: string; onRetry: () => void
   );
 }
 
-// ─── Tab overflow "More" dropdown ─────────────────────────────────────────────
+// ─── Tab overflow "More" dropdown (uses portal-like fixed positioning to avoid clip) ─
 
 interface TabBarProps {
   visibleTabs: Array<{ key: TabKey; label: string }>;
@@ -114,6 +114,7 @@ interface TabBarProps {
 function TabBar({ visibleTabs, effectiveTab, onSelectTab }: TabBarProps) {
   const [moreOpen, setMoreOpen] = useState(false);
   const moreRef = useRef<HTMLDivElement>(null);
+  const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number } | null>(null);
 
   const primaryTabs = visibleTabs.slice(0, MAX_VISIBLE_TABS);
   const overflowTabs = visibleTabs.slice(MAX_VISIBLE_TABS);
@@ -130,6 +131,15 @@ function TabBar({ visibleTabs, effectiveTab, onSelectTab }: TabBarProps) {
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [moreOpen]);
+
+  // Calculate fixed position for dropdown to avoid overflow clipping
+  const toggleMore = () => {
+    if (!moreOpen && moreRef.current) {
+      const rect = moreRef.current.getBoundingClientRect();
+      setDropdownPos({ top: rect.bottom + 6, left: rect.left });
+    }
+    setMoreOpen((o) => !o);
+  };
 
   return (
     <div
@@ -158,7 +168,7 @@ function TabBar({ visibleTabs, effectiveTab, onSelectTab }: TabBarProps) {
         <div ref={moreRef} className="relative shrink-0">
           <button
             id="tab-more-btn"
-            onClick={() => setMoreOpen((o) => !o)}
+            onClick={toggleMore}
             className={`flex shrink-0 cursor-pointer select-none items-center gap-1 rounded-full border px-3 py-1 text-xs font-bold tracking-wide transition-all duration-200 sm:px-4 sm:py-1.5 ${
               activeInOverflow
                 ? "border-border-default bg-bg-surface text-accent shadow-sm"
@@ -173,10 +183,12 @@ function TabBar({ visibleTabs, effectiveTab, onSelectTab }: TabBarProps) {
             <ChevronDown size={11} className={`transition-transform ${moreOpen ? "rotate-180" : ""}`} />
           </button>
 
-          {moreOpen && (
+          {/* Dropdown — rendered via fixed position to escape overflow:hidden/auto parents */}
+          {moreOpen && dropdownPos && (
             <div
               role="listbox"
-              className="absolute left-0 top-full z-30 mt-1 min-w-[160px] overflow-hidden rounded-xl border border-border-subtle bg-bg-surface shadow-lg"
+              style={{ position: "fixed", top: dropdownPos.top, left: dropdownPos.left, zIndex: 9999 }}
+              className="min-w-[160px] overflow-hidden rounded-xl border border-border-subtle bg-bg-surface shadow-2xl backdrop-blur-sm"
             >
               {overflowTabs.map((tab) => {
                 const isActive = effectiveTab === tab.key;
@@ -444,118 +456,109 @@ export default function ActivityDetailPage({ params }: Props) {
 
         {/* Main content + sidebar */}
         <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-          {/* Main panel */}
-          <div
-            id="activity-main-panel"
-            className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4"
-          >
-            <div className="flex flex-col gap-4">
+          {/* Main panel — full width, Notes inline at bottom */}
+        <div
+          id="activity-main-panel"
+          className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4"
+        >
+          <div className="flex flex-col gap-4">
 
-              {/* TIMELINE */}
-              {effectiveTab === "TIMELINE" && (
-                <>
-                  <InteractiveMultiLaneChart
-                    points={streamPoints}
-                    sport={activity.sport}
-                    selectedRange={selectedTimeRange}
-                    onRangeSelect={setSelectedTimeRange}
-                    laps={laps}
-                  />
-                  {streamPoints.length === 0 && (
-                    <div className="rounded-xl border border-dashed border-border-default bg-bg-elevated/30 p-6 text-center text-sm text-text-secondary">
-                      This activity has no telemetry streams — only summary metrics are available.
-                    </div>
-                  )}
-                </>
-              )}
+            {/* TIMELINE */}
+            {effectiveTab === "TIMELINE" && (
+              <>
+                <InteractiveMultiLaneChart
+                  points={streamPoints}
+                  sport={activity.sport}
+                  selectedRange={selectedTimeRange}
+                  onRangeSelect={setSelectedTimeRange}
+                  laps={laps}
+                />
+                {streamPoints.length === 0 && (
+                  <div className="rounded-xl border border-dashed border-border-default bg-bg-elevated/30 p-6 text-center text-sm text-text-secondary">
+                    This activity has no telemetry streams — only summary metrics are available.
+                  </div>
+                )}
+              </>
+            )}
 
-              {/* POWER / PACE */}
-              {effectiveTab === "POWER" && (
-                isPaceActivity ? (
-                  <ActivityAnalyticsTab
-                    mode="pace"
-                    activity={activity}
-                    points={streamPoints}
-                    zoneConfig={paceZoneConfig}
-                  />
-                ) : (
-                  <ActivityPowerPanel
-                    activity={activity}
-                    points={streamPoints}
-                    zoneConfig={powerZoneConfig}
-                  />
-                )
-              )}
-
-              {/* HR */}
-              {effectiveTab === "HR" && (
-                <ActivityHRPanel
+            {/* POWER / PACE */}
+            {effectiveTab === "POWER" && (
+              isPaceActivity ? (
+                <ActivityAnalyticsTab
+                  mode="pace"
                   activity={activity}
                   points={streamPoints}
-                  zoneConfig={heartRateZoneConfig}
+                  zoneConfig={paceZoneConfig}
                 />
-              )}
-
-              {/* ELEVATION */}
-              {effectiveTab === "ELEVATION" && (
-                <ActivityElevationPanel activity={activity} points={streamPoints} />
-              )}
-
-              {/* ROUTE */}
-              {effectiveTab === "ROUTE" && (
-                <div
-                  className="relative overflow-hidden rounded-2xl border border-border-subtle"
-                  style={{ minHeight: "clamp(280px, 50vw, 520px)" }}
-                >
-                  <ActivityMap points={streamPoints} sportColor={sportColor} />
-                </div>
-              )}
-
-              {/* LAPS */}
-              {effectiveTab === "LAPS" && (
-                <ActivityLapsTable
-                  laps={laps}
-                  sport={activity.sport}
-                  selectedLapIndex={selectedLapIndex}
-                  onSelectLap={handleLapSelect}
+              ) : (
+                <ActivityPowerPanel
+                  activity={activity}
+                  points={streamPoints}
+                  zoneConfig={powerZoneConfig}
                 />
-              )}
+              )
+            )}
 
-              {/* DATA */}
-              {effectiveTab === "DATA" && (
-                <ActivityDataPanel activity={activity} />
-              )}
+            {/* HR */}
+            {effectiveTab === "HR" && (
+              <ActivityHRPanel
+                activity={activity}
+                points={streamPoints}
+                zoneConfig={heartRateZoneConfig}
+              />
+            )}
 
-              {/* RUNNING FORM */}
-              {effectiveTab === "RUNNING_FORM" && (
-                <ActivityRunningFormPanel activity={activity} points={streamPoints} />
-              )}
+            {/* ELEVATION */}
+            {effectiveTab === "ELEVATION" && (
+              <ActivityElevationPanel activity={activity} points={streamPoints} />
+            )}
 
-              {/* SPLITS */}
-              {effectiveTab === "SPLITS" && (
-                <ActivitySplitsPanel activity={activity} points={streamPoints} />
-              )}
+            {/* ROUTE */}
+            {effectiveTab === "ROUTE" && (
+              <div
+                className="relative overflow-hidden rounded-2xl border border-border-subtle"
+                style={{ minHeight: "clamp(280px, 50vw, 520px)" }}
+              >
+                <ActivityMap points={streamPoints} sportColor={sportColor} />
+              </div>
+            )}
 
-            </div>
-          </div>
+            {/* LAPS */}
+            {effectiveTab === "LAPS" && (
+              <ActivityLapsTable
+                laps={laps}
+                sport={activity.sport}
+                selectedLapIndex={selectedLapIndex}
+                onSelectLap={handleLapSelect}
+              />
+            )}
 
-          {/* Sidebar — Quick Stats + Notes */}
-          <div
-            id="activity-sidebar"
-            className="flex shrink-0 flex-col gap-4 border-t border-border-subtle bg-bg-elevated/30 p-4 lg:w-[300px] lg:border-l lg:border-t-0 lg:overflow-y-auto"
-          >
-            {/* Training Load quick stats */}
-            <ActivityQuickStats activity={activity} />
+            {/* DATA */}
+            {effectiveTab === "DATA" && (
+              <ActivityDataPanel activity={activity} />
+            )}
 
-            {/* Notes */}
+            {/* RUNNING FORM */}
+            {effectiveTab === "RUNNING_FORM" && (
+              <ActivityRunningFormPanel activity={activity} points={streamPoints} />
+            )}
+
+            {/* SPLITS */}
+            {effectiveTab === "SPLITS" && (
+              <ActivitySplitsPanel activity={activity} points={streamPoints} />
+            )}
+
+            {/* Notes — always visible, inline at bottom, elegant and minimal */}
             <ActivityNotesCard
               activityId={activity.id}
               description={activity.description}
               onDescriptionSaved={handleDescriptionSaved}
             />
+
           </div>
         </div>
-      </main>
+      </div>
+    </main>
 
       {/* Delete confirmation modal — rendered outside main to avoid clipping */}
       {showDeleteModal && (
@@ -569,3 +572,4 @@ export default function ActivityDetailPage({ params }: Props) {
     </>
   );
 }
+
