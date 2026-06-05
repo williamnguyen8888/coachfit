@@ -440,3 +440,50 @@ export function downsample(points: StreamPoint[], maxPoints: number): StreamPoin
   const stride = Math.ceil(points.length / maxPoints);
   return points.filter((_, i) => i % stride === 0);
 }
+
+// ─── Power / HR Histogram ─────────────────────────────────────────────────────
+
+export interface HistogramBucket {
+  label: string;
+  wattMin: number;
+  wattMax: number;
+  seconds: number;
+  pct: number;
+}
+
+/**
+ * Buckets power (or any numeric) series into fixed watt-width buckets.
+ * Returns buckets that have at least some time > 0, sorted ascending.
+ */
+export function computePowerHistogram(
+  series: SeriesPoint[],
+  bucketWidth = 25,
+  maxWatts?: number,
+): HistogramBucket[] {
+  if (series.length === 0) return [];
+
+  const actualMax = maxWatts ?? Math.ceil(seriesMax(series)! / bucketWidth) * bucketWidth;
+  const numBuckets = Math.ceil(actualMax / bucketWidth);
+  const buckets: HistogramBucket[] = Array.from({ length: numBuckets }, (_, i) => ({
+    label: `${i * bucketWidth}–${(i + 1) * bucketWidth}`,
+    wattMin: i * bucketWidth,
+    wattMax: (i + 1) * bucketWidth,
+    seconds: 0,
+    pct: 0,
+  }));
+
+  const total = totalDuration(series);
+  for (const s of series) {
+    const idx = Math.min(Math.floor(s.value / bucketWidth), numBuckets - 1);
+    if (idx >= 0 && idx < buckets.length) {
+      buckets[idx].seconds += s.duration;
+    }
+  }
+
+  for (const b of buckets) {
+    b.pct = total > 0 ? (b.seconds / total) * 100 : 0;
+  }
+
+  return buckets.filter((b) => b.seconds > 0);
+}
+

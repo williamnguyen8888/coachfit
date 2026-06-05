@@ -9,9 +9,10 @@
 "use client";
 
 import * as React from "react";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
   Check,
+  ChevronDown,
   ChevronLeft,
   Download,
   Edit3,
@@ -265,6 +266,16 @@ export function ActivityHeroHeader({
   const [nameValue, setNameValue] = useState(activity.name ?? "");
   const [saving, setSaving] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  // Zone 3 chips: collapsed by default on mobile, expanded on desktop
+  const [chipsExpanded, setChipsExpanded] = useState(false);
+
+  // Expand by default on desktop (>= 640px)
+  useEffect(() => {
+    const check = () => setChipsExpanded(window.innerWidth >= 640);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
 
   const sportColor  = SPORT_ACCENT[activity.sport] ?? SPORT_ACCENT.other;
   const gradient    = SPORT_GRADIENTS[activity.sport] ?? SPORT_GRADIENTS.other;
@@ -452,7 +463,7 @@ export function ActivityHeroHeader({
         </div>
       </div>
 
-      {/* ── ZONE 2: Primary metric tiles (2×2 mobile → 4×1 md+) ──────── */}
+      {/* ── ZONE 2: Primary metric tiles (2×2 mobile → 4×1 md+) — with chips toggle ── */}
       <div
         className="mt-1 grid grid-cols-2 border-t border-white/10 md:grid-cols-4"
         style={{ borderTopColor: `${sportColor}30` }}
@@ -462,13 +473,9 @@ export function ActivityHeroHeader({
             key={tile.id}
             className={[
               "flex flex-col gap-0.5 px-4 py-3",
-              // Desktop: vertical divider between all tiles except last
               i < 3 ? "md:border-r md:border-white/10" : "",
-              // Mobile 2×2: right border for left column only (col 0, 2)
               i % 2 === 0 ? "border-r border-white/10 md:border-r-0" : "",
-              // Mobile 2×2: bottom border for top row only (tile 0, 1)
               i < 2 ? "border-b border-white/10 md:border-b-0" : "",
-              // Re-apply desktop right border for tile 0 and 2 which had it cleared
               i < 3 ? "md:[border-right:1px_solid_rgba(255,255,255,0.10)]" : "",
             ].join(" ")}
           >
@@ -488,23 +495,49 @@ export function ActivityHeroHeader({
         ))}
       </div>
 
-      {/* ── ZONE 3: Analytics chips (only renders when there is data) ──── */}
+      {/* ── ZONE 3: Analytics chips — collapsible on mobile ─────────────── */}
       {chips.length > 0 && (
         <div
-          className="flex items-center gap-0 overflow-x-auto border-t border-white/8 scrollbar-none"
+          className="border-t border-white/8"
           style={{ borderTopColor: `${sportColor}20` }}
         >
-          {chips.map((chip, i) => (
-            <React.Fragment key={chip.id}>
-              {i > 0 && <span className="shrink-0 text-[11px] text-white/20">·</span>}
-              <div className="flex shrink-0 items-baseline gap-1 px-3 py-2">
-                <span className="text-[11px] font-semibold uppercase tracking-widest text-white/35">
-                  {chip.label}
-                </span>
-                <span className="text-xs font-bold text-white/80">{chip.value}</span>
-              </div>
-            </React.Fragment>
-          ))}
+          {/* Toggle button — visible on mobile only (sm:hidden) */}
+          <button
+            id="chips-toggle-btn"
+            onClick={() => setChipsExpanded((v) => !v)}
+            className="flex w-full items-center justify-between px-4 py-1.5 sm:hidden"
+            aria-expanded={chipsExpanded}
+            aria-label={chipsExpanded ? "Hide secondary stats" : "Show secondary stats"}
+          >
+            <span className="text-[11px] font-semibold uppercase tracking-widest text-white/30">
+              {chipsExpanded ? "Less stats" : `+${chips.length} more stats`}
+            </span>
+            <ChevronDown
+              size={13}
+              className={`text-white/30 transition-transform duration-200 ${
+                chipsExpanded ? "rotate-180" : ""
+              }`}
+            />
+          </button>
+
+          {/* Chips row — always visible on sm+, toggle on mobile */}
+          <div
+            className={`flex items-center gap-0 overflow-x-auto scrollbar-none transition-all duration-200 ${
+              chipsExpanded ? "max-h-20 opacity-100" : "max-h-0 overflow-hidden opacity-0 sm:max-h-20 sm:opacity-100"
+            }`}
+          >
+            {chips.map((chip, i) => (
+              <React.Fragment key={chip.id}>
+                {i > 0 && <span className="shrink-0 text-[11px] text-white/20">·</span>}
+                <div className="flex shrink-0 items-baseline gap-1 px-3 py-2">
+                  <span className="text-[11px] font-semibold uppercase tracking-widest text-white/35">
+                    {chip.label}
+                  </span>
+                  <span className="text-xs font-bold text-white/80">{chip.value}</span>
+                </div>
+              </React.Fragment>
+            ))}
+          </div>
         </div>
       )}
     </div>

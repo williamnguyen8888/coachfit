@@ -125,6 +125,20 @@ export function ActivityRunningFormPanel({ activity, points }: Props) {
       });
   }, [sampledPoints]);
 
+  // Cadence over time (steps/min = cadence × 2 for running)
+  const cadenceData = useMemo(() => {
+    return sampledPoints
+      .filter((p) => p.cadence != null && p.cadence > 0)
+      .map((p) => ({ t: p.t, value: p.cadence ?? null }));
+  }, [sampledPoints]);
+
+  // GCT over time (if in stream)
+  const gctData = useMemo(() => {
+    return sampledPoints
+      .filter((p) => (p as { groundContactTime?: number }).groundContactTime != null)
+      .map((p) => ({ t: p.t, value: (p as { groundContactTime?: number }).groundContactTime ?? null }));
+  }, [sampledPoints]);
+
   const tiles: MetricTile[] = [];
 
   if (activity.avgVerticalOscillation != null) {
@@ -216,6 +230,26 @@ export function ActivityRunningFormPanel({ activity, points }: Props) {
           unit="mm"
           label="Stride Length over Time (cadence × speed derived)"
           gradientId="strideGrad"
+        />
+      )}
+
+      {cadenceData.length > 20 && (
+        <MiniChart
+          data={cadenceData}
+          color="#a78bfa"
+          unit="rpm"
+          label="Cadence over Time (steps/min)"
+          gradientId="cadGrad"
+        />
+      )}
+
+      {gctData.length > 20 && (
+        <MiniChart
+          data={gctData}
+          color="#f59e0b"
+          unit="ms"
+          label="Ground Contact Time over Time"
+          gradientId="gctGrad"
         />
       )}
     </div>

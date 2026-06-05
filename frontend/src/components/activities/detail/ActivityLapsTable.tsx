@@ -9,15 +9,20 @@
 
 import * as React from "react";
 import { useState, useCallback, useMemo } from "react";
-import {
-  ArrowUpDown,
-  ChevronDown,
-  ChevronUp,
-  Layers,
-} from "lucide-react";
+import { ArrowUpDown, BarChart2, ChevronDown, ChevronUp, Layers } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import type { ActivityLap, Sport } from "@/lib/types/activity";
 import { fmtPace, fmtClock, fmtDuration } from "@/lib/utils/streamUtils";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 interface Props {
   laps: ActivityLap[];
@@ -276,8 +281,134 @@ export function ActivityLapsTable({ laps, sport, selectedLapIndex, onSelectLap }
 
   if (laps.length === 0) return null;
 
+  // Build chart data for lap comparison
+  const chartLaps = [...laps].sort((a, b) => (a.lapIndex ?? 0) - (b.lapIndex ?? 0));
+  const hasPowerLaps = chartLaps.some((l) => l.avgPower != null);
+  const hasPaceLaps = chartLaps.some((l) => l.avgSpeed != null || l.avgPace != null);
+
+  // Use power if cycling, else use pace (lower = faster, so we invert)
+  const chartData = chartLaps.map((lap) => {
+    const lapN = (lap.lapIndex ?? 0) + 1;
+    if (hasPowerLaps && lap.avgPower != null) {
+      return { lap: lapN, value: lap.avgPower, lapObj: lap, unit: "W" };
+    }
+    if (hasPaceLaps) {
+      const speed = lap.avgSpeed ?? (lap.avgPace ? 1 / lap.avgPace : null);
+      if (speed && speed > 0) {
+        const paceSecKm = 1000 / speed;
+        return { lap: lapN, value: Math.round(paceSecKm), lapObj: lap, unit: "s/km" };
+      }
+    }
+    return { lap: lapN, value: lap.durationSeconds ?? 0, lapObj: lap, unit: "s" };
+  });
+
+  const allValues = chartData.map((d) => d.value).filter((v) => v > 0);
+  const minVal = allValues.length > 0 ? Math.min(...allValues) : 0;
+  const maxVal = allValues.length > 0 ? Math.max(...allValues) : 1;
+  const isPace = chartData[0]?.unit === "s/km";
+
+  const formatChartValue = (v: number): string => {
+    if (chartData[0]?.unit === "W") return `${v} W`;
+    if (isPace) return fmtPace(v, sport === "swimming" ? "/100m" : "/km");
+    return fmtDuration(v);
+  };
+
   return (
-    <Card noPadding>
+    <div className="flex flex-col gap-4">
+      {/* Visual lap comparison */}
+      {chartData.length >= 2 && (
+        <Card>
+          <div className="mb-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <BarChart2 size={15} className="text-text-muted" />
+              <h3 className="text-sm font-bold text-text-primary">
+                Lap {hasPowerLaps ? "Power" : isPace ? "Pace" : "Duration"} Comparison
+              </h3>
+            </div>
+            <span className="text-[10px] text-text-muted">Click bar to highlight</span>
+          </div>
+          <ResponsiveContainer width="100%" height={Math.min(180, 40 + chartData.length * 24)}>
+            <BarChart
+              data={chartData}
+              layout="vertical"
+              margin={{ top: 0, right: 48, bottom: 0, left: 4 }}
+              barCategoryGap="20%"
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" strokeOpacity={0.3} horizontal={false} />
+              <XAxis
+                type="number"
+                domain={isPace ? [minVal - 5, maxVal + 5] : [minVal * 0.95, maxVal * 1.05]}
+                tick={{ fill: "var(--text-muted)", fontSize: 9 }}
+                axisLine={false}
+                tickLine={false}
+                tickFormatter={formatChartValue}
+                hide
+              />
+              <YAxis
+                type="category"
+                dataKey="lap"
+                tick={{ fill: "var(--text-muted)", fontSize: 10 }}
+                axisLine={false}
+                tickLine={false}
+                tickFormatter={(v) => `L${v}`}
+                width={24}
+              />
+              <Tooltip
+                contentStyle={{ background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", borderRadius: 8, fontSize: 12 }}
+                formatter={(v) => [formatChartValue(Number(v)), hasPowerLaps ? "Avg Power" : "Avg Pace"]}
+                labelFormatter={(v) => `Lap ${v}`}
+              />
+              <Bar dataKey="value" radius={[0, 3, 3, 0]} maxBarSize={18}
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                onClick={(data: any) => {
+                  if (data?.lapObj) {
+                    handleRowClick(data.lapObj as ActivityLap);
+                  }
+                }}
+              >
+                {chartData.map((d) => {
+                  const isSelected = selectedLapIndex === d.lapObj.lapIndex;
+                  // For pace: lower is faster = greener; higher is slower = redder
+                  // For power: higher is harder = use accent
+                  let color: string;
+                  if (isSelected) {
+                    color = "var(--color-accent)";
+                  } else if (allValues.length > 1) {
+                    const t = (d.value - minVal) / (maxVal - minVal);
+                    // pace: higher t (slower pace) = more red; power: higher t (more power) = blue
+                    const r = isPace ? Math.round(80 + t * 160) : Math.round(59 + (1 - t) * 60);
+                    const g = isPace ? Math.round(200 - t * 150) : Math.round(130 + t * 60);
+                    const b = isPace ? 100 : Math.round(230 - t * 60);
+                    color = `rgb(${r},${g},${b})`;
+                  } else {
+                    color = "#3b82f6";
+                  }
+                  return <Cell key={d.lap} fill={color} fillOpacity={isSelected ? 1 : 0.75} />;
+                })}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+          {/* Value labels on bars */}
+          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+            {chartData.map((d) => {
+              const isSelected = selectedLapIndex === d.lapObj.lapIndex;
+              return (
+                <button
+                  key={d.lap}
+                  onClick={() => handleRowClick(d.lapObj)}
+                  className={`flex items-center gap-1 text-[10px] transition-colors ${
+                    isSelected ? "font-bold text-accent" : "text-text-muted hover:text-text-secondary"
+                  }`}
+                >
+                  <span>L{d.lap}</span>
+                  <span className="font-mono">{formatChartValue(d.value)}</span>
+                </button>
+              );
+            })}
+          </div>
+        </Card>
+      )}
+      <Card noPadding>
       <div className="flex items-center justify-between border-b border-border-subtle px-5 py-3">
         <div className="flex items-center gap-2">
           <Layers size={15} className="text-text-muted" />
@@ -371,5 +502,6 @@ export function ActivityLapsTable({ laps, sport, selectedLapIndex, onSelectLap }
         </table>
       </div>
     </Card>
+    </div>
   );
 }

@@ -19,6 +19,7 @@ import {
   Tooltip,
   XAxis,
   YAxis,
+  ReferenceLine,
 } from "recharts";
 import { AlertCircle, Info, Zap } from "lucide-react";
 import { Card } from "@/components/ui/Card";
@@ -27,6 +28,7 @@ import type { SportZones } from "@/lib/types/settings";
 import {
   buildSeries,
   computePeakRollingAverages,
+  computePowerHistogram,
   computeVI,
   computeEF,
   totalDuration,
@@ -92,6 +94,19 @@ export function ActivityPowerPanel({ activity, points, zoneConfig }: Props) {
       color: ZONE_COLORS[(band.zone - 1) % ZONE_COLORS.length],
     }));
   }, [series, zoneConfig]);
+
+  // Power histogram: 25W buckets
+  const powerHistogram = useMemo(() => {
+    return computePowerHistogram(series, 25);
+  }, [series]);
+
+  // Power over time (downsampled for rendering)
+  const powerOverTime = useMemo(() => {
+    const step = Math.max(1, Math.floor(series.length / 500));
+    return series
+      .filter((_, i) => i % step === 0)
+      .map((s) => ({ t: s.t, power: Math.round(s.value) }));
+  }, [series]);
 
   // Derived metrics
   const vi = useMemo(
@@ -382,6 +397,140 @@ export function ActivityPowerPanel({ activity, points, zoneConfig }: Props) {
           </Card>
         )}
       </div>
+
+      {/* Power over time chart */}
+      {powerOverTime.length > 20 && (
+        <Card>
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="text-sm font-bold text-text-primary">Power Over Time</h3>
+            {activity.normalizedPower && (
+              <span className="text-xs text-text-muted">
+                NP: <span className="font-bold text-blue-400">{activity.normalizedPower} W</span>
+              </span>
+            )}
+          </div>
+          <ResponsiveContainer width="100%" height={180}>
+            <AreaChart data={powerOverTime} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
+              <defs>
+                <linearGradient id="powerTimeGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.35} />
+                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.02} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" strokeOpacity={0.35} vertical={false} />
+              <XAxis
+                dataKey="t"
+                tickFormatter={(t: number) => {
+                  const h = Math.floor(t / 3600);
+                  const m = Math.floor((t % 3600) / 60);
+                  return h > 0 ? `${h}h${m.toString().padStart(2, "0")}` : `${m}m`;
+                }}
+                tick={{ fill: "var(--text-muted)", fontSize: 9 }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis
+                tick={{ fill: "var(--text-muted)", fontSize: 9 }}
+                axisLine={false}
+                tickLine={false}
+                unit="W"
+                width={44}
+              />
+              <Tooltip
+                contentStyle={{ background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", borderRadius: 8, fontSize: 12 }}
+                formatter={(v) => [`${Number(v)} W`, "Power"]}
+                labelFormatter={(t) => {
+                  const h = Math.floor(Number(t) / 3600);
+                  const m = Math.floor((Number(t) % 3600) / 60);
+                  const s = Number(t) % 60;
+                  return h > 0 ? `${h}:${m.toString().padStart(2,"0")}:${s.toString().padStart(2,"0")}` : `${m}:${s.toString().padStart(2,"0")}`;
+                }}
+              />
+              {activity.normalizedPower && (
+                <ReferenceLine y={activity.normalizedPower} stroke="#3b82f6" strokeDasharray="4 3" strokeWidth={1.5} label={{ value: `NP ${activity.normalizedPower}W`, position: "right", fill: "#3b82f6", fontSize: 10 }} />
+              )}
+              {zoneConfig?.ftp && (
+                <ReferenceLine y={zoneConfig.ftp} stroke="#f59e0b" strokeDasharray="4 3" strokeWidth={1.5} label={{ value: `FTP ${zoneConfig.ftp}W`, position: "right", fill: "#f59e0b", fontSize: 10 }} />
+              )}
+              <Area
+                type="monotone"
+                dataKey="power"
+                stroke="#3b82f6"
+                strokeWidth={1.5}
+                fill="url(#powerTimeGrad)"
+                dot={false}
+                connectNulls
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </Card>
+      )}
+
+      {/* Power distribution histogram */}
+      {powerHistogram.length > 3 && (
+        <Card>
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-bold text-text-primary">Power Distribution</h3>
+              <p className="mt-0.5 text-[11px] text-text-muted">Time spent at each 25-watt power band</p>
+            </div>
+            {activity.avgPower != null && (
+              <span className="text-xs text-text-muted">
+                Avg: <span className="font-bold text-text-primary">{activity.avgPower} W</span>
+              </span>
+            )}
+          </div>
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart
+              data={powerHistogram}
+              margin={{ top: 4, right: 8, bottom: 24, left: 0 }}
+              barCategoryGap="10%"
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" strokeOpacity={0.3} vertical={false} />
+              <XAxis
+                dataKey="wattMin"
+                tick={{ fill: "var(--text-muted)", fontSize: 9 }}
+                axisLine={false}
+                tickLine={false}
+                unit="W"
+                interval="preserveStartEnd"
+              />
+              <YAxis
+                tick={{ fill: "var(--text-muted)", fontSize: 9 }}
+                axisLine={false}
+                tickLine={false}
+                unit="%"
+                width={36}
+                tickFormatter={(v) => v.toFixed(0)}
+              />
+              <Tooltip
+                contentStyle={{ background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", borderRadius: 8, fontSize: 12 }}
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                formatter={(v: any, _name: any, props: any) => [
+                  `${Number(v).toFixed(1)}% (${fmtDuration(props.payload?.seconds)})`,
+                  `${props.payload?.wattMin}\u2013${props.payload?.wattMax}W`,
+                ]}
+                labelFormatter={() => ""}
+              />
+              <Bar dataKey="pct" radius={[2, 2, 0, 0]}>
+                {powerHistogram.map((entry) => {
+                  // Color by zone if we have zone config
+                  const zone = zoneConfig?.zones?.find((z, idx, arr) => {
+                    const min = z.min ?? 0;
+                    const max = z.max ?? Infinity;
+                    const isLast = idx === arr.length - 1;
+                    return entry.wattMin >= min && (isLast ? entry.wattMin <= max : entry.wattMin < max);
+                  });
+                  const color = zone
+                    ? ZONE_COLORS[(zone.zone - 1) % ZONE_COLORS.length]
+                    : "#3b82f6";
+                  return <Cell key={entry.label} fill={color} fillOpacity={0.8} />;
+                })}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </Card>
+      )}
     </div>
   );
 }

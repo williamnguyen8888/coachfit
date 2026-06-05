@@ -16,6 +16,7 @@ import {
   Tooltip,
   XAxis,
   YAxis,
+  ReferenceLine,
 } from "recharts";
 import { AlertCircle, Heart } from "lucide-react";
 import { Card } from "@/components/ui/Card";
@@ -89,6 +90,23 @@ export function ActivityHRPanel({ activity, points, zoneConfig }: Props) {
     return secs;
   }, [series, zoneConfig]);
 
+  // HR over time (downsampled for rendering)
+  const hrOverTime = useMemo(() => {
+    const step = Math.max(1, Math.floor(series.length / 500));
+    return series
+      .filter((_, i) => i % step === 0)
+      .map((s) => ({ t: s.t, hr: Math.round(s.value) }));
+  }, [series]);
+
+  // HR reserve % (if max HR configured)
+  const hrReservePct = useMemo(() => {
+    if (!activity.avgHeartRate || !zoneConfig?.maxHr) return null;
+    const restHR = 45; // approx resting HR fallback
+    const reserve = zoneConfig.maxHr - restHR;
+    if (reserve <= 0) return null;
+    return Math.round(((activity.avgHeartRate - restHR) / reserve) * 100);
+  }, [activity.avgHeartRate, zoneConfig?.maxHr]);
+
   if (series.length === 0) {
     return (
       <Card>
@@ -118,6 +136,13 @@ export function ActivityHRPanel({ activity, points, zoneConfig }: Props) {
         </div>
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          {hrReservePct != null && (
+            <div className="rounded-xl border border-border-subtle bg-bg-elevated/40 px-4 py-3">
+              <div className="text-[10px] font-semibold uppercase tracking-widest text-text-muted">HR Reserve</div>
+              <div className="mt-1 text-xl font-bold text-text-primary">{hrReservePct}%</div>
+              <div className="text-[10px] text-text-muted">of HRR used</div>
+            </div>
+          )}
           {activity.avgHeartRate != null && (
             <div className="rounded-xl border border-border-subtle bg-bg-elevated/40 px-4 py-3">
               <div className="text-[10px] font-semibold uppercase tracking-widest text-text-muted">Avg HR</div>
@@ -272,6 +297,86 @@ export function ActivityHRPanel({ activity, points, zoneConfig }: Props) {
           </Card>
         )}
       </div>
+
+      {/* HR Over Time chart */}
+      {hrOverTime.length > 20 && (
+        <Card>
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="text-sm font-bold text-text-primary">Heart Rate Over Time</h3>
+            <div className="flex items-center gap-3 text-xs text-text-muted">
+              {activity.avgHeartRate && <span>Avg: <span className="font-bold text-red-400">{activity.avgHeartRate} bpm</span></span>}
+              {activity.maxHeartRate && <span>Max: <span className="font-bold text-red-400">{activity.maxHeartRate} bpm</span></span>}
+            </div>
+          </div>
+          <ResponsiveContainer width="100%" height={200}>
+            <AreaChart data={hrOverTime} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
+              <defs>
+                <linearGradient id="hrTimeGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="#ef4444" stopOpacity={0.02} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" strokeOpacity={0.3} vertical={false} />
+              <XAxis
+                dataKey="t"
+                tickFormatter={(t: number) => {
+                  const h = Math.floor(t / 3600);
+                  const m = Math.floor((t % 3600) / 60);
+                  return h > 0 ? `${h}h${m.toString().padStart(2, "0")}` : `${m}m`;
+                }}
+                tick={{ fill: "var(--text-muted)", fontSize: 9 }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis
+                tick={{ fill: "var(--text-muted)", fontSize: 9 }}
+                axisLine={false}
+                tickLine={false}
+                unit=" bpm"
+                width={52}
+                domain={["dataMin - 10", "dataMax + 5"]}
+              />
+              <Tooltip
+                contentStyle={{ background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", borderRadius: 8, fontSize: 12 }}
+                formatter={(v) => [`${Number(v)} bpm`, "Heart Rate"]}
+                labelFormatter={(t) => {
+                  const h = Math.floor(Number(t) / 3600);
+                  const m = Math.floor((Number(t) % 3600) / 60);
+                  const s = Number(t) % 60;
+                  return h > 0 ? `${h}:${m.toString().padStart(2,"0")}:${s.toString().padStart(2,"0")}` : `${m}:${s.toString().padStart(2,"0")}`;
+                }}
+              />
+              {zoneConfig?.lthr && (
+                <ReferenceLine
+                  y={zoneConfig.lthr}
+                  stroke="#f59e0b"
+                  strokeDasharray="4 3"
+                  strokeWidth={1.5}
+                  label={{ value: `LTHR ${zoneConfig.lthr}`, position: "right", fill: "#f59e0b", fontSize: 10 }}
+                />
+              )}
+              {zoneConfig?.maxHr && (
+                <ReferenceLine
+                  y={zoneConfig.maxHr}
+                  stroke="#ef4444"
+                  strokeDasharray="4 3"
+                  strokeWidth={1}
+                  label={{ value: `Max ${zoneConfig.maxHr}`, position: "right", fill: "#ef4444", fontSize: 10 }}
+                />
+              )}
+              <Area
+                type="monotone"
+                dataKey="hr"
+                stroke="#ef4444"
+                strokeWidth={1.5}
+                fill="url(#hrTimeGrad)"
+                dot={false}
+                connectNulls
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </Card>
+      )}
     </div>
   );
 }
