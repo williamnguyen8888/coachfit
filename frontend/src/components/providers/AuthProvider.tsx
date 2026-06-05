@@ -8,7 +8,7 @@
 
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useAuthStore, useAuthStatus } from "@/stores/auth.store";
 import { useUIStore } from "@/stores/ui.store";
 import { AppLoader } from "@/components/ui/AppLoader";
@@ -21,6 +21,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const status = useAuthStatus();
   const initAuth = useAuthStore((s) => s.initAuth);
   const theme = useUIStore((s) => s.theme);
+  const [mounted, setMounted] = useState(false);
 
   // ── Sync data-theme → <html> ──────────────────────────────────────────────
   useEffect(() => {
@@ -29,8 +30,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // ── Run auth hydration once on mount ─────────────────────────────────────
   useEffect(() => {
+    setMounted(true);
     initAuth();
   }, [initAuth]);
+
+  // Before client mount: render nothing to match the server's empty output
+  if (!mounted) return null;
 
   // Show skeleton while auth state is being determined
   if (status === "idle" || status === "loading") {

@@ -96,6 +96,7 @@ class ActivityEntity {
     BigDecimal maxSpeed;
 
     @Column(name = "avg_temperature")
+    @JdbcTypeCode(SqlTypes.SMALLINT)
     Integer avgTemperature;
 
     @Column(name = "min_altitude", precision = 8, scale = 2)

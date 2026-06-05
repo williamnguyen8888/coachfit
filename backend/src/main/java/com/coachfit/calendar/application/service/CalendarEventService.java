@@ -797,11 +797,11 @@ public class CalendarEventService
         double totalPlannedZoneTime = 0;
         double totalActualZoneTime = 0;
 
-        // BUG-05: Use targetZone from the original flatSteps list (by stepNumber index)
+        // BUG-05: Use targetZone from the original flatSteps list (by stepIndex index)
         // instead of parsing targetValueStr, which contains "200-250W" / "145-165bpm" format
-        // and never has a "Zone N" prefix. Step numbers are 1-based.
+        // and never has a "Zone N" prefix. Step indices are 1-based.
         for (StepAnalysis sa : stepAnalyses) {
-            int stepIdx = sa.stepNumber() - 1; // sa.stepNumber() is 1-based
+            int stepIdx = sa.stepIndex() - 1; // sa.stepIndex() is 1-based
             int saZone = 2; // default to zone 2 (aerobic) for non-zone targets
             if (sa.targetType().contains("zone") && stepIdx >= 0 && stepIdx < flatSteps.size()) {
                 int plannedZone = flatSteps.get(stepIdx).targetZone;

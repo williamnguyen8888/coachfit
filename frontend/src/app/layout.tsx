@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
+import Script from "next/script";
 import { AuthProvider, I18nProvider } from "@/components/providers";
 import "./globals.css";
 
@@ -61,8 +62,15 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="CoachFit" />
-        {/* Service Worker registration */}
-        <script
+        {/* Service Worker registration — must live outside <head> JSX to avoid React script warning */}
+      </head>
+      <body className="h-full antialiased" suppressHydrationWarning>
+        <AuthProvider>
+          <I18nProvider>{children}</I18nProvider>
+        </AuthProvider>
+        <Script
+          id="sw-registration"
+          strategy="afterInteractive"
           dangerouslySetInnerHTML={{
             __html: `
               if ('serviceWorker' in navigator) {
@@ -74,11 +82,6 @@ export default function RootLayout({
             `,
           }}
         />
-      </head>
-      <body className="h-full antialiased" suppressHydrationWarning>
-        <AuthProvider>
-          <I18nProvider>{children}</I18nProvider>
-        </AuthProvider>
       </body>
     </html>
   );
