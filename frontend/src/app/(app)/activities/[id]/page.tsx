@@ -103,7 +103,9 @@ function ErrorState({ message, onRetry }: { message: string; onRetry: () => void
   );
 }
 
-// ─── Tab overflow "More" dropdown (uses portal-like fixed positioning to avoid clip) ─
+import { createPortal } from "react-dom";
+
+// ─── Tab overflow "More" dropdown (uses portal to avoid clip) ─────────────────
 
 interface TabBarProps {
   visibleTabs: Array<{ key: TabKey; label: string }>;
@@ -114,7 +116,13 @@ interface TabBarProps {
 function TabBar({ visibleTabs, effectiveTab, onSelectTab }: TabBarProps) {
   const [moreOpen, setMoreOpen] = useState(false);
   const moreRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number } | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const primaryTabs = visibleTabs.slice(0, MAX_VISIBLE_TABS);
   const overflowTabs = visibleTabs.slice(MAX_VISIBLE_TABS);
@@ -124,7 +132,10 @@ function TabBar({ visibleTabs, effectiveTab, onSelectTab }: TabBarProps) {
   useEffect(() => {
     if (!moreOpen) return;
     const handler = (e: MouseEvent) => {
-      if (moreRef.current && !moreRef.current.contains(e.target as Node)) {
+      if (
+        moreRef.current && !moreRef.current.contains(e.target as Node) &&
+        dropdownRef.current && !dropdownRef.current.contains(e.target as Node)
+      ) {
         setMoreOpen(false);
       }
     };
@@ -183,9 +194,10 @@ function TabBar({ visibleTabs, effectiveTab, onSelectTab }: TabBarProps) {
             <ChevronDown size={11} className={`transition-transform ${moreOpen ? "rotate-180" : ""}`} />
           </button>
 
-          {/* Dropdown — rendered via fixed position to escape overflow:hidden/auto parents */}
-          {moreOpen && dropdownPos && (
+          {/* Dropdown — rendered via React Portal to escape overflow:hidden/auto parents */}
+          {moreOpen && dropdownPos && mounted && typeof document !== "undefined" && createPortal(
             <div
+              ref={dropdownRef}
               role="listbox"
               style={{ position: "fixed", top: dropdownPos.top, left: dropdownPos.left, zIndex: 9999 }}
               className="min-w-[160px] overflow-hidden rounded-xl border border-border-subtle bg-bg-surface shadow-2xl backdrop-blur-sm"
@@ -209,7 +221,8 @@ function TabBar({ visibleTabs, effectiveTab, onSelectTab }: TabBarProps) {
                   </button>
                 );
               })}
-            </div>
+            </div>,
+            document.body
           )}
         </div>
       )}
@@ -515,12 +528,7 @@ export default function ActivityDetailPage({ params }: Props) {
 
             {/* ROUTE */}
             {effectiveTab === "ROUTE" && (
-              <div
-                className="relative overflow-hidden rounded-2xl border border-border-subtle"
-                style={{ minHeight: "clamp(280px, 50vw, 520px)" }}
-              >
-                <ActivityMap points={streamPoints} sportColor={sportColor} />
-              </div>
+              <ActivityMap points={streamPoints} sportColor={sportColor} sport={activity.sport} />
             )}
 
             {/* LAPS */}

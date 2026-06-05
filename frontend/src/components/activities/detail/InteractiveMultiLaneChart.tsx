@@ -183,7 +183,19 @@ export function InteractiveMultiLaneChart({
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  const laneDefinitions = useMemo(() => buildLaneDefinitions(sport), [sport]);
+  const laneDefinitions = useMemo(() => {
+    const allDefs = buildLaneDefinitions(sport);
+    return allDefs.filter((lane) => {
+      return points.some((p) => {
+        if (lane.key === "paceSecs") {
+          return p.speed != null && p.speed > 0.1;
+        }
+        const val = p[lane.key as keyof StreamPoint];
+        return val != null && (typeof val !== "number" || !Number.isNaN(val));
+      });
+    });
+  }, [sport, points]);
+
   const [visibleLanes, setVisibleLanes] = useState<string[]>(() =>
     laneDefinitions.map((lane) => lane.key),
   );
@@ -737,7 +749,34 @@ export function InteractiveMultiLaneChart({
                       />
 
                       <Tooltip
-                        content={() => null}
+                        content={({ active, payload }) => {
+                          if (!active || !payload || !payload.length) return null;
+                          const dataPoint = payload[0].payload as ChartPoint;
+                          return (
+                            <div className="z-50 rounded-xl border border-border-subtle bg-bg-surface/95 p-3 shadow-2xl backdrop-blur-sm min-w-[160px]">
+                              <div className="mb-2 border-b border-border-subtle/50 pb-1 text-center font-mono text-[11px] font-extrabold text-text-primary">
+                                {formatTime(dataPoint.t)}
+                              </div>
+                              <div className="flex flex-col gap-1.5 font-mono text-[10px]">
+                                {activeLanes.map((lane) => {
+                                  const val = dataPoint[lane.key];
+                                  if (val == null || Number.isNaN(val)) return null;
+                                  return (
+                                    <div key={lane.key} className="flex items-center justify-between gap-4">
+                                      <span className="flex items-center gap-1.5 text-text-muted" style={{ color: lane.color }}>
+                                        {lane.icon}
+                                        <span className="font-semibold text-text-secondary">{lane.label}</span>
+                                      </span>
+                                      <span className="font-bold text-text-primary">
+                                        {formatValue(lane, val)}
+                                      </span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        }}
                         cursor={{
                           stroke: "var(--text-primary)",
                           strokeWidth: 1.2,
