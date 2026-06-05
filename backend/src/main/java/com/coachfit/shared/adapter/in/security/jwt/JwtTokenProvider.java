@@ -35,9 +35,15 @@ public class JwtTokenProvider {
 
     private static final Logger log = LoggerFactory.getLogger(JwtTokenProvider.class);
 
-    private static final String CLAIM_EMAIL = "email";
-    private static final String CLAIM_ROLE  = "role";
-    private static final String CLAIM_TIER  = "tier";
+    private static final String CLAIM_EMAIL      = "email";
+    private static final String CLAIM_ROLE       = "role";
+    private static final String CLAIM_TIER       = "tier";
+    /** Claim key used in coach invite tokens to distinguish them from auth tokens. */
+    private static final String CLAIM_TOKEN_TYPE = "tokenType";
+    private static final String INVITE_TOKEN_TYPE = "coach_invite";
+
+    /** 7-day TTL for coach invite tokens (docs/08-auth-model.md §Invite Flow). */
+    private static final long INVITE_TOKEN_EXPIRY_MS = 7L * 24 * 60 * 60 * 1_000;
 
     private final SecretKey signingKey;
     private final long jwtExpirationMs;
@@ -134,4 +140,57 @@ public class JwtTokenProvider {
                 .verifyWith(signingKey)
                 .build();
     }
+
+    // ── Coach invite tokens ───────────────────────────────────────────────────
+
+    /**
+     * Generates a signed 7-day invite token embedding the coach's ID and the invited email.
+     * Uses a distinct {@code tokenType=coach_invite} claim so these tokens cannot be used
+     * as auth tokens.
+     *
+     * @param coachId      the issuing coach's user ID (encoded as {@code sub})
+     * @param athleteEmail the invited athlete's email (encoded in {@code email} claim)
+     * @return compact signed JWT string
+     */
+    public String generateInviteToken(UUID coachId, String athleteEmail) {
+        Date now    = new Date();
+        Date expiry = new Date(now.getTime() + INVITE_TOKEN_EXPIRY_MS);
+
+        return Jwts.builder()
+                .subject(coachId.toString())
+                .claim(CLAIM_EMAIL,      athleteEmail)
+                .claim(CLAIM_TOKEN_TYPE, INVITE_TOKEN_TYPE)
+                .issuedAt(now)
+                .expiration(expiry)
+                .signWith(signingKey)
+                .compact();
+    }
+
+    /**
+     * Extracts the coach user ID from an invite token.
+     * Throws {@link io.jsonwebtoken.JwtException} if the token is invalid or expired.
+     */
+    public UUID extractCoachIdFromInviteToken(String token) {
+        Claims claims = getClaimsFromToken(token);
+        validateInviteTokenType(claims);
+        return UUID.fromString(claims.getSubject());
+    }
+
+    /**
+     * Extracts the invited athlete email from an invite token.
+     * Throws {@link io.jsonwebtoken.JwtException} if the token is invalid or expired.
+     */
+    public String extractEmailFromInviteToken(String token) {
+        Claims claims = getClaimsFromToken(token);
+        validateInviteTokenType(claims);
+        return claims.get(CLAIM_EMAIL, String.class);
+    }
+
+    private static void validateInviteTokenType(Claims claims) {
+        if (!INVITE_TOKEN_TYPE.equals(claims.get(CLAIM_TOKEN_TYPE, String.class))) {
+            throw new io.jsonwebtoken.MalformedJwtException(
+                    "Token is not a coach invite token");
+        }
+    }
 }
+
