@@ -12,17 +12,14 @@
 import { useState, useEffect, useRef } from "react";
 import { useCalendarStore } from "@/stores/calendar.store";
 import { toLocalDateString } from "@/lib/utils";
+import { getISOWeekNumber } from "@/components/calendar/calendarUtils";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+// BUG-02 / ISSUE-11: Replaced flawed local implementation (used Jan 0 = Dec 31 prev year)
+// with shared ISO 8601 week number from calendarUtils.
 function getWeekNumber(dateStr: string): number {
-  const d = new Date(dateStr + "T00:00:00");
-  const dayOfYear = (d: Date) => {
-    const start = new Date(d.getFullYear(), 0, 0);
-    const diff = d.getTime() - start.getTime() + (start.getTimezoneOffset() - d.getTimezoneOffset()) * 60 * 1000;
-    return Math.floor(diff / 86400000);
-  };
-  return Math.ceil(dayOfYear(d) / 7);
+  return getISOWeekNumber(dateStr);
 }
 
 function formatWeekRange(from: string, to: string): string {

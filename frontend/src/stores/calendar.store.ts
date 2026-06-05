@@ -136,10 +136,27 @@ export const useCalendarStore = create<CalendarState>()(
 
       getMonthRange: () => {
         const { anchorDate } = get();
-        // For month view we load the full calendar grid including leading/trailing days
-        const from = weekStart(monthStart(anchorDate));
-        // Grid is 6 weeks max = 42 days from grid start
-        const to = addLocalDays(from, 41);
+        // ISSUE-07: Compute the actual grid boundaries dynamically.
+        // Month view starts on Monday of the week containing the 1st of the month,
+        // and ends on Sunday of the week containing the last day of the month.
+        const d = parseLocalDateString(anchorDate);
+        const firstOfMonth = new Date(d.getFullYear(), d.getMonth(), 1);
+        const lastOfMonth  = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+
+        // Grid start: Monday on or before the 1st
+        const startDayOfWeek = firstOfMonth.getDay();
+        const daysBack = startDayOfWeek === 0 ? 6 : startDayOfWeek - 1;
+        const gridStart = new Date(firstOfMonth);
+        gridStart.setDate(gridStart.getDate() - daysBack);
+
+        // Grid end: Sunday on or after the last day
+        const endDayOfWeek = lastOfMonth.getDay();
+        const daysForward = endDayOfWeek === 0 ? 0 : 7 - endDayOfWeek;
+        const gridEnd = new Date(lastOfMonth);
+        gridEnd.setDate(gridEnd.getDate() + daysForward);
+
+        const from = toLocalDateString(gridStart);
+        const to   = toLocalDateString(gridEnd);
         return { from, to };
       },
 
@@ -354,14 +371,36 @@ export const useCalendarStore = create<CalendarState>()(
       },
 
       markComplete: async (id) => {
-        // Backend returns void — optimistically patch status in local state
-        await calendarService.markComplete(id);
+        // BUG-03: Guard — only "partial" events can be manually completed (state machine).
+        const event = get().events.find((e) => e.id === id);
+        if (!event) return;
+        if (event.status !== "partial") {
+          console.warn(
+            `markComplete called on event with status "${event.status}". Only "partial" events can be completed.`
+          );
+          return;
+        }
+
+        // Snapshot for rollback
+        const previousEvents   = get().events;
+        const previousById     = get().eventsByDate;
+
+        // Optimistic update
         set((state) => {
           const next = state.events.map((e) =>
             e.id === id ? { ...e, status: "completed" as const } : e,
           );
           return { events: next, eventsByDate: groupByDate(next) };
         });
+
+        try {
+          await calendarService.markComplete(id);
+        } catch (err) {
+          // BUG-03: Rollback optimistic update on failure
+          set({ events: previousEvents, eventsByDate: previousById });
+          set({ error: err instanceof Error ? err.message : "Failed to complete calendar event" });
+          throw err;
+        }
       },
 
       markSkipped: async (id) => {

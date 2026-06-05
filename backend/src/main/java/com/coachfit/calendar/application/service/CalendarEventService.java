@@ -191,8 +191,10 @@ public class CalendarEventService
                 );
             }
         } else {
-            CalendarEventSummary updated = findOwnedEvent(userId, eventId);
-            autoLinkAfterReschedule(userId, updated);
+            // ISSUE-05: Only auto-link when the date changed (handled above).
+            // Previously autoLinkAfterReschedule was also called on title/description-only
+            // updates, which could unexpectedly attach activities. Now we just no-op.
+            log.debug("Calendar event updated without date/workout change; no auto-link attempted: id={}", eventId);
         }
 
         analysisCache.keySet().removeIf(key -> key.eventId().equals(eventId));
@@ -376,10 +378,14 @@ public class CalendarEventService
             return BigDecimal.valueOf(100.0);
         }
         if (ratio < 0.9) {
-            return BigDecimal.valueOf(Math.max(0.0, 100.0 * (ratio / 0.9)))
+            // BUG-04: Clamp to [0, 100] — ratio/0.9 is always < 1 here so this is safe,
+            // but we add Math.min for defensive correctness.
+            return BigDecimal.valueOf(Math.max(0.0, Math.min(100.0, 100.0 * (ratio / 0.9))))
                     .setScale(2, RoundingMode.HALF_UP);
         }
-        return BigDecimal.valueOf(Math.max(0.0, 100.0 * (1.0 - (ratio - 1.1))))
+        // ratio > 1.1 case: can produce > 100 when ratio is between 1.09 and 1.1 due to
+        // floating-point edge; clamp explicitly.
+        return BigDecimal.valueOf(Math.max(0.0, Math.min(100.0, 100.0 * (1.0 - (ratio - 1.1)))))
                 .setScale(2, RoundingMode.HALF_UP);
     }
 
@@ -791,11 +797,17 @@ public class CalendarEventService
         double totalPlannedZoneTime = 0;
         double totalActualZoneTime = 0;
 
+        // BUG-05: Use targetZone from the original flatSteps list (by stepNumber index)
+        // instead of parsing targetValueStr, which contains "200-250W" / "145-165bpm" format
+        // and never has a "Zone N" prefix. Step numbers are 1-based.
         for (StepAnalysis sa : stepAnalyses) {
-            int saZone = 2;
-            if (sa.targetType().contains("zone")) {
-                saZone = sa.targetValueStr().contains("Zone ") ? 
-                        Integer.parseInt(sa.targetValueStr().replace("Zone ", "").replace("W", "").replace("bpm", "").trim()) : 2;
+            int stepIdx = sa.stepNumber() - 1; // sa.stepNumber() is 1-based
+            int saZone = 2; // default to zone 2 (aerobic) for non-zone targets
+            if (sa.targetType().contains("zone") && stepIdx >= 0 && stepIdx < flatSteps.size()) {
+                int plannedZone = flatSteps.get(stepIdx).targetZone;
+                if (plannedZone >= 1 && plannedZone <= 5) {
+                    saZone = plannedZone;
+                }
             }
             if (saZone >= 1 && saZone <= 5) {
                 plannedZoneSeconds[saZone] += sa.plannedDuration();

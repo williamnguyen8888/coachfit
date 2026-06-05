@@ -29,17 +29,17 @@ import type { DailyHealthSummary, SleepRecord } from "@/lib/services/health";
 import {
   getSportMeta,
   getEstimatedLoad,
+  getISOWeekNumber,
 } from "./calendarUtils";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
+// BUG-02: Replaced with shared getISOWeekNumber() from calendarUtils.
+// See calendarUtils.ts for ISO 8601 implementation.
 function getWeekNumber(dateStr: string): number {
-  const d = new Date(dateStr + "T00:00:00");
-  const oneJan = new Date(d.getFullYear(), 0, 1);
-  const numberOfDays = Math.floor((d.getTime() - oneJan.getTime()) / (24 * 60 * 60 * 1000));
-  return Math.ceil((numberOfDays + oneJan.getDay() + 1) / 7);
+  return getISOWeekNumber(dateStr);
 }
 
 function addDays(dateStr: string, days: number): string {
@@ -81,16 +81,19 @@ function DayLoadBar({ events, maxLoad }: { events: CalendarEvent[]; maxLoad: num
   const dayLoad = events.reduce((sum, e) => sum + getEstimatedLoad(e), 0);
   const pct = maxLoad > 0 ? (dayLoad / maxLoad) * 100 : 0;
 
-  // Color based on load intensity
+  // UX-05: Absolute coloring based on TSS zones, not relative to week max.
+  // Zone thresholds (TSS): Recovery <30, Aerobic 30-60, Tempo 60-100, Threshold 100-150, VO2+ >150
   const barColor = dayLoad === 0
     ? "transparent"
-    : pct > 75
-    ? "var(--zone-5-color)"
-    : pct > 50
-    ? "var(--zone-4-color)"
-    : pct > 25
-    ? "var(--zone-2-color)"
-    : "var(--zone-1-color)";
+    : dayLoad >= 150
+    ? "var(--zone-5-color)"   // VO2 Max zone
+    : dayLoad >= 100
+    ? "var(--zone-4-color)"   // Threshold zone
+    : dayLoad >= 60
+    ? "var(--zone-3-color, var(--zone-4-color))" // Tempo zone
+    : dayLoad >= 30
+    ? "var(--zone-2-color)"   // Aerobic zone
+    : "var(--zone-1-color)";  // Recovery zone
 
   return (
     <div

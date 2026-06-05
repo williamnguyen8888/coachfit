@@ -308,7 +308,10 @@ public class CalendarController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "'from' must not be after 'to'");
         }
-        if (from.plusDays(366).isBefore(to)) {
+        // ISSUE-06: plusDays(366).isBefore(to) was an off-by-one allowing 367-day ranges.
+        // Correct: a range of exactly 366 days means to == from.plusDays(365), so we reject
+        // anything where to is strictly after from.plusDays(365).
+        if (to.isAfter(from.plusDays(365))) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Date range must not exceed 366 days");
         }

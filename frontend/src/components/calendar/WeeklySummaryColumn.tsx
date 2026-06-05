@@ -103,18 +103,20 @@ function ProgressBar({
   );
 }
 
+// ISSUE-12: Removed dead code `pct` field — it was never used in render logic.
+// Actual percentages are computed dynamically from `zoneSecMap`.
 const ZONE_METRIC_DEFS = [
-  { label: "Z1", pct: 5.4, color: "var(--zone-2)", group: "hr" },
-  { label: "Z2", pct: 40.6, color: "var(--color-success)", group: "hr" },
-  { label: "Z3", pct: 2.4, color: "var(--zone-3)", group: "hr" },
-  { label: "Z4", pct: 14.4, color: "var(--zone-4)", group: "hr" },
-  { label: "Z5", pct: 5.3, color: "var(--zone-5)", group: "hr" },
-  { label: "Z6", pct: 27.9, color: "var(--zone-6)", group: "hr" },
-  { label: "Z7", pct: 4.0, color: "var(--sport-other)", group: "hr" },
-  { label: "SS", pct: 5.3, color: "var(--zone-4)", group: "hr" },
-  { label: "S1", pct: 46.0, color: "var(--color-success)", group: "pace" },
-  { label: "S2", pct: 16.9, color: "var(--zone-3)", group: "pace" },
-  { label: "S3", pct: 37.1, color: "var(--zone-5)", group: "pace" },
+  { label: "Z1", color: "var(--zone-2)", group: "hr" },
+  { label: "Z2", color: "var(--color-success)", group: "hr" },
+  { label: "Z3", color: "var(--zone-3)", group: "hr" },
+  { label: "Z4", color: "var(--zone-4)", group: "hr" },
+  { label: "Z5", color: "var(--zone-5)", group: "hr" },
+  { label: "Z6", color: "var(--zone-6)", group: "hr" },
+  { label: "Z7", color: "var(--sport-other)", group: "hr" },
+  { label: "SS", color: "var(--zone-4)", group: "hr" },
+  { label: "S1", color: "var(--color-success)", group: "pace" },
+  { label: "S2", color: "var(--zone-3)", group: "pace" },
+  { label: "S3", color: "var(--zone-5)", group: "pace" },
 ];
 
 function formatZoneDuration(seconds: number): string {
@@ -280,10 +282,20 @@ export function WeeklySummaryColumn({
     S3: s3_sec,
   };
 
-  // CTL/ATL/TSB Formulas matching screenshot
-  const dailyAvg = completedLoad / 7;
-  const fatigue = completedLoad > 0 ? Math.round(dailyAvg * 0.77 + 0.3) : 0;
-  const fitness = completedLoad > 0 ? Math.round(dailyAvg * 0.15 + 0.6) : 0;
+  // ISSUE-01: CTL/ATL are exponential moving averages requiring historical data.
+  // With only 1 week of data we approximate using a simplified single-week model
+  // and clearly label values as estimates. Proper CTL/ATL should come from backend.
+  //
+  // Simplified approximation:
+  //   ATL (Fatigue, tau=7d)  ≈ weekly_TSS / 7  (daily average = ~current ATL for short period)
+  //   CTL (Fitness, tau=42d) ≈ weekly_TSS / 42 * weight  (rough steady-state estimate)
+  //   TSB (Form)             = CTL - ATL
+  //
+  // These are intentionally conservative estimates. A proper implementation
+  // requires fetching cumulative CTL/ATL from the backend.
+  const weeklyTSS = completedLoad;
+  const fatigue = weeklyTSS > 0 ? Math.round(weeklyTSS / 7) : 0;  // ATL ≈ daily avg
+  const fitness = weeklyTSS > 0 ? Math.round(weeklyTSS / 42) : 0; // CTL ≈ steady-state contribution
   const form = fitness - fatigue;
 
   // Sport breakdown
@@ -398,47 +410,47 @@ export function WeeklySummaryColumn({
 
         {/* Calories */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-          <span style={{ color: "var(--text-muted)", fontSize: 11 }}>kcal</span>
+          {/* ISSUE-04: Label as estimated — calories are sport/weight heuristics */}
+          <span style={{ color: "var(--text-muted)", fontSize: 11 }}>kcal <span style={{ fontSize: 9, opacity: 0.6 }}>est.</span></span>
           <span style={{ fontWeight: 700, color: "var(--text-primary)" }}>
             {completedCalories}
           </span>
         </div>
         {/* Elevation climbing */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-          <span style={{ color: "var(--text-muted)", fontSize: 11 }}>⛰️</span>
+          {/* ISSUE-04: Elevation is distance-based estimate, not from GPS data */}
+          <span style={{ color: "var(--text-muted)", fontSize: 11 }}>⛰️ <span style={{ fontSize: 9, opacity: 0.6 }}>est.</span></span>
           <span style={{ fontWeight: 700, color: "var(--text-primary)" }}>
             {completedElevation}m
           </span>
         </div>
 
-        {/* Fitness */}
+        {/* Fitness (CTL estimate) */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-          <span style={{ color: "var(--text-muted)", fontSize: 11 }}>Fitness</span>
+          <span style={{ color: "var(--text-muted)", fontSize: 11 }}>Fitness <span style={{ fontSize: 9, opacity: 0.6 }}>est.</span></span>
           <span style={{ fontWeight: 700, color: "var(--color-fitness)" }}>
             {fitness}
           </span>
         </div>
-        {/* Fatigue */}
+        {/* Fatigue (ATL estimate) */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-          <span style={{ color: "var(--text-muted)", fontSize: 11 }}>Fatigue</span>
+          <span style={{ color: "var(--text-muted)", fontSize: 11 }}>Fatigue <span style={{ fontSize: 9, opacity: 0.6 }}>est.</span></span>
           <span style={{ fontWeight: 700, color: "#a855f7" }}>
             {fatigue}
           </span>
         </div>
 
-        {/* Form */}
+        {/* Form (TSB estimate) */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-          <span style={{ color: "var(--text-muted)", fontSize: 11 }}>Form</span>
+          <span style={{ color: "var(--text-muted)", fontSize: 11 }}>Form <span style={{ fontSize: 9, opacity: 0.6 }}>est.</span></span>
           <span style={{ fontWeight: 700, color: getFormColor(form) }}>
             {form > 0 ? `+${form}` : form}
           </span>
         </div>
-        {/* Ramp Rate */}
+        {/* Ramp Rate — UX-06: Hide hardcoded value; shown as N/A until backend provides it */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
           <span style={{ color: "var(--text-muted)", fontSize: 11 }}>Ramp</span>
-          <span style={{ fontWeight: 700, color: "var(--text-secondary)" }}>
-            +0.0
-          </span>
+          <span style={{ fontWeight: 700, color: "var(--text-muted)", fontSize: 11 }}>—</span>
         </div>
       </div>
 

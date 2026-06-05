@@ -6,6 +6,20 @@
 
 import type { CalendarEvent } from "@/lib/types/calendar";
 
+// ─── ISO Week Number ──────────────────────────────────────────────────────────
+// ISO 8601: weeks start on Monday; week 1 contains the year's first Thursday.
+// This single implementation is used across WeekNavBar, WeekView, MonthView,
+// and WeeklySummaryColumn to guarantee consistency.
+
+export function getISOWeekNumber(dateStr: string): number {
+  const d = new Date(dateStr + "T00:00:00");
+  // Set to nearest Thursday: current date + 4 - current day number (Mon=1 … Sun=7)
+  const dayNum = d.getDay() || 7; // convert 0 (Sun) → 7
+  d.setDate(d.getDate() + 4 - dayNum);
+  const yearStart = new Date(d.getFullYear(), 0, 1);
+  return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+}
+
 // ─── Sport metadata ────────────────────────────────────────────────────────────
 
 export interface SportMeta {
@@ -111,10 +125,14 @@ const INTENSITY_FACTOR: Record<string, number> = {
 
 export function getEstimatedLoad(event: CalendarEvent): number {
   if (event.eventType === "rest" || event.eventType === "note") return 0;
+  // ISSUE-02: Prefer actual activity TSS (most accurate), then planned workout TSS,
+  // then fall back to a heuristic based on planned duration.
+  if (event.activity?.tss != null && event.activity.tss > 0) return Math.round(event.activity.tss);
   if (event.workout?.estimatedTss != null) return Math.round(event.workout.estimatedTss);
-  const dur = event.workout?.estimatedDuration ?? 0;
+  // Fallback: use actual activity duration if available, else planned
+  const dur = event.activity?.durationSeconds ?? event.workout?.estimatedDuration ?? 0;
   if (dur <= 0) return 0;
-  const sport = event.workout?.sport ?? "other";
+  const sport = event.activity?.sport ?? event.workout?.sport ?? "other";
   const factor = INTENSITY_FACTOR[sport] ?? 0.7;
   return Math.round((dur / 60) * factor);
 }
@@ -141,10 +159,15 @@ export interface WeekStats {
 
 export function computeWeekStats(events: CalendarEvent[]): WeekStats {
   const workoutEvents = events.filter((e) => e.eventType === "workout");
-  const totalDurationSec = workoutEvents.reduce(
-    (sum, e) => sum + (e.workout?.estimatedDuration ?? 0),
-    0,
-  );
+  // ISSUE-03: Use actual activity duration for completed/partial events,
+  // planned estimated duration for planned/skipped events.
+  const totalDurationSec = workoutEvents.reduce((sum, e) => {
+    const isCompleted = e.status === "completed" || e.status === "partial";
+    const dur = isCompleted
+      ? (e.activity?.durationSeconds ?? e.workout?.estimatedDuration ?? 0)
+      : (e.workout?.estimatedDuration ?? 0);
+    return sum + dur;
+  }, 0);
   const plannedCount   = workoutEvents.filter((e) => e.status === "planned").length;
   const completedCount = workoutEvents.filter((e) => e.status === "completed" || e.status === "partial").length;
   const skippedCount   = workoutEvents.filter((e) => e.status === "skipped").length;
@@ -201,7 +224,8 @@ export function getSportSvgIcon(sport: string): { path: string; viewBox: string 
 // ─── Distance formatting ──────────────────────────────────────────────────────
 
 export function formatDistance(meters: number | null | undefined): string | null {
-  if (!meters || meters <= 0) return null;
+  // ISSUE-09: Use explicit null check instead of falsy check for clarity.
+  if (meters == null || meters <= 0) return null;
   if (meters >= 1000) {
     const km = meters / 1000;
     return km >= 10 ? `${Math.round(km)} km` : `${km.toFixed(1)} km`;
@@ -212,13 +236,22 @@ export function formatDistance(meters: number | null | undefined): string | null
 // ─── Pace formatting ──────────────────────────────────────────────────────────
 
 export function formatPace(speedMs: number | null | undefined, sport: string): string | null {
-  if (!speedMs || speedMs <= 0) return null;
+  if (speedMs == null || speedMs <= 0) return null;
   if (sport === "cycling") {
     const kmh = speedMs * 3.6;
     return `${kmh.toFixed(1)} km/h`;
   }
-  // Running / swimming: min/km
+  if (sport === "swimming") {
+    // ISSUE-10: Swimming uses pace per 100m, not per km.
+    const secPer100m = 100 / speedMs;
+    if (secPer100m > 600) return null; // sanity guard
+    const mins = Math.floor(secPer100m / 60);
+    const secs = Math.round(secPer100m % 60);
+    return `${mins}:${secs.toString().padStart(2, "0")}/100m`;
+  }
+  // Running: min/km
   const secPerKm = 1000 / speedMs;
+  if (secPerKm > 1800) return null; // sanity guard (>30 min/km)
   const mins = Math.floor(secPerKm / 60);
   const secs = Math.round(secPerKm % 60);
   return `${mins}:${secs.toString().padStart(2, "0")}/km`;

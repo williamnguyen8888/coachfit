@@ -14,6 +14,7 @@
 import { useState, useCallback } from "react";
 import { useIsMobile } from "@/hooks/useMediaQuery";
 import { getSportMeta } from "./calendarUtils";
+import { getISOWeekNumber } from "./calendarUtils";
 import type { CalendarEvent } from "@/lib/types/calendar";
 import { useCalendarStore } from "@/stores/calendar.store";
 import { useDragDrop } from "@/hooks/useDragDrop";
@@ -30,11 +31,10 @@ import type { DailyHealthSummary, SleepRecord } from "@/lib/services/health";
 
 const DAY_NAMES_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
+// BUG-02: Replaced with shared getISOWeekNumber() from calendarUtils.
+// See calendarUtils.ts for ISO 8601 implementation.
 function getWeekNumber(dateStr: string): number {
-  const d = new Date(dateStr + "T00:00:00");
-  const oneJan = new Date(d.getFullYear(), 0, 1);
-  const numberOfDays = Math.floor((d.getTime() - oneJan.getTime()) / (24 * 60 * 60 * 1000));
-  return Math.ceil((numberOfDays + oneJan.getDay() + 1) / 7);
+  return getISOWeekNumber(dateStr);
 }
 
 function isToday(dateStr: string): boolean {
@@ -171,9 +171,10 @@ function DayCell({
   const [showOverflow, setShowOverflow] = useState(false);
   const dayNum = new Date(date + "T00:00:00").getDate();
 
-  const visibleEvents = events;
-  const overflowCount = 0;
-  const hasOverflow   = false;
+  // BUG-01: Restore overflow logic — slice to MAX_VISIBLE, compute overflow count.
+  const visibleEvents = events.slice(0, MAX_VISIBLE);
+  const overflowCount = Math.max(0, events.length - MAX_VISIBLE);
+  const hasOverflow   = overflowCount > 0;
 
   // Background
   let baseBg = "transparent";
