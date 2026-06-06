@@ -16,11 +16,13 @@ import {
   Sun,
   Moon,
   ChevronDown,
+  Users,
 } from "lucide-react";
 import { useUIStore } from "@/stores/ui.store";
-import { useAuthStore } from "@/stores/auth.store";
+import { useAuthStore, useIsCoach } from "@/stores/auth.store";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/hooks/useTranslation";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 
 const NAV_ITEMS = [
   { label: "Dashboard", key: "menu.dashboard", href: "/", icon: Home },
@@ -36,7 +38,15 @@ export function Header() {
   const { theme, toggleTheme } = useUIStore();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
+  const isCoach = useIsCoach();
   const { t } = useTranslation();
+
+  const navItems = [
+    ...NAV_ITEMS,
+    ...(isCoach
+      ? ([{ label: "Team", key: "menu.team", href: "/coach", icon: Users }] as const)
+      : []),
+  ];
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -92,7 +102,7 @@ export function Header() {
 
       {/* Center: Main Navigation Menu */}
       <nav className="flex items-center gap-1">
-        {NAV_ITEMS.map(({ label, key, href, icon: Icon }) => {
+        {navItems.map(({ label, key, href, icon: Icon }) => {
           const isActive =
             href === "/" ? pathname === "/" : pathname.startsWith(href);
           const translatedLabel = t(key);
@@ -133,8 +143,10 @@ export function Header() {
         })}
       </nav>
 
-      {/* Right: Actions (Theme toggle, User avatar dropdown) */}
+      {/* Right: Actions (Notification bell, Theme toggle, User avatar dropdown) */}
       <div className="flex items-center gap-4">
+        {/* Notification Bell */}
+        <NotificationBell />
         {/* Theme Toggle Button */}
         <button
           onClick={toggleTheme}

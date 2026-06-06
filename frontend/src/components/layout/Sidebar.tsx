@@ -14,9 +14,10 @@ import {
   Zap,
   LogOut,
   HeartPulse,
+  Users,
 } from "lucide-react";
 import { useUIStore } from "@/stores/ui.store";
-import { useAuthStore } from "@/stores/auth.store";
+import { useAuthStore, useIsCoach } from "@/stores/auth.store";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/hooks/useTranslation";
 
@@ -35,7 +36,15 @@ export function Sidebar() {
   const { sidebarExpanded, toggleSidebar } = useUIStore();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
+  const isCoach = useIsCoach();
   const { t } = useTranslation();
+
+  const allNavItems = [
+    ...NAV_ITEMS,
+    ...(isCoach
+      ? ([{ label: "Team", key: "menu.team", href: "/coach", icon: Users }] as const)
+      : []),
+  ];
 
   return (
     <aside
@@ -79,7 +88,7 @@ export function Sidebar() {
 
       {/* Nav links */}
       <nav className="flex-1 py-4 space-y-1 px-2 overflow-y-auto">
-        {NAV_ITEMS.map(({ label, key, href, icon: Icon }) => {
+        {allNavItems.map(({ label, key, href, icon: Icon }) => {
           const isActive =
             href === "/" ? pathname === "/" : pathname.startsWith(href);
           const translatedLabel = t(key);

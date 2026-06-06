@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Calendar, Activity, Dumbbell, HeartPulse, Settings } from "lucide-react";
+import { Home, Calendar, Activity, Dumbbell, HeartPulse, Settings, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/hooks/useTranslation";
+import { useIsCoach } from "@/stores/auth.store";
 
 const TAB_ITEMS = [
   { label: "Home", key: "menu.dashboard", href: "/", icon: Home },
@@ -17,7 +18,15 @@ const TAB_ITEMS = [
 
 export function BottomTabBar() {
   const pathname = usePathname();
+  const isCoach = useIsCoach();
   const { t } = useTranslation();
+
+  const tabItems = [
+    ...TAB_ITEMS,
+    ...(isCoach
+      ? ([{ label: "Team", key: "menu.team", href: "/coach", icon: Users }] as const)
+      : []),
+  ];
 
   return (
     <nav
@@ -33,7 +42,7 @@ export function BottomTabBar() {
         WebkitBackdropFilter: "blur(16px) saturate(180%)",
       }}
     >
-      {TAB_ITEMS.map(({ label, key, href, icon: Icon }) => {
+      {tabItems.map(({ label, key, href, icon: Icon }) => {
         const isActive =
           href === "/" ? pathname === "/" : pathname.startsWith(href);
         const translatedLabel = t(key);

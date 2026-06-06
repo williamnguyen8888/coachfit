@@ -18,7 +18,8 @@
     "wellness": "Wellness",
     "analytics": "Analytics",
     "settings": "Settings",
-    "logout": "Log out"
+    "logout": "Log out",
+    "team": "Team"
   },
   "profile": {
     "title": "Profile Settings",
