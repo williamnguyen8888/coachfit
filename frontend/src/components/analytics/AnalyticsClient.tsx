@@ -50,11 +50,12 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
 function SectionError({ message }: { message: string }) {
   return (
     <div
-      className="rounded-[var(--radius-md)] px-4 py-3 flex items-center gap-3"
       style={{
         background: "var(--bg-surface)",
-        border: "1px solid var(--color-danger)",
-        borderLeftWidth: 3,
+        border: "1px solid var(--border-subtle)",
+        borderLeft: "3px solid var(--color-danger)",
+        borderRadius: "var(--radius-md)",
+        padding: "12px 16px",
       }}
     >
       <span style={{ fontSize: "var(--text-sm)", color: "var(--color-danger)" }}>
@@ -69,70 +70,45 @@ function SectionError({ message }: { message: string }) {
 function TabBar({ active, onChange }: { active: Tab; onChange: (t: Tab) => void }) {
   return (
     <div
-      className="flex items-center rounded-[var(--radius-md)] p-1 gap-0.5"
-      style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)" }}
-    >
-      {TABS.map((tab) => (
-        <button
-          key={tab.id}
-          id={`analytics-tab-${tab.id}`}
-          onClick={() => onChange(tab.id)}
-          className="flex items-center gap-2 flex-1 justify-center rounded-[var(--radius-sm)]"
-          style={{
-            padding: "8px 12px",
-            fontSize: "var(--text-sm)",
-            fontWeight: 600,
-            background: active === tab.id ? "var(--bg-elevated)" : "transparent",
-            color: active === tab.id ? "var(--color-accent)" : "var(--text-secondary)",
-            border: "none",
-            cursor: "pointer",
-            transition: "background 150ms ease-out, color 150ms ease-out",
-            boxShadow: active === tab.id ? "var(--shadow-sm)" : "none",
-          }}
-        >
-          {tab.icon}
-          <span className="hidden sm:inline">{tab.label}</span>
-        </button>
-      ))}
-    </div>
-  );
-}
-
-// ─── Pro Upsell Banner ────────────────────────────────────────────────────────
-
-function ProBanner() {
-  return (
-    <div
-      className="rounded-[var(--radius-md)] px-5 py-4 flex items-center justify-between gap-4"
       style={{
-        background: "linear-gradient(135deg, rgba(139,92,246,0.12) 0%, rgba(59,130,246,0.08) 100%)",
-        border: "1px solid var(--color-accent)",
+        display: "flex",
+        width: "100%",
+        borderBottom: "1px solid var(--border-subtle)",
       }}
     >
-      <div>
-        <p style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: "var(--text-primary)" }}>
-          Pro Analytics
-        </p>
-        <p style={{ fontSize: "var(--text-xs)", color: "var(--text-secondary)", marginTop: 2 }}>
-          PMC, Power Curve, and Zone Distribution require a Pro subscription.
-        </p>
-      </div>
-      <button
-        style={{
-          padding: "8px 16px",
-          borderRadius: "var(--radius-sm)",
-          fontSize: "var(--text-sm)",
-          fontWeight: 700,
-          background: "var(--color-accent)",
-          color: "#fff",
-          border: "none",
-          cursor: "pointer",
-          whiteSpace: "nowrap",
-          flexShrink: 0,
-        }}
-      >
-        Upgrade
-      </button>
+      {TABS.map((tab) => {
+        const isActive = active === tab.id;
+        return (
+          <button
+            key={tab.id}
+            id={`analytics-tab-${tab.id}`}
+            onClick={() => onChange(tab.id)}
+            style={{
+              flex: 1,
+              height: 44,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 7,
+              fontSize: "var(--text-sm)",
+              fontWeight: isActive ? 600 : 500,
+              color: isActive ? "var(--text-primary)" : "var(--text-muted)",
+              background: "none",
+              border: "none",
+              borderBottom: isActive
+                ? "2px solid var(--color-accent)"
+                : "2px solid transparent",
+              cursor: "pointer",
+              transition: "color 150ms ease-out, border-color 150ms ease-out",
+              marginBottom: -1,
+              whiteSpace: "nowrap",
+            }}
+          >
+            {tab.icon}
+            {tab.label}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -164,161 +140,257 @@ export function AnalyticsClient() {
 
   const handleSportChange = useCallback((s: string) => setZoneSport(s), []);
 
+  const showDatePicker = activeTab === "pmc" || activeTab === "zones";
+
   return (
-    <div className="mx-auto w-full max-w-[960px] px-3 sm:px-4 lg:px-6 py-4 lg:py-5 flex flex-col gap-5">
-
-      {/* Pro banner — show in a real app when tier !== pro */}
-      {/* <ProBanner /> */}
-
-      {/* Tab navigation + date range (for PMC & Zones tabs) */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
+    <div
+      className="flex-1 overflow-y-auto"
+      style={{ paddingBottom: "calc(var(--tab-bar-height, 64px) + env(safe-area-inset-bottom, 0px))" }}
+    >
+      <div
+        style={{
+          maxWidth: 960,
+          width: "100%",
+          margin: "0 auto",
+          padding: "0 12px 24px",
+        }}
+      >
+        {/* Tab navigation */}
         <TabBar active={activeTab} onChange={setActiveTab} />
-        {(activeTab === "pmc" || activeTab === "zones") && (
-          <DateRangePicker value={dateRange} onChange={setDateRange} />
+
+        {/* Date range picker — stacks below tab bar on mobile */}
+        {showDatePicker && (
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "flex-end",
+              padding: "12px 0 4px",
+            }}
+          >
+            <DateRangePicker value={dateRange} onChange={setDateRange} />
+          </div>
         )}
-      </div>
 
-      {/* ─── PMC Tab ──────────────────────────────────────────────────── */}
-      {activeTab === "pmc" && (
-        <>
-          {pmcQuery.loading ? (
-            <PMCChartSkeleton />
-          ) : pmcQuery.error ? (
-            <SectionError message="Could not load PMC data. Make sure you have a Pro subscription." />
-          ) : pmcQuery.data ? (
-            <PMCChart data={pmcQuery.data} />
-          ) : null}
+        {/* Content area */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 16, marginTop: showDatePicker ? 4 : 16 }}>
 
-          {/* Explanatory card */}
-          <div
-            className="rounded-[var(--radius-md)] p-4 flex flex-col gap-2"
-            style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)" }}
-          >
-            <h3 style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: "var(--text-primary)" }}>
-              Understanding the PMC
-            </h3>
-            <div className="grid sm:grid-cols-3 gap-3">
-              {[
-                { label: "CTL (Fitness)", color: "var(--color-fitness)", desc: "Chronic Training Load — 42-day weighted average of daily TSS. Represents your long-term fitness." },
-                { label: "ATL (Fatigue)", color: "var(--color-fatigue)", desc: "Acute Training Load — 7-day weighted average of daily TSS. Represents how tired you are right now." },
-                { label: "TSB (Form)",    color: "var(--color-form)",    desc: "Training Stress Balance — CTL minus ATL. Positive = fresh & ready to perform. Negative = fatigued." },
-              ].map((item) => (
-                <div key={item.label} className="flex flex-col gap-1">
-                  <div className="flex items-center gap-1.5">
-                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: item.color, flexShrink: 0, display: "inline-block" }} />
-                    <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: item.color }}>{item.label}</span>
-                  </div>
-                  <p style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", lineHeight: 1.6 }}>
-                    {item.desc}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </>
-      )}
+          {/* ─── PMC Tab ──────────────────────────────────────────────────── */}
+          {activeTab === "pmc" && (
+            <>
+              {pmcQuery.loading ? (
+                <PMCChartSkeleton />
+              ) : pmcQuery.error ? (
+                <SectionError message="Could not load PMC data. Make sure you have a Pro subscription." />
+              ) : pmcQuery.data ? (
+                <PMCChart data={pmcQuery.data} />
+              ) : null}
 
-      {/* ─── Power Curve Tab ────────────────────────────────────────────── */}
-      {activeTab === "power-curve" && (
-        <>
-          {powerQuery.loading ? (
-            <PowerCurveChartSkeleton />
-          ) : powerQuery.error ? (
-            <SectionError message="Could not load power curve. Make sure you have cycling activities with power meter data." />
-          ) : powerQuery.data ? (
-            <PowerCurveChart
-              data={powerQuery.data}
-              days={powerDays}
-              onDaysChange={setPowerDays}
-            />
-          ) : null}
-
-          {/* Key zones explanation */}
-          <div
-            className="rounded-[var(--radius-md)] p-4"
-            style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)" }}
-          >
-            <h3 style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: "var(--text-primary)", marginBottom: 10 }}>
-              Key Power Benchmarks
-            </h3>
-            <div className="grid sm:grid-cols-4 gap-2">
-              {[
-                { label: "5s",  title: "Neuromuscular",  desc: "Sprint / peak power" },
-                { label: "1m",  title: "Anaerobic",      desc: "Short burst capacity" },
-                { label: "5m",  title: "VO2max",         desc: "Max aerobic output" },
-                { label: "20m", title: "FTP Proxy",      desc: "95% ≈ FTP estimate" },
-              ].map((b) => (
+              {/* PMC Legend — flat text grid, no nested cards */}
+              <div>
+                <p style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: "var(--text-secondary)", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                  Understanding the PMC
+                </p>
                 <div
-                  key={b.label}
-                  className="flex flex-col rounded-[var(--radius-sm)] p-2.5"
-                  style={{ background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)" }}
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+                    gap: "12px 24px",
+                  }}
                 >
-                  <span style={{ fontSize: "var(--text-lg)", fontWeight: 700, color: "var(--color-accent)", fontFamily: "var(--font-mono)" }}>
-                    {b.label}
-                  </span>
-                  <span style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: "var(--text-primary)" }}>{b.title}</span>
-                  <span style={{ fontSize: "9px", color: "var(--text-muted)" }}>{b.desc}</span>
+                  {[
+                    { label: "CTL — Fitness",  color: "var(--color-fitness)", desc: "42-day weighted average of daily TSS. Represents your long-term aerobic fitness." },
+                    { label: "ATL — Fatigue",  color: "var(--color-fatigue)", desc: "7-day weighted average of daily TSS. Reflects how fatigued you are right now." },
+                    { label: "TSB — Form",     color: "var(--color-form)",    desc: "CTL minus ATL. Positive = fresh & ready to perform. Negative = fatigued." },
+                  ].map((item) => (
+                    <div key={item.label} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                      <span
+                        style={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: "50%",
+                          background: item.color,
+                          flexShrink: 0,
+                          marginTop: 4,
+                          display: "block",
+                        }}
+                      />
+                      <div>
+                        <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: "var(--text-primary)", display: "block" }}>
+                          {item.label}
+                        </span>
+                        <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", lineHeight: 1.6 }}>
+                          {item.desc}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </div>
-        </>
-      )}
+              </div>
+            </>
+          )}
 
-      {/* ─── Zone Distribution Tab ──────────────────────────────────────── */}
-      {activeTab === "zones" && (
-        <>
-          {zonesQuery.loading ? (
-            <ZoneDistributionChartSkeleton />
-          ) : zonesQuery.error ? (
-            <SectionError message="Could not load zone data. Sync activities with HR or power data to see your distribution." />
-          ) : zonesQuery.data ? (
-            <ZoneDistributionChart
-              data={zonesQuery.data}
-              sport={zoneSport}
-              onSportChange={handleSportChange}
-            />
-          ) : null}
+          {/* ─── Power Curve Tab ────────────────────────────────────────────── */}
+          {activeTab === "power-curve" && (
+            <>
+              {powerQuery.loading ? (
+                <PowerCurveChartSkeleton />
+              ) : powerQuery.error ? (
+                <SectionError message="Could not load power curve. Make sure you have cycling activities with power meter data." />
+              ) : powerQuery.data ? (
+                <PowerCurveChart
+                  data={powerQuery.data}
+                  days={powerDays}
+                  onDaysChange={setPowerDays}
+                />
+              ) : null}
 
-          {/* Zone guide */}
-          <div
-            className="rounded-[var(--radius-md)] p-4"
-            style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)" }}
-          >
-            <h3 style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: "var(--text-primary)", marginBottom: 10 }}>
-              Zone Guide
-            </h3>
-            <div className="flex flex-col gap-2">
-              {[
-                { zone: "Z1", name: "Recovery",      color: "var(--zone-1)", pct: "~20%",  note: "Easy spinning, active recovery days" },
-                { zone: "Z2", name: "Endurance",     color: "var(--zone-2)", pct: "~50%",  note: "Base building — the majority of your volume" },
-                { zone: "Z3", name: "Tempo",         color: "var(--zone-3)", pct: "~10%",  note: "Comfortably hard, sustainable for 30–60min" },
-                { zone: "Z4", name: "Threshold",     color: "var(--zone-4)", pct: "~10%",  note: "Race-pace effort, builds lactate tolerance" },
-                { zone: "Z5", name: "VO2max",        color: "var(--zone-5)", pct: "~5%",   note: "Very hard intervals, max aerobic benefit" },
-              ].map((z) => (
-                <div key={z.zone} className="flex items-center gap-3">
-                  <span
-                    className="inline-flex items-center justify-center rounded-[var(--radius-sm)] font-bold tabular-nums shrink-0"
-                    style={{ width: 28, height: 22, background: z.color, fontSize: "var(--text-xs)", color: "#000", opacity: 0.9 }}
-                  >
-                    {z.zone}
-                  </span>
-                  <div className="flex-1">
-                    <span style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: "var(--text-primary)" }}>{z.name}</span>
-                    <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", marginLeft: 6 }}>{z.note}</span>
-                  </div>
-                  <span style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>
-                    {z.pct}
-                  </span>
+              {/* Key benchmarks — inline list, no bg boxes */}
+              <div>
+                <p style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: "var(--text-secondary)", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                  Key Power Benchmarks
+                </p>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+                    gap: "8px 0",
+                    borderTop: "1px solid var(--border-subtle)",
+                  }}
+                >
+                  {[
+                    { label: "5s",  title: "Neuromuscular",  desc: "Sprint / peak power" },
+                    { label: "1m",  title: "Anaerobic",      desc: "Short burst capacity" },
+                    { label: "5m",  title: "VO₂max",         desc: "Max aerobic output" },
+                    { label: "20m", title: "FTP Proxy",      desc: "95% ≈ FTP estimate" },
+                  ].map((b, i) => (
+                    <div
+                      key={b.label}
+                      style={{
+                        padding: "12px 16px 12px 0",
+                        borderBottom: "1px solid var(--border-subtle)",
+                        borderRight: i < 3 ? "1px solid var(--border-subtle)" : "none",
+                        paddingRight: i < 3 ? 16 : 0,
+                        paddingLeft: i > 0 ? 16 : 0,
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: "var(--text-lg)",
+                          fontWeight: 700,
+                          color: "var(--color-accent)",
+                          fontFamily: "var(--font-mono)",
+                          display: "block",
+                          lineHeight: 1.1,
+                        }}
+                      >
+                        {b.label}
+                      </span>
+                      <span style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: "var(--text-primary)", display: "block", marginTop: 2 }}>
+                        {b.title}
+                      </span>
+                      <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
+                        {b.desc}
+                      </span>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-            <p style={{ fontSize: "9px", color: "var(--text-muted)", marginTop: 10 }}>
-              Target distribution is for a polarized training model (80/20 rule). Your optimal split depends on your training phase and coach plan.
-            </p>
-          </div>
-        </>
-      )}
+              </div>
+            </>
+          )}
+
+          {/* ─── Zone Distribution Tab ──────────────────────────────────────── */}
+          {activeTab === "zones" && (
+            <>
+              {zonesQuery.loading ? (
+                <ZoneDistributionChartSkeleton />
+              ) : zonesQuery.error ? (
+                <SectionError message="Could not load zone data. Sync activities with HR or power data to see your distribution." />
+              ) : zonesQuery.data ? (
+                <ZoneDistributionChart
+                  data={zonesQuery.data}
+                  sport={zoneSport}
+                  onSportChange={handleSportChange}
+                />
+              ) : null}
+
+              {/* Zone guide — clean table-style list */}
+              <div>
+                <p style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: "var(--text-secondary)", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                  Zone Guide
+                </p>
+                <div
+                  style={{
+                    borderTop: "1px solid var(--border-subtle)",
+                  }}
+                >
+                  {[
+                    { zone: "Z1", name: "Recovery",  color: "var(--zone-1)", pct: "~20%", note: "Easy spinning, active recovery days" },
+                    { zone: "Z2", name: "Endurance", color: "var(--zone-2)", pct: "~50%", note: "Base building — the majority of your volume" },
+                    { zone: "Z3", name: "Tempo",     color: "var(--zone-3)", pct: "~10%", note: "Comfortably hard, sustainable 30–60 min" },
+                    { zone: "Z4", name: "Threshold", color: "var(--zone-4)", pct: "~10%", note: "Race-pace effort, builds lactate tolerance" },
+                    { zone: "Z5", name: "VO₂max",   color: "var(--zone-5)", pct: "~5%",  note: "Very hard intervals, max aerobic benefit" },
+                  ].map((z) => (
+                    <div
+                      key={z.zone}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 12,
+                        padding: "10px 0",
+                        borderBottom: "1px solid var(--border-subtle)",
+                      }}
+                    >
+                      <span
+                        style={{
+                          width: 3,
+                          height: 32,
+                          borderRadius: 2,
+                          background: z.color,
+                          flexShrink: 0,
+                        }}
+                      />
+                      <span
+                        style={{
+                          fontSize: "var(--text-xs)",
+                          fontWeight: 700,
+                          color: "var(--text-muted)",
+                          fontFamily: "var(--font-mono)",
+                          width: 20,
+                          flexShrink: 0,
+                        }}
+                      >
+                        {z.zone}
+                      </span>
+                      <div style={{ flex: 1 }}>
+                        <span style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--text-primary)" }}>
+                          {z.name}
+                        </span>
+                        <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", marginLeft: 8 }}>
+                          {z.note}
+                        </span>
+                      </div>
+                      <span
+                        style={{
+                          fontSize: "var(--text-xs)",
+                          fontWeight: 600,
+                          color: "var(--text-secondary)",
+                          fontFamily: "var(--font-mono)",
+                          flexShrink: 0,
+                        }}
+                      >
+                        {z.pct}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <p style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", marginTop: 8, lineHeight: 1.5 }}>
+                  Target distribution follows the polarized training model (80/20 rule). Your optimal split depends on training phase and coach plan.
+                </p>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

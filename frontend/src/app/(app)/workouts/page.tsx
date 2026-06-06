@@ -3,12 +3,10 @@
 /**
  * Workout Library Page — /workouts
  *
- * Features:
- *  - Premium Hero summary dashboard (workouts aggregations)
- *  - Sticky frosted-glass filter bar (source, sport, sort, view toggle)
- *  - Grid and List layouts with responsive behavior
- *  - Loading skeleton, empty, and error states
- *  - "Create Workout" CTA
+ * Structure: PageHeader → WorkoutFilters (sticky) → main > WorkoutList
+ * - No summary dashboard
+ * - No viewMode state (list-only)
+ * - Create Workout CTA in PageHeader
  */
 
 import * as React from "react";
@@ -40,7 +38,6 @@ export default function WorkoutsPage() {
   const router = useRouter();
   const [filter, setFilter] = useState<WorkoutsFilter>(DEFAULT_FILTER);
   const [totalElements, setTotalElements] = useState<number | undefined>(undefined);
-  const [viewMode, setViewMode] = useState<"grid" | "list">("list");
 
   /* ── Filter management ── */
   const handleFilterChange = useCallback((patch: Partial<WorkoutsFilter>) => {
@@ -88,19 +85,16 @@ export default function WorkoutsPage() {
         onReset={handleReset}
         totalElements={totalElements}
         loading={totalElements === undefined}
-        viewMode={viewMode}
-        onViewModeChange={setViewMode}
       />
 
       {/* ── Workout list ── */}
       <main
         id="workouts-list"
-        className="flex-1 px-4 lg:px-6 py-5"
+        className="flex-1 px-4 lg:px-6 py-4"
         aria-label="Workout library"
       >
         <WorkoutList
           filter={filter}
-          viewMode={viewMode}
           onPageChange={handlePageChange}
           onReset={handleReset}
           onTotalChange={setTotalElements}

@@ -14,6 +14,7 @@
  *   4. Wire save → POST/PUT /workouts
  *   5. Wire schedule → POST /calendar
  *   6. Wire export FIT → GET /workouts/{id}/export/fit → download
+ *   7. Mode switcher: Visual ↔ Script editor
  *
  * Constraints from docs/07-workout-data-model.md:
  *   - steps.length >= 1 (validated on save)
@@ -32,6 +33,8 @@ import { DurationEditor } from "./DurationEditor";
 import { TargetEditor } from "./TargetEditor";
 import { ScheduleModal } from "./ScheduleModal";
 import { WorkoutPreview } from "./WorkoutPreview";
+import { WorkoutScriptEditor, stepsToScript } from "./WorkoutScriptEditor";
+import type { ParseResult } from "./WorkoutScriptEditor";
 import { workoutsService } from "@/lib/services/workouts";
 import type { WorkoutDetail } from "@/lib/types/workout";
 import type {
@@ -146,6 +149,64 @@ interface Toast {
 let _toastId = 0;
 
 /* ------------------------------------------------------------------ */
+/*  Mode type                                                            */
+/* ------------------------------------------------------------------ */
+
+type BuilderMode = "visual" | "script";
+
+/* ------------------------------------------------------------------ */
+/*  Mode Switcher                                                        */
+/* ------------------------------------------------------------------ */
+
+function ModeSwitcher({
+  mode,
+  onChange,
+}: {
+  mode: BuilderMode;
+  onChange: (m: BuilderMode) => void;
+}) {
+  return (
+    <div
+      style={{
+        display: "inline-flex",
+        borderRadius: "var(--radius-sm)",
+        border: "1px solid var(--border-default)",
+        background: "var(--bg-elevated)",
+        padding: 2,
+        gap: 2,
+      }}
+    >
+      {(["visual", "script"] as BuilderMode[]).map((m) => {
+        const active = mode === m;
+        return (
+          <button
+            key={m}
+            type="button"
+            onClick={() => onChange(m)}
+            style={{
+              height: 30,
+              padding: "0 14px",
+              borderRadius: "calc(var(--radius-sm) - 2px)",
+              border: "none",
+              background: active ? "var(--bg-surface)" : "transparent",
+              color: active ? "var(--text-primary)" : "var(--text-muted)",
+              fontSize: "var(--text-sm)",
+              fontWeight: active ? 600 : 500,
+              cursor: active ? "default" : "pointer",
+              transition: "all 150ms ease-out",
+              boxShadow: active ? "var(--shadow-sm, 0 1px 2px rgba(0,0,0,0.15))" : "none",
+              textTransform: "capitalize",
+            }}
+          >
+            {m}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Main component                                                       */
 /* ------------------------------------------------------------------ */
 
@@ -159,6 +220,10 @@ export function WorkoutBuilderPage({ initialWorkout }: WorkoutBuilderPageProps) 
   const [savedId, setSavedId] = React.useState<string | undefined>(initialWorkout?.id);
 
   // ── UI state ──
+  const [mode, setMode] = React.useState<BuilderMode>("visual");
+  const [scriptText, setScriptText] = React.useState<string>(() =>
+    initialWorkout ? stepsToScript(initialWorkout.steps.map(apiStepToBuilder)) : ""
+  );
   const [showAddMenu, setShowAddMenu] = React.useState(false);
   const [activeEditor, setActiveEditor] = React.useState<EditorTarget | null>(null);
   const [showScheduleModal, setShowScheduleModal] = React.useState(false);
@@ -177,6 +242,20 @@ export function WorkoutBuilderPage({ initialWorkout }: WorkoutBuilderPageProps) 
   // ── State patch helpers ──
   function patchState(patch: Partial<BuilderState>) {
     setState((prev) => ({ ...prev, ...patch }));
+  }
+
+  // ── Mode switching ──
+  function handleModeChange(newMode: BuilderMode) {
+    if (newMode === "script") {
+      // Convert current visual steps → script text
+      setScriptText(stepsToScript(state.steps));
+    }
+    setMode(newMode);
+  }
+
+  // ── Script parse callback ──
+  function handleScriptParsed(result: ParseResult) {
+    patchState({ steps: result.steps });
   }
 
   // ── Step mutations ──
@@ -428,6 +507,7 @@ export function WorkoutBuilderPage({ initialWorkout }: WorkoutBuilderPageProps) 
             fontWeight: 600,
             color: "var(--text-primary)",
             margin: 0,
+            flex: 1,
           }}
         >
           {savedId ? "Edit Workout" : "New Workout"}
@@ -468,9 +548,10 @@ export function WorkoutBuilderPage({ initialWorkout }: WorkoutBuilderPageProps) 
         {/* Preview chart */}
         <WorkoutPreview steps={state.steps} />
 
-        {/* Canvas + steps */}
+        {/* ── Mode switcher + content ── */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          {/* Header row: title + mode switcher */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
             <h2
               style={{
                 fontSize: "var(--text-base)",
@@ -493,36 +574,59 @@ export function WorkoutBuilderPage({ initialWorkout }: WorkoutBuilderPageProps) 
                 </span>
               )}
             </h2>
-            <Button
-              id="builder-add-step-btn"
-              variant="secondary"
-              size="sm"
-              leftIcon={<Plus size={14} />}
-              onClick={() => setShowAddMenu(true)}
-              aria-label="Add workout block"
-            >
-              Add Block
-            </Button>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <ModeSwitcher mode={mode} onChange={handleModeChange} />
+
+              {mode === "visual" && (
+                <Button
+                  id="builder-add-step-btn"
+                  variant="secondary"
+                  size="sm"
+                  leftIcon={<Plus size={14} />}
+                  onClick={() => setShowAddMenu(true)}
+                  aria-label="Add workout block"
+                >
+                  Add Block
+                </Button>
+              )}
+            </div>
           </div>
 
-          <BuilderCanvas
-            steps={state.steps}
-            sport={state.sport}
-            onReorder={(steps) => patchState({ steps })}
-            onDelete={deleteStep}
-            onUpdateLeaf={updateLeafStep}
-            onUpdateRepeat={updateRepeatStep}
-            onDeleteChild={deleteChildStep}
-            onAddChild={addChildStep}
-            onEditDuration={(uid) => setActiveEditor({ kind: "duration", uid })}
-            onEditTarget={(uid) => setActiveEditor({ kind: "target", uid })}
-            onEditChildDuration={(parentUid, uid) =>
-              setActiveEditor({ kind: "child_duration", uid, parentUid })
-            }
-            onEditChildTarget={(parentUid, uid) =>
-              setActiveEditor({ kind: "child_target", uid, parentUid })
-            }
-          />
+          {/* ── Visual mode ── */}
+          {mode === "visual" && (
+            <BuilderCanvas
+              steps={state.steps}
+              sport={state.sport}
+              onReorder={(steps) => patchState({ steps })}
+              onDelete={deleteStep}
+              onUpdateLeaf={updateLeafStep}
+              onUpdateRepeat={updateRepeatStep}
+              onDeleteChild={deleteChildStep}
+              onAddChild={addChildStep}
+              onEditDuration={(uid) => setActiveEditor({ kind: "duration", uid })}
+              onEditTarget={(uid) => setActiveEditor({ kind: "target", uid })}
+              onEditChildDuration={(parentUid, uid) =>
+                setActiveEditor({ kind: "child_duration", uid, parentUid })
+              }
+              onEditChildTarget={(parentUid, uid) =>
+                setActiveEditor({ kind: "child_target", uid, parentUid })
+              }
+            />
+          )}
+
+          {/* ── Script mode ── */}
+          {mode === "script" && (
+            <WorkoutScriptEditor
+              initialScript={scriptText}
+              sport={state.sport}
+              onParsed={handleScriptParsed}
+              onError={(errors) => {
+                // Errors are displayed inside the editor; optionally log them
+                void errors;
+              }}
+            />
+          )}
         </div>
       </div>
 

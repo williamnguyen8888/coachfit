@@ -1,227 +1,153 @@
 "use client";
 
 /**
- * ActivityFilters — filter bar for the activities list.
- * Includes:
- *  - Sport filter (cycling | running | swimming | strength | other | all)
- *  - Source filter (strava | garmin | manual | upload | all)
- *  - Date range (from / to)
- *  - Layout view toggle (Grid / List)
- *  - Glassmorphic frosting overlay container
+ * ActivityFilters — compact two-row pill strip.
+ *
+ * Row 1: sport pills   — All · Cycling · Running · Swimming · Strength · Other
+ * Row 2: date range    — All Time · This Week · This Month · Last 3 Months
+ *
+ * Design rules:
+ *  - Entire bar sticky, blur backdrop
+ *  - Each row scrolls independently, no scrollbar visible
+ *  - Pills: 32px height, 44px min touch area via padding trick
+ *  - Active: sport-color or accent background, white text
+ *  - Inactive: transparent bg, border-subtle, text-secondary
+ *  - No hardcoded hex values except white (#fff) for text on colored bg
  */
 
 import * as React from "react";
-import { X, SlidersHorizontal, ChevronDown, LayoutGrid, List } from "lucide-react";
-import { Button } from "@/components/ui/Button";
-import type { Sport, ActivitySource, ActivitiesFilter } from "@/lib/types/activity";
+import type { Sport, ActivitiesFilter } from "@/lib/types/activity";
 
 /* ------------------------------------------------------------------ */
 /*  Constants                                                            */
 /* ------------------------------------------------------------------ */
 
-const SPORTS: { value: Sport | ""; label: string }[] = [
-  { value: "", label: "All Sports" },
-  { value: "cycling", label: "Cycling" },
-  { value: "running", label: "Running" },
-  { value: "swimming", label: "Swimming" },
-  { value: "strength", label: "Strength" },
-  { value: "other", label: "Other" },
+const SPORT_PILLS: { value: Sport | ""; label: string; color: string }[] = [
+  { value: "",         label: "All",      color: "var(--color-accent)" },
+  { value: "cycling",  label: "Cycling",  color: "var(--sport-cycling)" },
+  { value: "running",  label: "Running",  color: "var(--sport-running)" },
+  { value: "swimming", label: "Swimming", color: "var(--sport-swimming)" },
+  { value: "strength", label: "Strength", color: "var(--sport-strength)" },
+  { value: "other",    label: "Other",    color: "var(--sport-other)" },
 ];
 
-const SOURCES: { value: ActivitySource | ""; label: string }[] = [
-  { value: "", label: "All Sources" },
-  { value: "strava", label: "Strava" },
-  { value: "garmin", label: "Garmin" },
-  { value: "manual", label: "Manual" },
-  { value: "upload", label: "Upload" },
+type DateRange = "all" | "week" | "month" | "3months";
+
+const DATE_PILLS: { value: DateRange; label: string }[] = [
+  { value: "all",     label: "All Time" },
+  { value: "week",    label: "This Week" },
+  { value: "month",   label: "This Month" },
+  { value: "3months", label: "Last 3 Months" },
 ];
 
 /* ------------------------------------------------------------------ */
-/*  Sub-components                                                       */
+/*  Helpers                                                              */
 /* ------------------------------------------------------------------ */
 
-interface FilterSelectProps {
-  id: string;
-  label: string;
-  value: string;
-  options: { value: string; label: string }[];
-  onChange: (value: string) => void;
+function toYMD(date: Date): string {
+  return date.toISOString().slice(0, 10);
 }
 
-function FilterSelect({
-  id,
-  label,
-  value,
-  options,
-  onChange,
-}: FilterSelectProps) {
-  const isActive = value !== "";
-
-  return (
-    <div className="relative">
-      <label htmlFor={id} className="sr-only">
-        {label}
-      </label>
-      <div className="relative flex items-center">
-        <select
-          id={id}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          aria-label={label}
-          style={{
-            appearance: "none",
-            WebkitAppearance: "none",
-            background: isActive
-              ? "var(--color-accent-12)"
-              : "rgba(255, 255, 255, 0.02)",
-            border: `1px solid ${isActive ? "var(--color-accent-40)" : "rgba(255, 255, 255, 0.08)"}`,
-            borderRadius: "var(--radius-md)",
-            color: isActive ? "var(--color-accent)" : "var(--text-secondary)",
-            fontSize: "var(--text-sm)",
-            fontWeight: isActive ? 600 : 400,
-            padding: "8px 34px 8px 12px",
-            cursor: "pointer",
-            minWidth: 130,
-            transition: `all var(--duration-micro) ease-out`,
-            outline: "none",
-          }}
-          onFocus={(e) => {
-            (e.currentTarget as HTMLSelectElement).style.borderColor =
-              "var(--color-accent)";
-            (e.currentTarget as HTMLSelectElement).style.boxShadow =
-              "var(--color-focus-ring)";
-          }}
-          onBlur={(e) => {
-            (e.currentTarget as HTMLSelectElement).style.borderColor = isActive
-              ? "var(--color-accent-40)"
-              : "rgba(255, 255, 255, 0.08)";
-            (e.currentTarget as HTMLSelectElement).style.boxShadow = "none";
-          }}
-        >
-          {options.map((opt) => (
-            <option
-              key={opt.value}
-              value={opt.value}
-              style={{ background: "var(--bg-elevated)", color: "var(--text-primary)" }}
-            >
-              {opt.label}
-            </option>
-          ))}
-        </select>
-        <ChevronDown
-          size={14}
-          style={{
-            position: "absolute",
-            right: 10,
-            pointerEvents: "none",
-            color: isActive ? "var(--color-accent)" : "var(--text-muted)",
-          }}
-          aria-hidden="true"
-        />
-      </div>
-    </div>
-  );
+function dateRangeToFilter(range: DateRange): { from?: string; to?: string } {
+  const now = new Date();
+  if (range === "all") return { from: undefined, to: undefined };
+  const start = new Date(now);
+  if (range === "week")    start.setDate(now.getDate() - 7);
+  if (range === "month")   start.setMonth(now.getMonth() - 1);
+  if (range === "3months") start.setMonth(now.getMonth() - 3);
+  return { from: toYMD(start), to: toYMD(now) };
 }
 
-interface DateInputProps {
-  id: string;
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-}
-
-function DateInput({ id, label, value, onChange }: DateInputProps) {
-  const isActive = value !== "";
-  return (
-    <div>
-      <label htmlFor={id} className="sr-only">
-        {label}
-      </label>
-      <input
-        id={id}
-        type="date"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        aria-label={label}
-        placeholder={label}
-        style={{
-          background: isActive
-            ? "var(--color-accent-12)"
-            : "rgba(255, 255, 255, 0.02)",
-          border: `1px solid ${isActive ? "var(--color-accent-40)" : "rgba(255, 255, 255, 0.08)"}`,
-          borderRadius: "var(--radius-md)",
-          color: isActive ? "var(--color-accent)" : "var(--text-secondary)",
-          fontSize: "var(--text-sm)",
-          fontWeight: isActive ? 600 : 400,
-          padding: "8px 12px",
-          cursor: "pointer",
-          width: 145,
-          outline: "none",
-          transition: `all var(--duration-micro) ease-out`,
-          colorScheme: "dark",
-        }}
-        onFocus={(e) => {
-          e.currentTarget.style.borderColor = "var(--color-accent)";
-          e.currentTarget.style.boxShadow = "var(--color-focus-ring)";
-        }}
-        onBlur={(e) => {
-          e.currentTarget.style.borderColor = isActive
-            ? "var(--color-accent-40)"
-            : "rgba(255, 255, 255, 0.08)";
-          e.currentTarget.style.boxShadow = "none";
-        }}
-      />
-    </div>
-  );
+function activeDateRange(filter: ActivitiesFilter): DateRange {
+  if (!filter.from && !filter.to) return "all";
+  if (filter.from) {
+    const diffDays = Math.round(
+      (Date.now() - new Date(filter.from).getTime()) / 86_400_000
+    );
+    if (diffDays <= 8)  return "week";
+    if (diffDays <= 32) return "month";
+    if (diffDays <= 95) return "3months";
+  }
+  return "all";
 }
 
 /* ------------------------------------------------------------------ */
-/*  Active filter chips                                                  */
+/*  Shared pill CSS injected once                                        */
 /* ------------------------------------------------------------------ */
 
-interface ActiveChipProps {
+const PILL_STYLE = `
+  .af-strip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    overflow-x: auto;
+    /* hide scrollbar cross-browser */
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+    /* padding so focus rings aren't clipped */
+    padding: 4px 16px;
+  }
+  @media (min-width: 1024px) {
+    .af-strip { padding-left: 24px; padding-right: 24px; }
+  }
+  .af-strip::-webkit-scrollbar { display: none; }
+
+  .af-pill {
+    display: inline-flex;
+    align-items: center;
+    height: 32px;
+    padding: 0 14px;
+    border-radius: 999px;
+    font-size: var(--text-sm);
+    font-weight: 500;
+    white-space: nowrap;
+    flex-shrink: 0;
+    cursor: pointer;
+    border: 1px solid var(--border-subtle);
+    background: transparent;
+    color: var(--text-secondary);
+    transition:
+      background 150ms ease,
+      border-color 150ms ease,
+      color 150ms ease;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+
+  .af-pill:hover:not(.af-pill--active) {
+    border-color: var(--border-default);
+    color: var(--text-primary);
+  }
+
+  .af-pill--active {
+    border-color: transparent;
+    color: #ffffff;
+    font-weight: 600;
+  }
+`;
+
+/* ------------------------------------------------------------------ */
+/*  Pill sub-component                                                   */
+/* ------------------------------------------------------------------ */
+
+interface PillProps {
   label: string;
-  onRemove: () => void;
+  active: boolean;
+  activeColor: string;
+  onClick: () => void;
 }
 
-function ActiveChip({ label, onRemove }: ActiveChipProps) {
+function Pill({ label, active, activeColor, onClick }: PillProps) {
   return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 6,
-        padding: "3px 10px",
-        borderRadius: "var(--radius-full)",
-        background: "var(--color-accent-15)",
-        border: "1px solid var(--color-accent-30)",
-        fontSize: "var(--text-xs)",
-        color: "var(--color-accent)",
-        fontWeight: 600,
-        whiteSpace: "nowrap",
-      }}
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`af-pill${active ? " af-pill--active" : ""}`}
+      style={active ? { background: activeColor } : undefined}
     >
       {label}
-      <button
-        onClick={onRemove}
-        aria-label={`Remove filter: ${label}`}
-        style={{
-          background: "none",
-          border: "none",
-          padding: 0,
-          cursor: "pointer",
-          display: "flex",
-          alignItems: "center",
-          color: "inherit",
-          opacity: 0.7,
-          lineHeight: 1,
-        }}
-        onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
-        onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.7")}
-      >
-        <X size={12} aria-hidden="true" />
-      </button>
-    </span>
+    </button>
   );
 }
 
@@ -233,11 +159,12 @@ export interface ActivityFiltersProps {
   filter: ActivitiesFilter;
   onFilterChange: (patch: Partial<ActivitiesFilter>) => void;
   onReset: () => void;
-  /** Total results count — shown in the bar */
   totalElements?: number;
   loading?: boolean;
-  viewMode: "grid" | "list";
-  onViewModeChange: (mode: "grid" | "list") => void;
+  /** Kept for backwards-compat — no-op */
+  viewMode?: "grid" | "list";
+  /** Kept for backwards-compat — no-op */
+  onViewModeChange?: (mode: "grid" | "list") => void;
 }
 
 export function ActivityFilters({
@@ -246,194 +173,132 @@ export function ActivityFilters({
   onReset,
   totalElements,
   loading,
-  viewMode,
-  onViewModeChange,
 }: ActivityFiltersProps) {
-  const hasActiveFilters =
-    !!filter.sport || !!filter.source || !!filter.from || !!filter.to;
+  const activeSport  = filter.sport ?? "";
+  const activePeriod = activeDateRange(filter);
+  const isFiltered   = activeSport !== "" || activePeriod !== "all";
+
+  function handleSport(value: Sport | "") {
+    onFilterChange({ sport: value === "" ? undefined : value, page: 0 });
+  }
+
+  function handleDate(range: DateRange) {
+    const { from, to } = dateRangeToFilter(range);
+    onFilterChange({ from, to, page: 0 });
+  }
 
   return (
-    <div
-      style={{
-        borderBottom: "1px solid var(--border-subtle)",
-        background: "rgba(10, 10, 15, 0.65)",
-        backdropFilter: "blur(12px)",
-        WebkitBackdropFilter: "blur(12px)",
-        position: "sticky",
-        top: 0,
-        zIndex: 10,
-      }}
-    >
-      {/* ── Filter controls ── */}
-      <div className="px-4 lg:px-6 py-4">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex flex-wrap items-center gap-3">
-            {/* Icon label */}
+    <>
+      <style>{PILL_STYLE}</style>
+
+      <div
+        style={{
+          borderBottom: "1px solid var(--border-subtle)",
+          background: "rgba(10, 10, 15, 0.80)",
+          backdropFilter: "blur(16px) saturate(180%)",
+          WebkitBackdropFilter: "blur(16px) saturate(180%)",
+          position: "sticky",
+          top: 0,
+          zIndex: 10,
+        }}
+      >
+        {/* ── Row 1: Sport ── */}
+        <div className="af-strip" role="group" aria-label="Filter by sport">
+          {SPORT_PILLS.map((p) => (
+            <Pill
+              key={p.value}
+              label={p.label}
+              active={activeSport === p.value}
+              activeColor={p.color}
+              onClick={() => handleSport(p.value as Sport | "")}
+            />
+          ))}
+        </div>
+
+        {/* ── Row 2: Date + count + clear ── */}
+        <div
+          className="af-strip"
+          style={{ paddingBottom: 8 }}
+          role="group"
+          aria-label="Filter by date range"
+        >
+          {DATE_PILLS.map((p) => (
+            <Pill
+              key={p.value}
+              label={p.label}
+              active={activePeriod === p.value}
+              activeColor="var(--color-accent)"
+              onClick={() => handleDate(p.value)}
+            />
+          ))}
+
+          {/* Vertical divider */}
+          <span
+            aria-hidden="true"
+            style={{
+              width: 1,
+              height: 16,
+              background: "var(--border-subtle)",
+              flexShrink: 0,
+              marginLeft: 4,
+              marginRight: 4,
+            }}
+          />
+
+          {/* Result count */}
+          {!loading && totalElements !== undefined && (
             <span
-              className="flex items-center gap-1.5 mr-1"
               style={{
-                fontSize: "var(--text-sm)",
+                fontSize: "var(--text-xs)",
                 color: "var(--text-muted)",
                 fontWeight: 500,
+                whiteSpace: "nowrap",
+                flexShrink: 0,
               }}
-              aria-hidden="true"
+              aria-live="polite"
+              aria-atomic="true"
             >
-              <SlidersHorizontal size={14} />
-              Filters
+              {totalElements.toLocaleString()}{" "}
+              {totalElements === 1 ? "activity" : "activities"}
             </span>
+          )}
 
-            {/* Sport selector */}
-            <FilterSelect
-              id="filter-sport"
-              label="Filter by sport"
-              value={filter.sport ?? ""}
-              options={SPORTS}
-              onChange={(v) =>
-                onFilterChange({ sport: (v as Sport) || undefined, page: 0 })
-              }
-            />
-
-            {/* Source selector */}
-            <FilterSelect
-              id="filter-source"
-              label="Filter by source"
-              value={filter.source ?? ""}
-              options={SOURCES}
-              onChange={(v) =>
-                onFilterChange({
-                  source: (v as ActivitySource) || undefined,
-                  page: 0,
-                })
-              }
-            />
-
-            {/* Date range */}
-            <div className="flex items-center gap-2">
-              <DateInput
-                id="filter-from"
-                label="From date"
-                value={filter.from ?? ""}
-                onChange={(v) =>
-                  onFilterChange({ from: v || undefined, page: 0 })
-                }
-              />
-              <span
-                style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)" }}
-                aria-hidden="true"
-              >
-                to
-              </span>
-              <DateInput
-                id="filter-to"
-                label="To date"
-                value={filter.to ?? ""}
-                onChange={(v) =>
-                  onFilterChange({ to: v || undefined, page: 0 })
-                }
-              />
-            </div>
-
-            {/* Reset */}
-            {hasActiveFilters && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onReset}
-                aria-label="Clear all filters"
-                leftIcon={<X size={13} />}
-                className="hover:bg-[rgba(255,255,255,0.04)]"
-              >
-                Clear
-              </Button>
-            )}
-          </div>
-
-          <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto">
-            {/* Results count */}
-            {!loading && totalElements !== undefined && (
-              <span
-                style={{
-                  fontSize: "var(--text-xs)",
-                  color: "var(--text-muted)",
-                  fontWeight: 500,
-                }}
-                aria-live="polite"
-                aria-atomic="true"
-              >
-                {totalElements.toLocaleString()} activit
-                {totalElements === 1 ? "y" : "ies"}
-              </span>
-            )}
-
-            {/* View mode toggle */}
-            <div className="flex items-center gap-1 bg-[rgba(255,255,255,0.02)] p-1 rounded-[var(--radius-md)] border border-[rgba(255,255,255,0.08)]">
-              <button
-                onClick={() => onViewModeChange("list")}
-                className={`p-2 sm:p-1.5 rounded-[var(--radius-sm)] transition-all cursor-pointer ${
-                  viewMode === "list"
-                    ? "bg-[var(--color-accent)] text-white shadow-sm"
-                    : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
-                }`}
-                title="List View"
-                aria-label="Switch to list view"
-              >
-                <List size={16} />
-              </button>
-              <button
-                onClick={() => onViewModeChange("grid")}
-                className={`p-2 sm:p-1.5 rounded-[var(--radius-sm)] transition-all cursor-pointer ${
-                  viewMode === "grid"
-                    ? "bg-[var(--color-accent)] text-white shadow-sm"
-                    : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
-                }`}
-                title="Grid View"
-                aria-label="Switch to grid view"
-              >
-                <LayoutGrid size={16} />
-              </button>
-            </div>
-          </div>
+          {/* Clear — only when filter active */}
+          {isFiltered && (
+            <button
+              type="button"
+              onClick={onReset}
+              aria-label="Clear all filters"
+              style={{
+                flexShrink: 0,
+                display: "inline-flex",
+                alignItems: "center",
+                height: 26,
+                padding: "0 10px",
+                borderRadius: 999,
+                fontSize: "var(--text-xs)",
+                fontWeight: 500,
+                cursor: "pointer",
+                border: "1px solid var(--border-subtle)",
+                background: "transparent",
+                color: "var(--text-muted)",
+                transition: "color 150ms ease, border-color 150ms ease",
+                marginLeft: 4,
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = "var(--text-primary)";
+                e.currentTarget.style.borderColor = "var(--border-default)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = "var(--text-muted)";
+                e.currentTarget.style.borderColor = "var(--border-subtle)";
+              }}
+            >
+              Clear
+            </button>
+          )}
         </div>
       </div>
-
-      {/* ── Active filter chips ── */}
-      {hasActiveFilters && (
-        <div
-          className="px-4 lg:px-6 pb-3 flex flex-wrap gap-2"
-          aria-label="Active filters"
-        >
-          {filter.sport && (
-            <ActiveChip
-              label={
-                SPORTS.find((s) => s.value === filter.sport)?.label ??
-                filter.sport
-              }
-              onRemove={() => onFilterChange({ sport: undefined, page: 0 })}
-            />
-          )}
-          {filter.source && (
-            <ActiveChip
-              label={
-                SOURCES.find((s) => s.value === filter.source)?.label ??
-                filter.source
-              }
-              onRemove={() => onFilterChange({ source: undefined, page: 0 })}
-            />
-          )}
-          {filter.from && (
-            <ActiveChip
-              label={`From ${filter.from}`}
-              onRemove={() => onFilterChange({ from: undefined, page: 0 })}
-            />
-          )}
-          {filter.to && (
-            <ActiveChip
-              label={`To ${filter.to}`}
-              onRemove={() => onFilterChange({ to: undefined, page: 0 })}
-            />
-          )}
-        </div>
-      )}
-    </div>
+    </>
   );
 }

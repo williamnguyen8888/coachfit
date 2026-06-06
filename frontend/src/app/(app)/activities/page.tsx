@@ -3,12 +3,8 @@
 /**
  * Activities List Page — /activities
  *
- * Features:
- *  - Premium Hero summary dashboard (aggregated stats)
- *  - Sticky frosted-glass filter bar (sport, source, date range, view toggle)
- *  - Grid and List layouts with responsive behavior
- *  - Loading skeleton, empty, and error states
- *  - Upload button in page header
+ * Structure: PageHeader → ActivityFilters (sticky) → main > ActivityList
+ * Upload flow preserved via UploadModal.
  */
 
 import * as React from "react";
@@ -38,11 +34,9 @@ const DEFAULT_FILTER: ActivitiesFilter = {
 
 export default function ActivitiesPage() {
   const router = useRouter();
-  const [filter, setFilter] = useState<ActivitiesFilter>(DEFAULT_FILTER);
-  const [totalElements, setTotalElements] = useState<number | undefined>(
-    undefined
-  );
-  const [viewMode, setViewMode] = useState<"grid" | "list">("list");
+  const [filter, setFilter]               = useState<ActivitiesFilter>(DEFAULT_FILTER);
+  const [totalElements, setTotalElements] = useState<number | undefined>(undefined);
+  const [showUpload, setShowUpload]       = useState(false);
 
   /* ── Filter management ── */
   const handleFilterChange = useCallback(
@@ -58,13 +52,10 @@ export default function ActivitiesPage() {
 
   const handlePageChange = useCallback((page: number) => {
     setFilter((prev) => ({ ...prev, page }));
-    // Scroll to top of list on page change
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
-  const [showUpload, setShowUpload] = useState(false);
-
-  /* ── Upload handler ── */
+  /* ── Upload flow ── */
   const handleUpload = useCallback(() => {
     setShowUpload(true);
   }, []);
@@ -74,7 +65,7 @@ export default function ActivitiesPage() {
       setShowUpload(false);
       router.push(`/activities/${activityId}`);
     },
-    [router],
+    [router]
   );
 
   return (
@@ -104,8 +95,6 @@ export default function ActivitiesPage() {
         onReset={handleReset}
         totalElements={totalElements}
         loading={totalElements === undefined}
-        viewMode={viewMode}
-        onViewModeChange={setViewMode}
       />
 
       {/* ── Activities list ── */}
@@ -116,7 +105,6 @@ export default function ActivitiesPage() {
       >
         <ActivityList
           filter={filter}
-          viewMode={viewMode}
           onPageChange={handlePageChange}
           onReset={handleReset}
           onTotalChange={setTotalElements}

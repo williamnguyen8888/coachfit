@@ -2,10 +2,12 @@
 
 /**
  * WorkoutList — paginated workout list with all states:
- *   loading  → skeleton cards
+ *   loading  → skeleton rows
  *   error    → error panel with retry
  *   empty    → friendly empty state with create CTA
- *   data     → grid of WorkoutCard + Pagination
+ *   data     → list of WorkoutCard + Pagination
+ *
+ * viewMode prop kept for API compat but ignored (list-only).
  */
 
 import * as React from "react";
@@ -22,106 +24,55 @@ import { useQuery } from "@/hooks/useQuery";
 /*  Skeleton row                                                         */
 /* ------------------------------------------------------------------ */
 
-interface WorkoutCardSkeletonProps {
-  viewMode?: "grid" | "list";
-}
-
-function WorkoutCardSkeleton({ viewMode = "list" }: WorkoutCardSkeletonProps) {
-  if (viewMode === "grid") {
-    return (
-      <div
-        style={{
-          background: "var(--bg-surface)",
-          border: "1px solid var(--border-subtle)",
-          borderLeft: "3px solid var(--border-default)",
-          borderRadius: "var(--radius-lg)",
-          padding: "var(--space-4)",
-          display: "flex",
-          flexDirection: "column",
-          gap: 16,
-          height: "100%",
-          justifyContent: "space-between",
-        }}
-        aria-hidden="true"
-      >
-        <div>
-          {/* Header row */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 12 }}>
-            <Skeleton width={44} height={44} />
-            <Skeleton width={56} height={20} />
-          </div>
-          {/* Title row */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <Skeleton width="85%" height={16} />
-            <Skeleton width="50%" height={12} />
-          </div>
-        </div>
-        {/* Metrics row */}
-        <div
-          style={{
-            borderTop: "1px solid var(--border-subtle)",
-            paddingTop: 12,
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: 8,
-          }}
-        >
-          <Skeleton width="100%" height={26} />
-          <Skeleton width="100%" height={26} />
-        </div>
-      </div>
-    );
-  }
-
-  // List view skeleton
+function WorkoutCardSkeleton() {
   return (
     <div
       style={{
+        display: "flex",
+        alignItems: "center",
+        minHeight: 64,
         background: "var(--bg-surface)",
         border: "1px solid var(--border-subtle)",
         borderLeft: "3px solid var(--border-default)",
         borderRadius: "var(--radius-md)",
-        padding: "var(--space-4)",
-        display: "flex",
-        flexDirection: "column",
-        gap: 12,
+        gap: 0,
+        overflow: "hidden",
       }}
       aria-hidden="true"
     >
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        {/* Left skeleton */}
-        <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1 }}>
-          <Skeleton width={38} height={38} />
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
-            <Skeleton width="45%" height={15} />
-            <Skeleton width="25%" height={11} />
-          </div>
-        </div>
-        {/* Right skeleton */}
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <Skeleton width={70} height={24} />
-          <Skeleton width={60} height={24} />
-          <Skeleton width={56} height={20} />
-        </div>
+      {/* Icon area */}
+      <div
+        style={{
+          width: 52,
+          alignSelf: "stretch",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+        }}
+      >
+        <Skeleton width={20} height={20} />
+      </div>
+
+      {/* Content area */}
+      <div style={{ flex: 1, padding: "12px 0", display: "flex", flexDirection: "column", gap: 6 }}>
+        <Skeleton width="42%" height={15} />
+        <Skeleton width="18%" height={11} />
+      </div>
+
+      {/* Right area */}
+      <div style={{ padding: "0 14px 0 12px", flexShrink: 0 }}>
+        <Skeleton width={52} height={20} />
       </div>
     </div>
   );
 }
 
-interface LoadingStateProps {
-  count?: number;
-  viewMode?: "grid" | "list";
-}
-
-function LoadingState({ count = 6, viewMode = "list" }: LoadingStateProps) {
-  const containerClass = viewMode === "grid"
-    ? "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4"
-    : "flex flex-col gap-3";
-
+function LoadingState({ count = 8 }: { count?: number }) {
   return (
-    <div role="status" aria-label="Loading workouts" className={containerClass}>
+    <div role="status" aria-label="Loading workouts" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
       {Array.from({ length: count }).map((_, i) => (
-        <WorkoutCardSkeleton key={i} viewMode={viewMode} />
+        <WorkoutCardSkeleton key={i} />
       ))}
     </div>
   );
@@ -314,6 +265,7 @@ function Pagination({
 
 export interface WorkoutListProps {
   filter: WorkoutsFilter;
+  /** Kept for API compat — ignored (list-only) */
   viewMode?: "grid" | "list";
   onPageChange: (page: number) => void;
   onReset: () => void;
@@ -324,7 +276,6 @@ export interface WorkoutListProps {
 
 export function WorkoutList({
   filter,
-  viewMode = "list",
   onPageChange,
   onReset,
   onTotalChange,
@@ -382,7 +333,7 @@ export function WorkoutList({
 
   /* ── Loading ── */
   if (loading && !data) {
-    return <LoadingState count={8} viewMode={viewMode} />;
+    return <LoadingState count={8} />;
   }
 
   /* ── Error ── */
@@ -406,7 +357,12 @@ export function WorkoutList({
         <div
           role="status"
           aria-live="polite"
-          style={{ padding: "6px 0", textAlign: "center", fontSize: "var(--text-xs)", color: "var(--text-muted)" }}
+          style={{
+            padding: "6px 0",
+            textAlign: "center",
+            fontSize: "var(--text-xs)",
+            color: "var(--text-muted)",
+          }}
         >
           Updating…
         </div>
@@ -442,20 +398,16 @@ export function WorkoutList({
         <EmptyState hasFilters={hasFilters} onReset={onReset} onCreateNew={onCreateNew} />
       ) : (
         <>
-          <ol 
-            className={viewMode === "grid"
-              ? "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4"
-              : "flex flex-col gap-3"
-            } 
-            aria-label="Workouts" 
+          <ol
+            style={{ display: "flex", flexDirection: "column", gap: 8 }}
+            aria-label="Workouts"
             aria-live="polite"
           >
             {workouts.map((workout) => (
-              <li key={workout.id} className={viewMode === "grid" ? "h-full" : ""}>
-                <WorkoutCard 
-                  workout={workout} 
-                  viewMode={viewMode} 
-                  onClick={handleCardClick} 
+              <li key={workout.id}>
+                <WorkoutCard
+                  workout={workout}
+                  onClick={handleCardClick}
                 />
               </li>
             ))}

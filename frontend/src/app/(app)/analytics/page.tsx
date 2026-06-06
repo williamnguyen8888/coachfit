@@ -8,12 +8,14 @@ export const metadata = {
 
 export default function AnalyticsPage() {
   return (
-    <div className="flex-1 flex flex-col min-h-0">
+    <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
       <PageHeader
         title="Analytics"
         subtitle="Performance Management Chart · Power Curve · Zone Distribution"
       />
-      <AnalyticsClient />
+      <div className="flex-1 overflow-y-auto">
+        <AnalyticsClient />
+      </div>
     </div>
   );
 }

@@ -1,13 +1,13 @@
 "use client";
 
 /**
- * ActivityList — the full activities list with states:
- *   loading  → skeleton cards
- *   error    → error panel with retry button
- *   empty    → friendly empty state
- *   data     → grid or list of ActivityCard
+ * ActivityList — activities list with date grouping, states, and pagination.
  *
- * Uses the useQuery hook + activitiesService.
+ * Groups activities by calendar date with headers:
+ *   "Today" | "Yesterday" | "Mon 3 Jun"
+ *
+ * States: loading (skeleton) · error · empty · data
+ * viewMode prop is accepted for backwards compat but always renders list.
  */
 
 import * as React from "react";
@@ -19,116 +19,183 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { ActivityCard } from "./ActivityCard";
 import { Pagination } from "./Pagination";
 import { useQuery } from "@/hooks/useQuery";
-import type { ActivitiesFilter, PaginatedActivities, ActivitySummary } from "@/lib/types/activity";
+import type {
+  ActivitiesFilter,
+  PaginatedActivities,
+  ActivitySummary,
+} from "@/lib/types/activity";
+
+/* ------------------------------------------------------------------ */
+/*  Date grouping helpers                                                */
+/* ------------------------------------------------------------------ */
+
+function toDateKey(iso: string): string {
+  // Return YYYY-MM-DD in local time
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function formatGroupHeader(dateKey: string): string {
+  const [y, m, d] = dateKey.split("-").map(Number);
+  const date = new Date(y, m - 1, d);
+
+  const now = new Date();
+  const todayKey = toDateKey(now.toISOString());
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  const yestKey = toDateKey(yesterday.toISOString());
+
+  if (dateKey === todayKey) return "Today";
+  if (dateKey === yestKey) return "Yesterday";
+
+  return date.toLocaleDateString(undefined, {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
+}
+
+interface DateGroup {
+  key: string;           // YYYY-MM-DD
+  label: string;         // "Today" | "Yesterday" | "Mon 3 Jun"
+  activities: ActivitySummary[];
+}
+
+function groupByDate(activities: ActivitySummary[]): DateGroup[] {
+  const map = new Map<string, ActivitySummary[]>();
+  for (const a of activities) {
+    const key = toDateKey(a.startedAt);
+    if (!map.has(key)) map.set(key, []);
+    map.get(key)!.push(a);
+  }
+  return Array.from(map.entries()).map(([key, acts]) => ({
+    key,
+    label: formatGroupHeader(key),
+    activities: acts,
+  }));
+}
+
+/* ------------------------------------------------------------------ */
+/*  Date group header                                                    */
+/* ------------------------------------------------------------------ */
+
+function DateGroupHeader({ label }: { label: string }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        marginBottom: 8,
+        marginTop: 4,
+      }}
+      aria-label={`Activities on ${label}`}
+    >
+      <span
+        style={{
+          fontSize: "var(--text-xs)",
+          fontWeight: 600,
+          color: "var(--text-muted)",
+          textTransform: "uppercase",
+          letterSpacing: "0.06em",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {label}
+      </span>
+      <span
+        aria-hidden="true"
+        style={{
+          flex: 1,
+          height: 1,
+          background: "var(--border-subtle)",
+        }}
+      />
+    </div>
+  );
+}
 
 /* ------------------------------------------------------------------ */
 /*  Skeleton loading state                                               */
 /* ------------------------------------------------------------------ */
 
-interface ActivityCardSkeletonProps {
-  viewMode?: "grid" | "list";
-}
-
-function ActivityCardSkeleton({ viewMode = "list" }: ActivityCardSkeletonProps) {
-  if (viewMode === "grid") {
-    return (
-      <div
-        style={{
-          background: "var(--bg-surface)",
-          border: "1px solid var(--border-subtle)",
-          borderLeft: "3px solid var(--border-default)",
-          borderRadius: "var(--radius-lg)",
-          padding: "var(--space-4)",
-          display: "flex",
-          flexDirection: "column",
-          gap: 16,
-          height: "100%",
-          justifyContent: "space-between",
-        }}
-        aria-hidden="true"
-      >
-        <div>
-          {/* Header row */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 12 }}>
-            <Skeleton width={44} height={44} />
-            <Skeleton width={56} height={20} />
-          </div>
-          {/* Title row */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <Skeleton width="85%" height={16} />
-            <Skeleton width="50%" height={12} />
-          </div>
-        </div>
-        {/* Metrics row */}
-        <div
-          style={{
-            borderTop: "1px solid var(--border-subtle)",
-            paddingTop: 12,
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: 8,
-          }}
-        >
-          <Skeleton width="100%" height={26} />
-          <Skeleton width="100%" height={26} />
-        </div>
-      </div>
-    );
-  }
-
-  // List view skeleton
+function ActivityCardSkeleton() {
   return (
     <div
       style={{
+        display: "flex",
+        alignItems: "center",
+        minHeight: 68,
         background: "var(--bg-surface)",
         border: "1px solid var(--border-subtle)",
         borderLeft: "3px solid var(--border-default)",
         borderRadius: "var(--radius-md)",
-        padding: "var(--space-4)",
-        display: "flex",
-        flexDirection: "column",
-        gap: 12,
+        overflow: "hidden",
+        paddingRight: 16,
       }}
       aria-hidden="true"
     >
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        {/* Left skeleton */}
-        <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1 }}>
-          <Skeleton width={38} height={38} />
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
-            <Skeleton width="45%" height={15} />
-            <Skeleton width="25%" height={11} />
-          </div>
+      {/* Icon area */}
+      <div
+        style={{
+          width: 56,
+          flexShrink: 0,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <Skeleton width={24} height={24} />
+      </div>
+      {/* Middle */}
+      <div style={{ flex: 1, minWidth: 0, padding: "12px 0" }}>
+        <Skeleton width="45%" height={15} />
+        <div style={{ marginTop: 6 }}>
+          <Skeleton width="28%" height={11} />
         </div>
-        {/* Right skeleton */}
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <Skeleton width={70} height={24} />
-          <Skeleton width={60} height={24} />
-          <Skeleton width={56} height={20} />
+      </div>
+      {/* Right */}
+      <div style={{ flexShrink: 0, textAlign: "right", paddingLeft: 12 }}>
+        <Skeleton width={64} height={20} />
+        <div style={{ marginTop: 4, display: "flex", justifyContent: "flex-end", gap: 6 }}>
+          <Skeleton width={36} height={11} />
+          <Skeleton width={36} height={11} />
         </div>
       </div>
     </div>
   );
 }
 
-interface LoadingStateProps {
-  count?: number;
-  viewMode?: "grid" | "list";
+function SkeletonGroup() {
+  return (
+    <div style={{ marginBottom: 24 }}>
+      {/* Fake date header */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          marginBottom: 8,
+        }}
+        aria-hidden="true"
+      >
+        <Skeleton width={60} height={11} />
+        <div style={{ flex: 1, height: 1, background: "var(--border-subtle)" }} />
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+        {Array.from({ length: 3 }).map((_, i) => (
+          <ActivityCardSkeleton key={i} />
+        ))}
+      </div>
+    </div>
+  );
 }
 
-function LoadingState({ count = 8, viewMode = "list" }: LoadingStateProps) {
-  const containerClass = viewMode === "grid"
-    ? "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4"
-    : "flex flex-col gap-3";
-
+function LoadingState({ count = 3 }: { count?: number }) {
   return (
-    <div
-      role="status"
-      aria-label="Loading activities"
-      className={containerClass}
-    >
+    <div role="status" aria-label="Loading activities">
       {Array.from({ length: count }).map((_, i) => (
-        <ActivityCardSkeleton key={i} viewMode={viewMode} />
+        <SkeletonGroup key={i} />
       ))}
     </div>
   );
@@ -195,11 +262,7 @@ function EmptyState({ hasFilters, onReset }: EmptyStateProps) {
           Clear Filters
         </Button>
       ) : (
-        <Button
-          variant="primary"
-          size="md"
-          leftIcon={<Upload size={15} />}
-        >
+        <Button variant="primary" size="md" leftIcon={<Upload size={15} />}>
           Upload Activity
         </Button>
       )}
@@ -279,6 +342,7 @@ function ErrorState({ message, onRetry }: ErrorStateProps) {
 
 export interface ActivityListProps {
   filter: ActivitiesFilter;
+  /** Accepted for backwards compat — always renders list */
   viewMode?: "grid" | "list";
   onPageChange: (page: number) => void;
   onReset: () => void;
@@ -288,7 +352,6 @@ export interface ActivityListProps {
 
 export function ActivityList({
   filter,
-  viewMode = "list",
   onPageChange,
   onReset,
   onTotalChange,
@@ -296,9 +359,12 @@ export function ActivityList({
 }: ActivityListProps) {
   const router = useRouter();
 
-  const handleCardClick = useCallback((id: string) => {
-    router.push(`/activities/${id}`);
-  }, [router]);
+  const handleCardClick = useCallback(
+    (id: string) => {
+      router.push(`/activities/${id}`);
+    },
+    [router]
+  );
 
   // Build query string from filter — changes trigger refetch
   const queryPath = useMemo(() => {
@@ -308,10 +374,10 @@ export function ActivityList({
     params.set("page", String(page));
     params.set("size", String(size));
     params.set("sort", filter.sort ?? "startedAt,desc");
-    if (filter.sport) params.set("sport", filter.sport);
+    if (filter.sport)  params.set("sport",  filter.sport);
     if (filter.source) params.set("source", filter.source);
-    if (filter.from) params.set("from", filter.from);
-    if (filter.to) params.set("to", filter.to);
+    if (filter.from)   params.set("from",   filter.from);
+    if (filter.to)     params.set("to",     filter.to);
     return `/activities?${params.toString()}`;
   }, [filter]);
 
@@ -321,13 +387,16 @@ export function ActivityList({
   // Notify parent of total elements for the filter bar counter
   const prevTotal = React.useRef<number | undefined>(undefined);
   React.useEffect(() => {
-    if (data?.totalElements !== undefined && data.totalElements !== prevTotal.current) {
+    if (
+      data?.totalElements !== undefined &&
+      data.totalElements !== prevTotal.current
+    ) {
       prevTotal.current = data.totalElements;
       onTotalChange?.(data.totalElements);
     }
   }, [data?.totalElements, onTotalChange]);
 
-  // Pass loaded activities up to parent for summary dashboard calculation
+  // Pass loaded activities up to parent
   React.useEffect(() => {
     if (data?.content) {
       onActivitiesLoaded?.(data.content);
@@ -336,16 +405,11 @@ export function ActivityList({
     }
   }, [data, loading, onActivitiesLoaded]);
 
-  const hasFilters = !!(
-    filter.sport ||
-    filter.source ||
-    filter.from ||
-    filter.to
-  );
+  const hasFilters = !!(filter.sport || filter.source || filter.from || filter.to);
 
   /* ── Loading ── */
   if (loading && !data) {
-    return <LoadingState count={8} viewMode={viewMode} />;
+    return <LoadingState count={3} />;
   }
 
   /* ── Error ── */
@@ -359,10 +423,11 @@ export function ActivityList({
   }
 
   /* ── Data ── */
-  const activities = data?.content ?? [];
-  const totalPages = data?.totalPages ?? 0;
+  const activities   = data?.content    ?? [];
+  const totalPages   = data?.totalPages ?? 0;
   const totalElements = data?.totalElements ?? 0;
-  const currentPage = data?.page ?? (filter.page ?? 0);
+  const currentPage  = data?.page ?? (filter.page ?? 0);
+  const groups       = groupByDate(activities);
 
   return (
     <div>
@@ -401,7 +466,12 @@ export function ActivityList({
           <span style={{ fontSize: "var(--text-sm)", color: "var(--color-danger)" }}>
             Refresh failed. Showing previous results.
           </span>
-          <Button variant="ghost" size="sm" onClick={refetch} leftIcon={<RefreshCw size={12} />}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={refetch}
+            leftIcon={<RefreshCw size={12} />}
+          >
             Retry
           </Button>
         </div>
@@ -412,26 +482,24 @@ export function ActivityList({
         <EmptyState hasFilters={hasFilters} onReset={onReset} />
       ) : (
         <>
-          {/* Activity list / grid */}
-          <ol
-            className={viewMode === "grid" 
-              ? "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4" 
-              : "flex flex-col gap-3"
-            }
-            aria-label="Activities"
-            aria-live="polite"
-            aria-atomic="false"
-          >
-            {activities.map((activity) => (
-              <li key={activity.id} className={viewMode === "grid" ? "h-full" : ""}>
-                <ActivityCard 
-                  activity={activity} 
-                  viewMode={viewMode} 
-                  onClick={handleCardClick} 
-                />
-              </li>
+          {/* Date-grouped activity list */}
+          <div aria-label="Activities" aria-live="polite" aria-atomic="false">
+            {groups.map((group) => (
+              <section key={group.key} style={{ marginBottom: 20 }}>
+                <DateGroupHeader label={group.label} />
+                <ol style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                  {group.activities.map((activity) => (
+                    <li key={activity.id}>
+                      <ActivityCard
+                        activity={activity}
+                        onClick={handleCardClick}
+                      />
+                    </li>
+                  ))}
+                </ol>
+              </section>
             ))}
-          </ol>
+          </div>
 
           {/* Pagination */}
           <Pagination
