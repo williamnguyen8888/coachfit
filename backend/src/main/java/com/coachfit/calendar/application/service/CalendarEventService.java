@@ -191,10 +191,15 @@ public class CalendarEventService
                 );
             }
         } else {
-            // ISSUE-05: Only auto-link when the date changed (handled above).
-            // Previously autoLinkAfterReschedule was also called on title/description-only
-            // updates, which could unexpectedly attach activities. Now we just no-op.
-            log.debug("Calendar event updated without date/workout change; no auto-link attempted: id={}", eventId);
+            // If the event has no linked activity yet, try to auto-link even without a date
+            // change — e.g. after a manual unlink, the standalone activity remains on the same
+            // date and the next update should reconnect it.
+            CalendarEventSummary updated = findOwnedEvent(userId, eventId);
+            if (updated.activityId() == null) {
+                autoLinkAfterReschedule(userId, updated);
+            } else {
+                log.debug("Calendar event updated without date/workout change; no auto-link attempted: id={}", eventId);
+            }
         }
 
         analysisCache.keySet().removeIf(key -> key.eventId().equals(eventId));

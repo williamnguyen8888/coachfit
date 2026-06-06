@@ -1,7 +1,6 @@
 "use client";
 // src/components/dashboard/MorningBriefing.tsx
 // Greeting card + today's workout + week progress pill.
-// Mobile: full-width hero. Desktop: stays compact, no duplication.
 
 import React from "react";
 import { clsx } from "clsx";
@@ -12,9 +11,7 @@ import {
   Dumbbell,
   Activity,
   CheckCircle2,
-  Clock,
   CalendarDays,
-  Flame,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
 import type { DashboardToday } from "@/lib/types/dashboard";
@@ -24,16 +21,11 @@ import type { DashboardToday } from "@/lib/types/dashboard";
 function SportIcon({ sport, size = 20 }: { sport: string; size?: number }) {
   const props = { size, strokeWidth: 1.75 };
   switch (sport) {
-    case "cycling":
-      return <Bike {...props} />;
-    case "running":
-      return <Footprints {...props} />;
-    case "swimming":
-      return <Waves {...props} />;
-    case "strength":
-      return <Dumbbell {...props} />;
-    default:
-      return <Activity {...props} />;
+    case "cycling": return <Bike {...props} />;
+    case "running": return <Footprints {...props} />;
+    case "swimming": return <Waves {...props} />;
+    case "strength": return <Dumbbell {...props} />;
+    default: return <Activity {...props} />;
   }
 }
 
@@ -61,28 +53,20 @@ function getTimeOfDay(): string {
   return "evening";
 }
 
-/* ─── sub-components ─────────────────────────────────────────────────── */
+/* ─── WorkoutCard ─────────────────────────────────────────────────────── */
 
-function WorkoutCard({
-  workout,
-}: {
-  workout: DashboardToday["todayWorkout"];
-}) {
+function WorkoutCard({ workout }: { workout: DashboardToday["todayWorkout"] }) {
   if (!workout) {
     return (
       <div
         className="flex items-center gap-3 rounded-[var(--radius-md)] p-4 glass-card"
-        style={{
-          borderStyle: "dashed",
-        }}
+        style={{ borderStyle: "dashed" }}
       >
         <div className="rounded-[var(--radius-sm)] p-2 bg-[var(--bg-elevated)] text-[var(--text-muted)]">
           <CalendarDays size={18} strokeWidth={1.5} />
         </div>
         <div className="flex-1">
-          <span
-            style={{ fontSize: "var(--text-sm)", color: "var(--text-secondary)", fontWeight: 500 }}
-          >
+          <span style={{ fontSize: "var(--text-sm)", color: "var(--text-secondary)", fontWeight: 500 }}>
             No scheduled session
           </span>
           <p style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", marginTop: 2 }}>
@@ -99,34 +83,24 @@ function WorkoutCard({
 
   return (
     <div
-      className="flex flex-col gap-3 rounded-[var(--radius-md)] p-4 hover-elevation glass-card relative overflow-hidden group"
-      style={{
-        borderLeft: `4px solid ${color}`,
-      }}
+      className="flex flex-col gap-3 rounded-[var(--radius-md)] p-4 glass-card"
+      style={{ borderLeft: `3px solid ${color}` }}
     >
-      <div className="flex items-start justify-between relative z-10">
+      <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
           <div
             className="flex-shrink-0 rounded-[var(--radius-sm)] p-2.5 flex items-center justify-center"
-            style={{ 
-              background: `color-mix(in srgb, ${color} 15%, var(--bg-elevated))`, 
-              color,
-            }}
+            style={{ background: "var(--bg-elevated)", color }}
           >
             <SportIcon sport={workout.sport} size={18} />
           </div>
           <div className="min-w-0">
-            <span
-              style={{ fontSize: "var(--text-xs)", color, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}
-            >
-              {workout.sport}
+            <span style={{ fontSize: "var(--text-xs)", color, fontWeight: 600 }}>
+              {workout.sport.charAt(0).toUpperCase() + workout.sport.slice(1)}
             </span>
             <h3
               className="truncate font-semibold tracking-tight mt-0.5"
-              style={{
-                fontSize: "var(--text-base)",
-                color: "var(--text-primary)",
-              }}
+              style={{ fontSize: "var(--text-base)", color: "var(--text-primary)" }}
             >
               {workout.title}
             </h3>
@@ -134,68 +108,73 @@ function WorkoutCard({
         </div>
 
         {workout.status === "completed" ? (
-          <span 
-            className="rounded-[var(--radius-sm)] px-2.5 py-0.5 text-xs font-medium flex items-center gap-1"
-            style={{ background: "var(--color-success-8)", color: "var(--color-success)" }}
+          <span
+            className="status-badge"
+            style={{
+              background: "var(--color-success-8)",
+              color: "var(--color-success)",
+              border: "1px solid var(--color-success-15)",
+            }}
           >
-            <CheckCircle2 size={12} />
+            <CheckCircle2 size={11} />
             Completed
           </span>
         ) : (
-          <span 
-            className="rounded-[var(--radius-sm)] px-2.5 py-0.5 text-xs font-medium flex items-center gap-1"
-            style={{ background: "var(--color-accent-10)", color: "var(--color-accent)" }}
+          <span
+            className="status-badge"
+            style={{
+              background: "var(--bg-elevated)",
+              color: "var(--text-secondary)",
+              border: "1px solid var(--border-default)",
+            }}
           >
             Planned
           </span>
         )}
       </div>
 
-      {/* Structured workout details */}
-      <div 
-        className="rounded-[var(--radius-sm)] px-3 py-2 flex items-center justify-between gap-4 relative z-10 border border-[var(--border-subtle)]"
-        style={{ background: "var(--bg-elevated)" }}
+      {/* Workout stats — plain text, no icons */}
+      <div
+        className="flex items-center justify-between rounded-[var(--radius-sm)] px-3 py-2"
+        style={{ background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)" }}
       >
         <div className="flex flex-col">
-          <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>Session type</span>
+          <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>Type</span>
           <span style={{ fontSize: "var(--text-sm)", color: "var(--text-secondary)", fontWeight: 500 }}>
             {workout.sport.charAt(0).toUpperCase() + workout.sport.slice(1)}
           </span>
         </div>
-        <div className="flex items-center gap-4 flex-shrink-0">
+        <div className="flex items-center gap-5 flex-shrink-0">
           {workout.estimatedDuration && (
             <div className="flex flex-col items-end">
               <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>Duration</span>
-              <span className="font-metric font-semibold flex items-center gap-1" style={{ fontSize: "var(--text-sm)", color: "var(--text-primary)" }}>
-                <Clock size={12} className="text-muted" />
+              <span className="font-metric font-semibold" style={{ fontSize: "var(--text-sm)", color: "var(--text-primary)" }}>
                 {formatDuration(workout.estimatedDuration)}
               </span>
             </div>
           )}
           <div className="flex flex-col items-end">
             <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>Est. TSS</span>
-            <span className="font-metric font-semibold flex items-center gap-1" style={{ fontSize: "var(--text-sm)", color: "var(--color-fatigue)" }}>
-              <Flame size={12} />
+            <span className="font-metric font-semibold" style={{ fontSize: "var(--text-sm)", color: "var(--color-fatigue)" }}>
               {estTss}
             </span>
           </div>
         </div>
       </div>
-
     </div>
   );
 }
+
+/* ─── WeekProgressBar ─────────────────────────────────────────────────── */
 
 function WeekProgressBar({ weekProgress }: { weekProgress: DashboardToday["weekProgress"] }) {
   if (!weekProgress) return null;
   const pct = Math.min(weekProgress.percentage, 100);
 
   return (
-    <div className="flex flex-col gap-2 p-1 relative z-10">
+    <div className="flex flex-col gap-2">
       <div className="flex justify-between items-center">
-        <span style={{ fontSize: "var(--text-xs)", color: "var(--text-secondary)", fontWeight: 500 }}>
-          Weekly target
-        </span>
+        <span className="section-label">Weekly target</span>
         <span
           className="font-metric font-bold"
           style={{
@@ -203,12 +182,15 @@ function WeekProgressBar({ weekProgress }: { weekProgress: DashboardToday["weekP
             color: pct >= 80 ? "var(--color-success)" : "var(--text-primary)",
           }}
         >
-          {(weekProgress.completedHours ?? 0).toFixed(1)}h <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>/ {(weekProgress.plannedHours ?? 0).toFixed(1)}h</span>
+          {(weekProgress.completedHours ?? 0).toFixed(1)}h{" "}
+          <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>
+            / {(weekProgress.plannedHours ?? 0).toFixed(1)}h
+          </span>
         </span>
       </div>
       <div
-        className="w-full rounded-full overflow-hidden relative"
-        style={{ height: 8, background: "rgba(255, 255, 255, 0.05)" }}
+        className="w-full rounded-full overflow-hidden"
+        style={{ height: 4, background: "var(--border-subtle)" }}
       >
         <div
           className="h-full rounded-full transition-all duration-700 ease-out"
@@ -223,9 +205,8 @@ function WeekProgressBar({ weekProgress }: { weekProgress: DashboardToday["weekP
           }}
         />
       </div>
-      <div className="flex justify-between items-center text-[10px] text-muted">
-        <span>Planned vs completed volume</span>
-        <span className="font-semibold" style={{ color: pct >= 80 ? "var(--color-success)" : "var(--text-secondary)" }}>
+      <div className="flex justify-end">
+        <span style={{ fontSize: "11px", color: pct >= 80 ? "var(--color-success)" : "var(--text-muted)", fontWeight: 500 }}>
           {pct}% complete
         </span>
       </div>
@@ -237,9 +218,7 @@ function WeekProgressBar({ weekProgress }: { weekProgress: DashboardToday["weekP
 
 export function MorningBriefingSkeleton() {
   return (
-    <div
-      className="rounded-[var(--radius-md)] p-5 flex flex-col gap-4 glass-card"
-    >
+    <div className="rounded-[var(--radius-md)] p-5 flex flex-col gap-4 glass-card">
       <div className="flex flex-col gap-1">
         <Skeleton width="45%" height="32px" />
         <Skeleton width="65%" height="16px" />
@@ -266,45 +245,35 @@ export function MorningBriefing({ data, className }: Props) {
   return (
     <div
       className={clsx(
-        "rounded-[var(--radius-md)] p-5 flex flex-col gap-4 relative overflow-hidden glass-card",
+        "rounded-[var(--radius-md)] p-5 flex flex-col gap-4 glass-card",
         className
       )}
     >
-      {/* Greeting Header */}
-      <div className="flex justify-between items-start relative z-10">
-        <div>
-          <h1
-            className="font-semibold tracking-tight"
-            style={{ 
-              fontSize: "var(--text-2xl)", 
-              color: "var(--text-primary)",
-              lineHeight: 1.15
-            }}
-          >
-            {greeting}
-          </h1>
-          <p
-            className="mt-1"
-            style={{ fontSize: "var(--text-sm)", color: "var(--text-secondary)", fontWeight: 400 }}
-          >
-            {data.weekProgress
-              ? `${data.weekProgress.percentage}% of planned volume is complete this week.`
-              : "Training status and today's plan are ready."}
-          </p>
-        </div>
+      {/* Greeting */}
+      <div>
+        <h1
+          className="font-semibold tracking-tight"
+          style={{ fontSize: "var(--text-2xl)", color: "var(--text-primary)", lineHeight: 1.15 }}
+        >
+          {greeting}
+        </h1>
+        <p
+          className="mt-1"
+          style={{ fontSize: "var(--text-sm)", color: "var(--text-secondary)", fontWeight: 400 }}
+        >
+          {data.weekProgress
+            ? `${data.weekProgress.percentage}% of planned volume complete this week.`
+            : "Training status and today's plan are ready."}
+        </p>
       </div>
 
-      {/* Today's Workout Section */}
-      <div className="flex flex-col gap-2 relative z-10">
-        <span
-          style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 600 }}
-        >
-          Today
-        </span>
+      {/* Today's session */}
+      <div className="flex flex-col gap-2">
+        <span className="section-label">Today</span>
         <WorkoutCard workout={data.todayWorkout} />
       </div>
 
-      {/* Week Progress Section */}
+      {/* Weekly progress */}
       <WeekProgressBar weekProgress={data.weekProgress} />
     </div>
   );

@@ -13,38 +13,34 @@ interface AthleteCardProps {
   onClick: () => void;
 }
 
+// Status config — color only on the text/value, no bg tint
 const STATUS_CONFIG = {
   fresh: {
     label: "Fresh",
     color: "var(--color-success)",
-    bg: "var(--color-success-8)",
-    dot: "#22c55e",
   },
   optimal: {
     label: "Optimal",
     color: "var(--color-warning)",
-    bg: "rgba(245, 158, 11, 0.08)",
-    dot: "#f59e0b",
   },
   fatigued: {
     label: "Fatigued",
     color: "var(--color-danger)",
-    bg: "var(--color-danger-8)",
-    dot: "#ef4444",
   },
   nodata: {
-    label: "No data",
+    label: "—",
     color: "var(--text-muted)",
-    bg: "transparent",
-    dot: "#5a5a6e",
   },
 } as const;
 
+// Sport colors — all token-based
 const SPORT_COLORS: Record<string, string> = {
-  cycling: "#3b82f6",
-  running: "#22c55e",
-  swimming: "#06b6d4",
-  strength: "#f97316",
+  cycling: "var(--sport-cycling)",
+  running: "var(--sport-running)",
+  swimming: "var(--sport-swimming)",
+  strength: "var(--sport-strength)",
+  hiking: "var(--sport-hiking)",
+  walking: "var(--sport-walking)",
 };
 
 function AthleteSportDot({ sport }: { sport: string }) {
@@ -55,7 +51,7 @@ function AthleteSportDot({ sport }: { sport: string }) {
         width: 6,
         height: 6,
         borderRadius: "50%",
-        background: SPORT_COLORS[sport] ?? "#6b7280",
+        background: SPORT_COLORS[sport] ?? "var(--sport-other)",
         flexShrink: 0,
       }}
     />
@@ -91,42 +87,23 @@ export function AthleteCard({ athlete, isSelected, onClick }: AthleteCardProps) 
     <button
       onClick={onClick}
       aria-pressed={isSelected}
-      style={{
-        width: "100%",
-        textAlign: "left",
-        background: isSelected ? "var(--bg-elevated)" : "transparent",
-        border: isSelected
-          ? "1px solid var(--border-default)"
-          : "1px solid transparent",
-        borderRadius: "var(--radius-md)",
-        padding: "var(--space-3) var(--space-4)",
-        cursor: "pointer",
-        transition: "all var(--duration-micro) var(--ease-standard)",
-        position: "relative",
-        overflow: "hidden",
-      }}
-      onMouseEnter={(e) => {
-        if (!isSelected) {
-          e.currentTarget.style.background = "var(--bg-surface)";
-          e.currentTarget.style.border = "1px solid var(--border-subtle)";
-        }
-      }}
-      onMouseLeave={(e) => {
-        if (!isSelected) {
-          e.currentTarget.style.background = "transparent";
-          e.currentTarget.style.border = "1px solid transparent";
-        }
-      }}
+      className={cn(
+        "w-full text-left rounded-[var(--radius-md)] px-4 py-3 cursor-pointer relative overflow-hidden",
+        "transition-colors duration-150",
+        isSelected
+          ? "bg-[var(--bg-elevated)] border border-[var(--border-default)]"
+          : "bg-transparent border border-transparent hover:bg-[var(--bg-surface)] hover:border-[var(--border-subtle)]"
+      )}
     >
-      {/* Left accent bar when selected */}
+      {/* Active left accent bar */}
       {isSelected && (
         <span
           style={{
             position: "absolute",
             left: 0,
-            top: "20%",
-            bottom: "20%",
-            width: 3,
+            top: "22%",
+            bottom: "22%",
+            width: 2,
             borderRadius: "0 var(--radius-full) var(--radius-full) 0",
             background: "var(--color-accent)",
           }}
@@ -135,23 +112,21 @@ export function AthleteCard({ athlete, isSelected, onClick }: AthleteCardProps) 
 
       {/* Main row */}
       <div className="flex items-center gap-3">
-        {/* Avatar */}
+        {/* Avatar — neutral, initials only */}
         <div
           style={{
-            width: 38,
-            height: 38,
+            width: 36,
+            height: 36,
             borderRadius: "var(--radius-full)",
-            background: isSelected ? "var(--color-accent-20)" : "var(--bg-elevated)",
-            color: isSelected ? "var(--color-accent)" : "var(--text-secondary)",
+            background: "var(--bg-elevated)",
+            color: "var(--text-secondary)",
+            border: `1px solid ${isSelected ? "var(--border-default)" : "var(--border-subtle)"}`,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            fontWeight: 700,
+            fontWeight: 600,
             fontSize: "var(--text-xs)",
             flexShrink: 0,
-            border: "2px solid transparent",
-            borderColor: isSelected ? "var(--color-accent-30)" : "transparent",
-            transition: "all var(--duration-micro) var(--ease-standard)",
           }}
         >
           {initials}
@@ -169,21 +144,17 @@ export function AthleteCard({ athlete, isSelected, onClick }: AthleteCardProps) 
             >
               {displayName}
             </span>
-            {/* Status dot */}
+            {/* Status — text label, no glow dot */}
             <span
               style={{
-                width: 7,
-                height: 7,
-                borderRadius: "50%",
-                background: config.dot,
+                fontSize: "11px",
+                fontWeight: 600,
+                color: config.color,
                 flexShrink: 0,
-                boxShadow:
-                  status !== "nodata"
-                    ? `0 0 6px ${config.dot}88`
-                    : "none",
               }}
-              title={config.label}
-            />
+            >
+              {config.label}
+            </span>
           </div>
 
           {/* Sports & last activity */}
@@ -202,15 +173,15 @@ export function AthleteCard({ athlete, isSelected, onClick }: AthleteCardProps) 
           </div>
         </div>
 
-        {/* CTL/TSB quick stats */}
+        {/* CTL / TSB numbers — right side */}
         {fitness && (
-          <div className="flex flex-col items-end gap-0.5 shrink-0">
+          <div className="flex flex-col items-end gap-0 shrink-0">
             <span
               className="font-metric tabular-nums"
               style={{
                 fontSize: "var(--text-sm)",
                 color: "var(--color-fitness)",
-                fontWeight: 600,
+                fontWeight: 700,
               }}
             >
               {Math.round(fitness.ctl)}
@@ -218,11 +189,11 @@ export function AthleteCard({ athlete, isSelected, onClick }: AthleteCardProps) 
             <span
               className="font-metric tabular-nums"
               style={{
-                fontSize: 10,
+                fontSize: "11px",
                 color:
                   fitness.tsb > 0
                     ? "var(--color-form)"
-                    : "var(--color-fatigue)",
+                    : "var(--color-warning)",
                 fontWeight: 600,
               }}
             >
@@ -233,21 +204,20 @@ export function AthleteCard({ athlete, isSelected, onClick }: AthleteCardProps) 
         )}
       </div>
 
-      {/* Tags row */}
+      {/* Tags — minimal, no accent bg */}
       {athlete.tags.length > 0 && (
         <div className="flex flex-wrap gap-1 mt-2">
           {athlete.tags.slice(0, 3).map((tag) => (
             <span
               key={tag}
               style={{
-                fontSize: 10,
+                fontSize: "11px",
                 fontWeight: 500,
-                color: "var(--color-accent)",
-                background: "var(--color-accent-8)",
-                border: "1px solid var(--color-accent-20)",
+                color: "var(--text-muted)",
+                background: "var(--bg-elevated)",
+                border: "1px solid var(--border-subtle)",
                 borderRadius: "var(--radius-full)",
                 padding: "1px 7px",
-                letterSpacing: "0.01em",
               }}
             >
               {tag}

@@ -5,9 +5,10 @@
 //
 // - Workout events (planned) → WorkoutCard
 // - Completed/partial events with activity → ActivityCard
-// - Other events (rest, note, race) → minimal inline chip (legacy)
+// - Other events (rest, note, race) → MinimalEventChip
 
 import { useState, useRef, useCallback } from "react";
+import { Bed, Flag, FileText, Heart, Activity, Moon } from "lucide-react";
 import type { CalendarEvent } from "@/lib/types/calendar";
 import { getSportMeta, formatDuration } from "./calendarUtils";
 import { CalendarEventTooltip } from "./CalendarEventTooltip";
@@ -15,16 +16,14 @@ import { WorkoutCard } from "./WorkoutCard";
 import { ActivityCard } from "./ActivityCard";
 import type { DailyHealthSummary, SleepRecord } from "@/lib/services/health";
 
-// ─── Component props ─────────────────────────────────────────────────────────
+// ─── Component props ──────────────────────────────────────────────────────────
 
 export interface CalendarEventChipProps {
   event: CalendarEvent;
-  /** Compact mode for month view cells */
   compact?: boolean;
   onClick?: (event: CalendarEvent) => void;
   onAnalysisClick?: (eventId: string) => void;
   onLinkActivity?: (event: CalendarEvent) => void;
-  // Drag props
   draggable?: boolean;
   onDragStart?: (e: React.DragEvent) => void;
   onDragEnd?: () => void;
@@ -33,10 +32,8 @@ export interface CalendarEventChipProps {
   onTouchMove?: (e: React.TouchEvent) => void;
   onTouchEnd?: (e: React.TouchEvent) => void;
   isDragging?: boolean;
-  // Quick action callbacks
   onComplete?: () => void;
   onSkip?: () => void;
-  // Sleep / Health integration
   sleep?: SleepRecord;
   health?: DailyHealthSummary;
 }
@@ -46,7 +43,6 @@ export interface CalendarEventChipProps {
 export function CalendarEventChip(props: CalendarEventChipProps) {
   const { event, compact } = props;
 
-  // Tooltip state (desktop hover only — wraps all card types in week view)
   const [showTooltip, setShowTooltip] = useState(false);
   const tooltipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -60,27 +56,30 @@ export function CalendarEventChip(props: CalendarEventChipProps) {
     setShowTooltip(false);
   }, []);
 
-  // ── Route to rich card components ────────────────────────────────────────
   const isWorkout = event.eventType === "workout";
-  const isStandaloneActivity = event.id.startsWith("activity-event-") || (event.activity !== null && event.workout === null);
-  const isCompletedWithActivity = isStandaloneActivity || event.status === "completed" || event.status === "partial";
+  const isStandaloneActivity =
+    event.id.startsWith("activity-event-") ||
+    (event.activity !== null && event.workout === null);
+  const isCompletedWithActivity =
+    isStandaloneActivity ||
+    event.status === "completed" ||
+    event.status === "partial";
   const isDraggable = props.draggable && !isStandaloneActivity;
 
-  // Determine which card to render
   let card: React.ReactNode;
 
   if (isCompletedWithActivity) {
     card = <ActivityCard {...props} draggable={isDraggable} />;
   } else if (isWorkout) {
-    card = <WorkoutCard {...props} draggable={isDraggable} onLinkActivity={props.onLinkActivity} />;
+    card = (
+      <WorkoutCard {...props} draggable={isDraggable} onLinkActivity={props.onLinkActivity} />
+    );
   } else {
     card = <MinimalEventChip {...props} draggable={isDraggable} />;
   }
 
-  // In compact mode, render without tooltip wrapper
   if (compact) return <>{card}</>;
 
-  // In full mode, wrap with tooltip
   return (
     <div
       ref={wrapperRef}
@@ -119,34 +118,30 @@ function MinimalEventChip(props: CalendarEventChipProps) {
   const isNote = event.eventType === "note";
   const isSkipped = event.status === "skipped";
 
-  // Customize aesthetics based on subtype
-  let bg = "var(--bg-elevated)";
-  let border = "none";
-  let borderLeft = "3px solid var(--text-muted)";
-  let shadow = "none";
-  let hoverBg = "var(--bg-input)";
+  // Border-left color and hover bg — all token-based
+  let borderLeftColor = "var(--text-muted)";
+  let bgBase = "var(--bg-elevated)";
+  let bgHover = "var(--bg-input)";
+  let borderColor = "var(--border-subtle)";
 
   if (isRest) {
-    borderLeft = "3px solid #10b981"; // Emerald green for recovery
-    bg = "linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, rgba(8, 145, 178, 0.06) 100%)";
-    border = "1px solid rgba(16, 185, 129, 0.15)";
-    shadow = "0 2px 10px rgba(16, 185, 129, 0.04)";
-    hoverBg = "linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(8, 145, 178, 0.12) 100%)";
+    borderLeftColor = "var(--color-form)";   // TSB green = recovery
+    bgBase = "var(--bg-elevated)";
+    bgHover = "var(--bg-input)";
+    borderColor = "var(--border-subtle)";
   } else if (isRace) {
-    borderLeft = "3px solid #ef4444"; // Red for race
-    bg = "linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, rgba(245, 158, 11, 0.08) 100%)";
-    border = "1.5px solid rgba(239, 68, 68, 0.3)";
-    shadow = "0 4px 14px rgba(239, 68, 68, 0.15)";
-    hoverBg = "linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(245, 158, 11, 0.15) 100%)";
+    borderLeftColor = "var(--color-danger)";
+    bgBase = "var(--bg-elevated)";
+    bgHover = "var(--bg-input)";
+    borderColor = "var(--border-default)";
   } else if (isNote) {
-    borderLeft = "3px solid #8b5cf6"; // Violet for notes
-    bg = "linear-gradient(135deg, rgba(139, 92, 246, 0.03) 0%, rgba(244, 63, 94, 0.03) 100%)";
-    border = "1px solid rgba(139, 92, 246, 0.12)";
-    shadow = "none";
-    hoverBg = "var(--bg-input)";
+    borderLeftColor = "var(--color-accent)";
+    bgBase = "var(--bg-elevated)";
+    bgHover = "var(--bg-input)";
+    borderColor = "var(--border-subtle)";
   }
 
-  // ── Render rest/recovery widget (when data is available in week view) ─────
+  // ── Rest / recovery card with health data ─────────────────────────────────
   if (isRest && !compact && (sleep || health)) {
     return (
       <div
@@ -175,75 +170,80 @@ function MinimalEventChip(props: CalendarEventChipProps) {
             flexDirection: "column",
             width: "100%",
             padding: "8px 10px",
-            background: bg,
-            border: border,
-            borderLeft: borderLeft,
+            background: bgBase,
+            border: `1px solid ${borderColor}`,
+            borderLeft: `3px solid ${borderLeftColor}`,
             borderRadius: "0 var(--radius-md) var(--radius-md) 0",
             cursor: draggable ? "grab" : "pointer",
             textAlign: "left",
-            boxShadow: shadow,
-            transition: "all 150ms ease-out",
+            transition: "background 150ms ease-out",
           }}
           onMouseEnter={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.background = hoverBg;
-            (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 4px 15px rgba(16, 185, 129, 0.08)";
+            (e.currentTarget as HTMLButtonElement).style.background = bgHover;
           }}
           onMouseLeave={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.background = bg;
-            (e.currentTarget as HTMLButtonElement).style.boxShadow = shadow;
+            (e.currentTarget as HTMLButtonElement).style.background = bgBase;
           }}
         >
-          {/* Header row */}
-          <div style={{ display: "flex", alignItems: "center", gap: 6, width: "100%", marginBottom: 6 }}>
-            <span style={{ fontSize: 13 }}>😴</span>
-            <span style={{ fontSize: 10, fontWeight: 800, color: "#10b981", letterSpacing: "0.05em", textTransform: "uppercase" }}>
-              Rest & Recovery
+          {/* Header */}
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+            <Moon size={12} style={{ color: "var(--color-form)", flexShrink: 0 }} />
+            <span style={{
+              fontSize: 10,
+              fontWeight: 600,
+              color: "var(--text-secondary)",
+              letterSpacing: "0.02em",
+              textTransform: "uppercase",
+            }}>
+              Rest &amp; Recovery
             </span>
           </div>
 
-          {/* Sleep Score pill */}
+          {/* Sleep data — text only, no emoji */}
           {sleep && (
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
               {sleep.score !== null && (
-                <div
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 3,
-                    padding: "1px 5px",
-                    borderRadius: 4,
-                    background: "rgba(16, 185, 129, 0.1)",
-                    color: "#10b981",
-                    fontSize: 9,
-                    fontWeight: 700,
-                  }}
-                >
-                  <span>★</span>
-                  <span>{sleep.score} Sleep</span>
-                </div>
+                <span style={{
+                  fontSize: 11,
+                  fontWeight: 600,
+                  color: sleep.score >= 80
+                    ? "var(--color-success)"
+                    : sleep.score >= 60
+                    ? "var(--color-warning)"
+                    : "var(--color-danger)",
+                }}>
+                  Sleep {sleep.score}
+                </span>
               )}
               {sleep.totalMinutes !== null && (
-                <span style={{ fontSize: 10, fontWeight: 600, color: "var(--text-secondary)" }}>
-                  {(sleep.totalMinutes / 60).toFixed(1)} hrs
+                <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                  {(sleep.totalMinutes / 60).toFixed(1)}h
                 </span>
               )}
             </div>
           )}
 
-          {/* Health metrics row */}
+          {/* Health metrics — Lucide icons, no emoji */}
           {health && (health.restingHr || health.hrv) && (
-            <div
-              style={{
-                display: "flex",
-                flexWrap: "wrap",
-                gap: "4px 8px",
-                fontSize: 10,
-                color: "var(--text-muted)",
-                fontWeight: 600,
-              }}
-            >
-              {health.restingHr && <span>❤️ {health.restingHr} HR</span>}
-              {health.hrv && <span>⚡ {Math.round(health.hrv)} HRV</span>}
+            <div style={{
+              display: "flex",
+              gap: "4px 10px",
+              fontSize: 10,
+              color: "var(--text-muted)",
+              flexWrap: "wrap",
+            }}>
+              {health.restingHr && (
+                <span style={{ display: "flex", alignItems: "center", gap: 3 }}>
+                  <Heart size={10} style={{ color: "var(--color-danger)" }} />
+                  {health.restingHr} bpm
+                </span>
+              )}
+              {health.hrv && (
+                <span style={{ display: "flex", alignItems: "center", gap: 3 }}>
+                  <Activity size={10} style={{ color: "var(--color-accent)" }} />
+                  HRV {Math.round(health.hrv)}ms
+                </span>
+              )}
             </div>
           )}
         </button>
@@ -251,7 +251,7 @@ function MinimalEventChip(props: CalendarEventChipProps) {
     );
   }
 
-  // ── Render race details card (in week view) ──────────────────────────────
+  // ── Race card ──────────────────────────────────────────────────────────────
   if (isRace && !compact) {
     return (
       <div
@@ -280,47 +280,62 @@ function MinimalEventChip(props: CalendarEventChipProps) {
             flexDirection: "column",
             width: "100%",
             padding: "8px 10px",
-            background: bg,
-            border: border,
-            borderLeft: borderLeft,
+            background: bgBase,
+            border: `1.5px solid ${borderColor}`,
+            borderLeft: `3px solid ${borderLeftColor}`,
             borderRadius: "0 var(--radius-md) var(--radius-md) 0",
             cursor: draggable ? "grab" : "pointer",
             textAlign: "left",
-            boxShadow: shadow,
-            transition: "all 150ms ease-out",
-            position: "relative",
-            overflow: "hidden",
+            transition: "background 150ms ease-out",
           }}
           onMouseEnter={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.background = hoverBg;
-            (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 6px 18px rgba(239, 68, 68, 0.22)";
+            (e.currentTarget as HTMLButtonElement).style.background = bgHover;
           }}
           onMouseLeave={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.background = bg;
-            (e.currentTarget as HTMLButtonElement).style.boxShadow = shadow;
+            (e.currentTarget as HTMLButtonElement).style.background = bgBase;
           }}
         >
-          {/* Header row */}
-          <div style={{ display: "flex", alignItems: "center", gap: 6, width: "100%", marginBottom: 4 }}>
-            <span style={{ fontSize: 13 }}>🏁</span>
-            <span style={{ fontSize: 10, fontWeight: 800, color: "#ef4444", letterSpacing: "0.06em", textTransform: "uppercase" }}>
-              RACE DAY
+          {/* Header — Lucide flag icon, not emoji */}
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+            <Flag size={12} style={{ color: "var(--color-danger)", flexShrink: 0 }} />
+            <span style={{
+              fontSize: 10,
+              fontWeight: 700,
+              color: "var(--color-danger)",
+              letterSpacing: "0.04em",
+              textTransform: "uppercase",
+            }}>
+              Race Day
             </span>
-            {/* Pulsing Dot */}
-            <span style={{ display: "flex", height: 6, width: 6, position: "relative", marginLeft: "auto" }}>
-              <span style={{ animation: "ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite", position: "absolute", inlineSize: "100%", blockSize: "100%", borderRadius: "50%", background: "#ef4444", opacity: 0.75 }}></span>
-              <span style={{ position: "relative", borderRadius: "50%", height: 6, width: 6, background: "#ef4444" }}></span>
-            </span>
+            {/* Pulsing dot — small, not animated (accessibility) */}
+            <span style={{
+              width: 5,
+              height: 5,
+              borderRadius: "50%",
+              background: "var(--color-danger)",
+              flexShrink: 0,
+              marginLeft: "auto",
+            }} />
           </div>
 
           {/* Title */}
-          <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", marginBottom: 4, display: "block" }}>
+          <span style={{
+            fontSize: 13,
+            fontWeight: 600,
+            color: "var(--text-primary)",
+            marginBottom: 3,
+            display: "block",
+          }}>
             {event.title}
           </span>
 
-          {/* Race details or notes preview */}
           {event.notes && (
-            <span style={{ fontSize: 10, color: "var(--text-secondary)", fontStyle: "italic", display: "block" }}>
+            <span style={{
+              fontSize: 10,
+              color: "var(--text-muted)",
+              fontStyle: "italic",
+              display: "block",
+            }}>
               {event.notes}
             </span>
           )}
@@ -329,7 +344,7 @@ function MinimalEventChip(props: CalendarEventChipProps) {
     );
   }
 
-  // ── Render standard / compact mode ─────────────────────────────────────────
+  // ── Standard chip (rest compact / note / default) ──────────────────────────
   return (
     <div
       data-event-id={event.id}
@@ -359,28 +374,32 @@ function MinimalEventChip(props: CalendarEventChipProps) {
           gap: 5,
           width: "100%",
           padding: compact ? "3px 6px 3px 8px" : "6px 8px 6px 10px",
-          background: bg,
-          border: border,
-          borderLeft: borderLeft,
+          background: bgBase,
+          border: `1px solid ${borderColor}`,
+          borderLeft: `3px solid ${borderLeftColor}`,
           borderRadius: "0 var(--radius-sm) var(--radius-sm) 0",
           cursor: draggable ? "grab" : "pointer",
           textAlign: "left",
-          transition: "background 150ms ease-out, box-shadow 150ms ease-out",
-          opacity: isSkipped ? 0.6 : 1,
+          transition: "background 150ms ease-out",
+          opacity: isSkipped ? 0.55 : 1,
           minHeight: compact ? "var(--cal-chip-height-compact)" : 40,
         }}
         onMouseEnter={(e) => {
-          (e.currentTarget as HTMLButtonElement).style.background = hoverBg;
-          (e.currentTarget as HTMLButtonElement).style.boxShadow = `0 2px 8px rgba(0,0,0,0.05)`;
+          (e.currentTarget as HTMLButtonElement).style.background = bgHover;
         }}
         onMouseLeave={(e) => {
-          (e.currentTarget as HTMLButtonElement).style.background = bg;
-          (e.currentTarget as HTMLButtonElement).style.boxShadow = "none";
+          (e.currentTarget as HTMLButtonElement).style.background = bgBase;
         }}
       >
-        {/* Icon */}
-        <span style={{ fontSize: compact ? 11 : 14, flexShrink: 0 }}>
-          {isRest ? "😴" : isRace ? "🏁" : "📝"}
+        {/* Icon — Lucide, not emoji */}
+        <span style={{ flexShrink: 0, color: borderLeftColor, display: "flex" }}>
+          {isRest ? (
+            <Bed size={compact ? 10 : 13} />
+          ) : isRace ? (
+            <Flag size={compact ? 10 : 13} />
+          ) : (
+            <FileText size={compact ? 10 : 13} />
+          )}
         </span>
 
         {/* Title */}
@@ -388,7 +407,7 @@ function MinimalEventChip(props: CalendarEventChipProps) {
           style={{
             fontSize: compact ? "var(--text-xs)" : "var(--text-sm)",
             color: isSkipped ? "var(--text-muted)" : "var(--text-primary)",
-            fontWeight: 600,
+            fontWeight: 500,
             overflow: "hidden",
             textOverflow: "ellipsis",
             whiteSpace: "nowrap",
@@ -401,18 +420,18 @@ function MinimalEventChip(props: CalendarEventChipProps) {
           {event.title}
         </span>
 
-        {/* Notes preview in Note mode (when not compact) */}
+        {/* Note preview */}
         {!compact && isNote && event.notes && (
           <span
             style={{
               fontSize: 10,
               color: "var(--text-muted)",
               fontStyle: "italic",
-              marginLeft: 8,
+              marginLeft: 6,
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
-              maxWidth: "50%",
+              maxWidth: "45%",
             }}
           >
             {event.notes}

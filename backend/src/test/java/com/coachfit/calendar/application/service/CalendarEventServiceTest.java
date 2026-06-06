@@ -82,7 +82,7 @@ class CalendarEventServiceTest {
         service.update(USER_ID, EVENT_ID,
                 new UpdateCommand(newDate, "workout", "Endurance", null, WORKOUT_ID));
 
-        verify(port).unlinkActivity(EVENT_ID);
+        verify(port).unlinkActivity(EVENT_ID, USER_ID);
         verify(port).createStandaloneActivityEvent(
                 USER_ID, oldDate, ACTIVITY_ID, "Morning Ride", "cycling");
         verify(port, never()).linkActivity(any(), any(), any(), any());
@@ -178,7 +178,7 @@ class CalendarEventServiceTest {
         service.update(USER_ID, EVENT_ID,
                 new UpdateCommand(strengthDate, "workout", "Triathlete Strength 45min", null, WORKOUT_ID));
 
-        verify(port).unlinkActivity(EVENT_ID);
+        verify(port).unlinkActivity(EVENT_ID, USER_ID);
         verify(port).createStandaloneActivityEvent(
                 USER_ID, strengthDate, ACTIVITY_ID, "Strength & Core", "strength");
         verify(port).linkActivity(EVENT_ID, USER_ID, ACTIVITY_ID, BigDecimal.valueOf(100.0));
@@ -255,7 +255,7 @@ class CalendarEventServiceTest {
 
         service.unlink(USER_ID, EVENT_ID);
 
-        verify(port).unlinkActivity(EVENT_ID);
+        verify(port).unlinkActivity(EVENT_ID, USER_ID);
         verify(port).createStandaloneActivityEvent(
                 USER_ID, date, ACTIVITY_ID, "Morning Ride", "cycling");
     }

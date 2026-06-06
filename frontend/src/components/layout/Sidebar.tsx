@@ -68,7 +68,6 @@ export function Sidebar() {
             width: 32,
             height: 32,
             background: "var(--color-accent)",
-            boxShadow: "var(--shadow-glow)",
           }}
         >
           <Zap size={16} color="white" strokeWidth={2.5} />
@@ -87,7 +86,7 @@ export function Sidebar() {
       </div>
 
       {/* Nav links */}
-      <nav className="flex-1 py-4 space-y-1 px-2 overflow-y-auto">
+      <nav className="flex-1 py-3 space-y-0.5 px-2 overflow-y-auto">
         {allNavItems.map(({ label, key, href, icon: Icon }) => {
           const isActive =
             href === "/" ? pathname === "/" : pathname.startsWith(href);
@@ -100,33 +99,11 @@ export function Sidebar() {
               aria-label={translatedLabel}
               title={!sidebarExpanded ? translatedLabel : undefined}
               className={cn(
-                "flex items-center gap-3 rounded-lg transition-all duration-150 group relative",
-                sidebarExpanded ? "px-3 py-2.5" : "px-0 py-2.5 justify-center",
+                "nav-link",
+                isActive && "active",
+                !sidebarExpanded && "collapsed",
               )}
-              style={{
-                color: isActive ? "var(--color-accent)" : "var(--text-secondary)",
-                background: isActive ? "var(--color-accent-10)" : "transparent",
-              }}
-              onMouseEnter={(e) => {
-                if (!isActive)
-                  e.currentTarget.style.background = "var(--bg-elevated)";
-                if (!isActive)
-                  e.currentTarget.style.color = "var(--text-primary)";
-              }}
-              onMouseLeave={(e) => {
-                if (!isActive) e.currentTarget.style.background = "transparent";
-                if (!isActive)
-                  e.currentTarget.style.color = "var(--text-secondary)";
-              }}
             >
-              {/* Active indicator bar */}
-              {isActive && (
-                <span
-                  className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-full"
-                  style={{ background: "var(--color-accent)" }}
-                />
-              )}
-
               <Icon
                 size={18}
                 strokeWidth={isActive ? 2.5 : 2}
@@ -168,19 +145,20 @@ export function Sidebar() {
       >
         <div
           className={cn(
-            "flex items-center gap-3 w-full rounded-lg px-3 py-2 transition-all duration-150",
+            "flex items-center gap-3 w-full rounded-lg px-3 py-2",
             !sidebarExpanded && "justify-center",
           )}
         >
           {/* Avatar / Initials */}
           <div
-            className="flex items-center justify-center rounded-full shrink-0 font-bold"
+            className="flex items-center justify-center rounded-full shrink-0 font-semibold"
             style={{
               width: 32,
               height: 32,
-              background: "var(--color-accent-20)",
-              color: "var(--color-accent)",
+              background: "var(--bg-elevated)",
+              color: "var(--text-secondary)",
               fontSize: "var(--text-xs)",
+              border: "1px solid var(--border-default)",
             }}
           >
             {user?.fullName ? user.fullName.substring(0, 2).toUpperCase() : (user?.email ? user.email.substring(0, 2).toUpperCase() : "U")}
@@ -204,21 +182,14 @@ export function Sidebar() {
           )}
         </div>
 
-        {/* Logout button */}
+        {/* Logout button — neutral, not danger */}
         <button
           onClick={logout}
           aria-label="Log out"
           className={cn(
-            "flex items-center gap-3 w-full rounded-lg px-3 py-2 mt-1 transition-all duration-150",
+            "logout-btn mt-1",
             !sidebarExpanded && "justify-center",
           )}
-          style={{ color: "var(--color-danger)" }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = "var(--color-danger-8)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = "transparent";
-          }}
         >
           <LogOut size={16} className="shrink-0" />
           {sidebarExpanded && <span className="text-sm font-medium">{t("menu.logout")}</span>}
@@ -234,18 +205,9 @@ export function Sidebar() {
           onClick={toggleSidebar}
           aria-label={sidebarExpanded ? "Collapse sidebar" : "Expand sidebar"}
           className={cn(
-            "flex items-center gap-3 w-full rounded-lg px-3 py-2.5 transition-all duration-150",
-            !sidebarExpanded && "justify-center",
+            "icon-btn w-full",
+            sidebarExpanded ? "justify-start gap-3 px-3" : "justify-center",
           )}
-          style={{ color: "var(--text-muted)" }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = "var(--bg-elevated)";
-            e.currentTarget.style.color = "var(--text-primary)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = "transparent";
-            e.currentTarget.style.color = "var(--text-muted)";
-          }}
         >
           {sidebarExpanded ? (
             <>

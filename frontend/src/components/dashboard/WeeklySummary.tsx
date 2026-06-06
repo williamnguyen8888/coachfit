@@ -1,7 +1,6 @@
 "use client";
 // src/components/dashboard/WeeklySummary.tsx
 // Bar chart: planned vs actual hours per day. CTL/TSS totals.
-// Uses Recharts for the weekly training-load breakdown.
 
 import React from "react";
 import { clsx } from "clsx";
@@ -16,7 +15,6 @@ import {
   Cell,
 } from "recharts";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { Activity, Flame, Navigation, Trophy } from "lucide-react";
 import type { WeeklySummary as WeeklySummaryType } from "@/lib/types/dashboard";
 
 /* ─── helpers ──────────────────────────────────────────────────────────── */
@@ -47,7 +45,7 @@ function formatDistance(meters: number | null, sport: string): string {
   return `${(meters / 1000).toFixed(1)}km`;
 }
 
-/* ─── custom tooltip ───────────────────────────────────────────────────── */
+/* ─── Custom tooltip ───────────────────────────────────────────────────── */
 
 function CustomTooltip({ active, payload }: {
   active?: boolean;
@@ -60,52 +58,41 @@ function CustomTooltip({ active, payload }: {
 
   return (
     <div
-      className="rounded-[var(--radius-md)] px-3 py-2 flex flex-col gap-1 border border-[var(--border-default)]"
+      className="rounded-[var(--radius-md)] px-3 py-2 flex flex-col gap-1"
       style={{
         background: "var(--bg-elevated)",
+        border: "1px solid var(--border-default)",
         boxShadow: "var(--shadow-md)",
       }}
     >
-      <span
-        style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 600 }}
-      >
+      <span style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: 500 }}>
         {p.payload.sport}
       </span>
-      <div className="flex items-center gap-2 mt-0.5">
+      <div className="flex items-center gap-2">
         <span
           className="inline-block rounded-full"
-          style={{ width: 8, height: 8, background: color }}
+          style={{ width: 7, height: 7, background: color }}
         />
-        <span style={{ fontSize: "var(--text-xs)", color: "var(--text-primary)", fontWeight: 700 }}>
-          {p.value.toFixed(1)}h completed
+        <span style={{ fontSize: "var(--text-xs)", color: "var(--text-primary)", fontWeight: 600 }}>
+          {p.value.toFixed(1)}h
         </span>
       </div>
     </div>
   );
 }
 
-/* ─── stat pill ─────────────────────────────────────────────────────────── */
+/* ─── Stat pill — plain, no icon ───────────────────────────────────────── */
 
-function StatPill({ label, value, color, icon }: { label: string; value: string; color?: string; icon?: React.ReactNode }) {
+function StatPill({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
     <div
-      className="flex flex-col items-center justify-center gap-1 flex-1 py-2"
-      style={{
-        borderRight: "1px solid var(--border-subtle)",
-      }}
+      className="flex flex-col items-center justify-center gap-0.5 flex-1 py-3"
+      style={{ borderRight: "1px solid var(--border-subtle)" }}
     >
-      <div className="flex items-center gap-1">
-        {icon && <span style={{ color: color ?? "inherit" }} className="flex-shrink-0">{icon}</span>}
-        <span
-          className="font-metric tabular-nums font-bold"
-          style={{ fontSize: "var(--text-base)", color: color ?? "var(--text-primary)" }}
-        >
-          {value}
-        </span>
-      </div>
-      <span style={{ fontSize: "10px", color: "var(--text-muted)", fontWeight: 500 }}>
-        {label}
+      <span className="font-metric tabular-nums font-bold" style={{ fontSize: "var(--text-base)", color: color ?? "var(--text-primary)" }}>
+        {value}
       </span>
+      <span style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: 500 }}>{label}</span>
     </div>
   );
 }
@@ -114,9 +101,7 @@ function StatPill({ label, value, color, icon }: { label: string; value: string;
 
 export function WeeklySummarySkeleton() {
   return (
-    <div
-      className="rounded-[var(--radius-md)] p-5 flex flex-col gap-4 glass-card"
-    >
+    <div className="rounded-[var(--radius-md)] p-5 flex flex-col gap-4 glass-card">
       <div className="flex items-center justify-between">
         <Skeleton width="120px" height="22px" />
         <Skeleton width="80px" height="14px" />
@@ -148,24 +133,16 @@ export function WeeklySummary({ data, className }: Props) {
     rawSport: s.sport,
   }));
 
-  // Total calculated statistics for multi-sport athletes
   const totalSessions = data.completedSessions ?? 0;
   const weekTss = data.totalTss ?? 0;
   const compliancePct = data.percentage ?? 0;
 
   return (
-    <div
-      className={clsx("rounded-[var(--radius-md)] p-5 flex flex-col gap-4 glass-card", className)}
-    >
+    <div className={clsx("rounded-[var(--radius-md)] p-5 flex flex-col gap-4 glass-card", className)}>
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h2
-          className="font-bold tracking-tight"
-          style={{ fontSize: "var(--text-lg)", color: "var(--text-primary)" }}
-        >
-          Weekly Training Load
-        </h2>
-        <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", fontWeight: 500 }}>
+        <h2 className="card-title">Weekly Load</h2>
+        <span className="section-label">
           {(() => {
             try {
               const s = new Date(data.weekStart + "T00:00:00");
@@ -179,44 +156,32 @@ export function WeeklySummary({ data, className }: Props) {
         </span>
       </div>
 
-      {/* Summary stats row (Done, Target, TSS, Compliance) */}
+      {/* Summary stats — plain numbers, no icons */}
       <div
         className="flex rounded-[var(--radius-md)] overflow-hidden border border-[var(--border-subtle)]"
-        style={{ background: "rgba(0,0,0,0.1)" }}
+        style={{ background: "var(--bg-elevated)" }}
       >
+        <StatPill label="Done" value={`${(data.completedHours ?? 0).toFixed(1)}h`} color="var(--text-primary)" />
+        <StatPill label="Target" value={`${(data.plannedHours ?? 0).toFixed(1)}h`} color="var(--text-muted)" />
         <StatPill
-          label="Done"
-          value={`${(data.completedHours ?? 0).toFixed(1)}h`}
-          color="var(--color-fitness)"
-        />
-        <StatPill
-          label="Target"
-          value={`${(data.plannedHours ?? 0).toFixed(1)}h`}
-          color="var(--text-secondary)"
-        />
-        <StatPill
-          label="TSS Logged"
+          label="TSS"
           value={weekTss > 0 ? String(Math.round(weekTss)) : "—"}
           color="var(--color-fatigue)"
-          icon={<Flame size={12} />}
         />
-        <div className="flex flex-col items-center justify-center gap-0.5 flex-1 py-2">
+        <div className="flex flex-col items-center justify-center gap-0.5 flex-1 py-3">
           <span
             className="font-metric tabular-nums font-bold"
-            style={{
-              fontSize: "var(--text-base)",
-              color: complianceColor(compliancePct),
-            }}
+            style={{ fontSize: "var(--text-base)", color: complianceColor(compliancePct) }}
           >
             {Math.round(compliancePct)}%
           </span>
-          <span style={{ fontSize: "10px", color: "var(--text-muted)", fontWeight: 500 }}>
+          <span style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: 500 }}>
             Compliance
           </span>
         </div>
       </div>
 
-      {/* Bar chart — hours by sport */}
+      {/* Bar chart */}
       {chartData.length > 0 ? (
         <div style={{ height: 130 }}>
           <ResponsiveContainer width="100%" height="100%">
@@ -242,11 +207,8 @@ export function WeeklySummary({ data, className }: Props) {
                 tickLine={false}
                 tickFormatter={(v) => `${v}h`}
               />
-              <Tooltip
-                content={<CustomTooltip />}
-                cursor={{ fill: "rgba(255, 255, 255, 0.04)", radius: 6 }}
-              />
-              <Bar dataKey="hours" name="Hours" radius={[4, 4, 0, 0]}>
+              <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgba(255, 255, 255, 0.03)", radius: 4 }} />
+              <Bar dataKey="hours" name="Hours" radius={[3, 3, 0, 0]}>
                 {chartData.map((entry, i) => (
                   <Cell key={i} fill={sportColor(entry.rawSport)} />
                 ))}
@@ -256,10 +218,11 @@ export function WeeklySummary({ data, className }: Props) {
         </div>
       ) : (
         <div
-          className="flex items-center justify-center rounded-[var(--radius-md)] border border-[var(--border-subtle)]"
+          className="flex items-center justify-center rounded-[var(--radius-md)]"
           style={{
             height: 100,
             background: "var(--bg-elevated)",
+            border: "1px solid var(--border-subtle)",
             color: "var(--text-muted)",
             fontSize: "var(--text-xs)",
           }}
@@ -268,48 +231,46 @@ export function WeeklySummary({ data, className }: Props) {
         </div>
       )}
 
-      {/* Sports detailed breakdown list */}
+      {/* Sport breakdown — clean list, no inline icons */}
       {(data.bySport?.length ?? 0) > 0 && (
-        <div className="flex flex-col gap-2 border-t border-[var(--border-subtle)] pt-3.5">
-          <span style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 600, letterSpacing: "0.02em" }}>
-            Sport Volume Metrics
-          </span>
-          <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-1.5 border-t border-[var(--border-subtle)] pt-3">
+          <span className="section-label">By sport</span>
+          <div className="flex flex-col gap-1">
             {(data.bySport ?? []).map((s) => {
               const color = sportColor(s.sport);
               const distance = formatDistance(s.distanceMeters, s.sport);
               return (
-                <div 
-                  key={s.sport} 
-                  className="flex items-center justify-between text-xs p-2 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] transition-transform hover:scale-[1.01]"
-                  style={{ background: `color-mix(in srgb, ${color} 4%, var(--bg-elevated))` }}
+                <div
+                  key={s.sport}
+                  className="flex items-center justify-between py-1.5"
+                  style={{ borderBottom: "1px solid var(--border-subtle)" }}
                 >
                   <div className="flex items-center gap-2">
-                    <span className="inline-block rounded-full" style={{ width: 8, height: 8, background: color }} />
-                    <span className="font-semibold text-secondary capitalize" style={{ color: "var(--text-secondary)" }}>
-                      {s.sport}
+                    <span
+                      className="inline-block rounded-full"
+                      style={{ width: 7, height: 7, background: color, flexShrink: 0 }}
+                    />
+                    <span style={{ fontSize: "var(--text-sm)", color: "var(--text-secondary)", fontWeight: 500 }}>
+                      {s.sport.charAt(0).toUpperCase() + s.sport.slice(1)}
                     </span>
                   </div>
-                  <div className="flex items-center gap-4 text-secondary font-medium">
+                  <div className="flex items-center gap-4">
                     {s.sessions > 0 && (
-                      <span className="flex items-center gap-1" title="Sessions count">
-                        <Trophy size={11} className="text-muted" />
-                        {s.sessions}x
+                      <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
+                        {s.sessions}×
                       </span>
                     )}
                     {distance && (
-                      <span className="flex items-center gap-1" title="Completed distance">
-                        <Navigation size={11} className="text-muted" />
+                      <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
                         {distance}
                       </span>
                     )}
                     {s.tss !== null && s.tss > 0 && (
-                      <span className="flex items-center gap-1" title="Completed TSS" style={{ color: "var(--color-fatigue)" }}>
-                        <Flame size={11} />
-                        {Math.round(s.tss)}
+                      <span style={{ fontSize: "var(--text-xs)", color: "var(--color-fatigue)", fontWeight: 500 }}>
+                        {Math.round(s.tss)} TSS
                       </span>
                     )}
-                    <span className="font-bold font-metric text-primary" style={{ color: "var(--text-primary)" }}>
+                    <span className="font-metric font-bold" style={{ fontSize: "var(--text-sm)", color: "var(--text-primary)" }}>
                       {s.hours.toFixed(1)}h
                     </span>
                   </div>
@@ -320,12 +281,10 @@ export function WeeklySummary({ data, className }: Props) {
         </div>
       )}
 
-      {/* Legend & Summary details */}
-      <div className="flex items-center justify-between border-t border-[var(--border-subtle)] pt-3 text-[10px] text-muted font-medium">
-        <span>Logged total: {totalSessions} session{totalSessions !== 1 ? "s" : ""}</span>
-        <span className="flex items-center gap-1" style={{ color: complianceColor(compliancePct) }}>
-          <Activity size={10} />
-          Compliance score: {Math.round(compliancePct)}%
+      <div className="flex items-center justify-between" style={{ fontSize: "11px", color: "var(--text-muted)" }}>
+        <span>{totalSessions} session{totalSessions !== 1 ? "s" : ""} logged</span>
+        <span style={{ color: complianceColor(compliancePct), fontWeight: 500 }}>
+          {Math.round(compliancePct)}% compliance
         </span>
       </div>
     </div>

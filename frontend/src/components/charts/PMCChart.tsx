@@ -108,7 +108,7 @@ export function DateRangePicker({
   );
 }
 
-// ─── Stats Bar ────────────────────────────────────────────────────────────────
+// ─── Stats Bar ───────────────────────────────────────────────────────────────
 
 function StatPill({
   label,
@@ -123,22 +123,17 @@ function StatPill({
 }) {
   return (
     <div className="flex flex-col items-center flex-1 gap-0.5 py-2">
-      <div className="flex items-center gap-1">
-        <span
-          style={{ width: 6, height: 6, borderRadius: "50%", background: color, flexShrink: 0, display: "inline-block" }}
-        />
-        <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", fontWeight: 500 }}>
-          {label}
-        </span>
-      </div>
+      <span style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: 500 }}>
+        {label}
+      </span>
       <span
-        className="font-metric tabular-nums font-extrabold"
-        style={{ fontSize: "var(--text-xl)", color }}
+        className="font-metric tabular-nums"
+        style={{ fontSize: "var(--text-xl)", fontWeight: 700, color }}
       >
         {value}
       </span>
       {sub && (
-        <span style={{ fontSize: "9px", color: "var(--text-muted)", fontWeight: 600 }}>
+        <span style={{ fontSize: "10px", color: "var(--text-muted)", fontWeight: 500 }}>
           {sub}
         </span>
       )}

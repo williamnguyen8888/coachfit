@@ -55,21 +55,23 @@ function renderGarminSyncBadge(synced: boolean) {
         display: "inline-flex",
         alignItems: "center",
         gap: 3,
-        padding: "1px 5px",
+        padding: "1px 6px",
         borderRadius: 4,
-        background: synced ? "rgba(0, 124, 195, 0.08)" : "rgba(107, 114, 128, 0.05)",
+        background: synced ? "rgba(0, 124, 195, 0.08)" : "var(--bg-elevated)",
         color: synced ? "#007cc3" : "var(--text-muted)",
-        border: synced ? "1px solid rgba(0, 124, 195, 0.2)" : "1px solid rgba(107, 114, 128, 0.15)",
+        border: synced ? "1px solid rgba(0, 124, 195, 0.2)" : "1px solid var(--border-subtle)",
         fontSize: 9,
-        fontWeight: 700,
+        fontWeight: 600,
         textTransform: "uppercase",
-        letterSpacing: "0.03em",
+        letterSpacing: "0.02em",
         height: 15,
         lineHeight: 1,
       }}
       title={synced ? "Synced to Garmin Connect Calendar" : "Not synced to Garmin"}
     >
-      <span style={{ color: synced ? "#10b981" : "#9ca3af", fontSize: 8 }}>{synced ? "✓" : "○"}</span>
+      <span style={{ color: synced ? "var(--color-success)" : "var(--text-muted)", fontSize: 9 }}>
+        {synced ? "+" : "—"}
+      </span>
       <span>Garmin</span>
     </div>
   );
@@ -333,10 +335,10 @@ export function WorkoutCard({
 
           {/* Status indicators */}
           {isCompleted && (
-            <span style={{ fontSize: 11, color: "var(--color-success)", fontWeight: 700 }}>✓</span>
+            <span style={{ fontSize: 11, color: "var(--color-success)", fontWeight: 700 }}>Done</span>
           )}
           {isSkipped && (
-            <span style={{ fontSize: 11, color: "var(--color-danger)", fontWeight: 600 }}>SKIP</span>
+            <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600 }}>Skip</span>
           )}
         </div>
 
@@ -422,18 +424,18 @@ export function WorkoutCard({
                     gap: 3,
                     padding: "2px 6px",
                     borderRadius: 5,
-                    background: "rgba(239,68,68,0.08)",
-                    border: "1px solid rgba(239,68,68,0.2)",
-                    color: unlinking ? "var(--text-muted)" : "#ef4444",
+                    background: "var(--color-danger-8)",
+                    border: "1px solid var(--color-danger-20)",
+                    color: unlinking ? "var(--text-muted)" : "var(--color-danger)",
                     fontSize: 9,
-                    fontWeight: 700,
+                    fontWeight: 600,
                     cursor: unlinking ? "not-allowed" : "pointer",
                     transition: "all 120ms ease-out",
                     whiteSpace: "nowrap",
                     flexShrink: 0,
                   }}
                 >
-                  {unlinking ? "…" : "⛓ Unlink"}
+                  {unlinking ? "..." : "Unlink"}
                 </button>
               )}
 
@@ -454,18 +456,18 @@ export function WorkoutCard({
                     gap: 3,
                     padding: "2px 6px",
                     borderRadius: 5,
-                    background: "rgba(16,185,129,0.08)",
-                    border: "1px solid rgba(16,185,129,0.2)",
-                    color: "#10b981",
+                    background: "var(--color-success-8)",
+                    border: "1px solid var(--color-success-15)",
+                    color: "var(--color-success)",
                     fontSize: 9,
-                    fontWeight: 700,
+                    fontWeight: 600,
                     cursor: "pointer",
                     transition: "all 120ms ease-out",
                     whiteSpace: "nowrap",
                     flexShrink: 0,
                   }}
                 >
-                  ⛓ Link
+                  Link
                 </button>
               )}
             </>

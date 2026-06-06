@@ -1,11 +1,9 @@
 "use client";
 // src/components/dashboard/FitnessStatusBadge.tsx
-// Compact CTL/ATL/TSB row used in mobile when FitnessTrend is collapsed.
-// Also shown as an inline badge in the morning briefing area. Includes ACWR.
+// Compact CTL/ATL/TSB row. Also shown inline in the morning briefing area. Includes ACWR.
 
 import React from "react";
 import { clsx } from "clsx";
-import { TrendingUp, TrendingDown, Minus, Info } from "lucide-react";
 import type { FitnessStatus, FitnessTrend } from "@/lib/types/dashboard";
 
 function tsbColor(tsb: number): string {
@@ -22,29 +20,46 @@ function tsbLabel(tsb: number): string {
   return "Overtrained";
 }
 
-function TrendIcon({ trend }: { trend: FitnessTrend }) {
-  const props = { size: 12, strokeWidth: 2.5 };
-  if (trend === "improving" || trend === "building")
-    return <TrendingUp {...props} style={{ color: "var(--color-success)" }} />;
-  if (trend === "declining")
-    return <TrendingDown {...props} style={{ color: "var(--color-danger)" }} />;
-  return <Minus {...props} style={{ color: "var(--text-muted)" }} />;
-}
-
-/* ─── ACWR Helpers ────────────────────────────────────────────────────────── */
-
-function calculateAcwr(atl: number, ctl: number): number {
-  if (!ctl || ctl <= 0) return 0;
-  return Number((atl / ctl).toFixed(2));
-}
-
 function acwrLabel(acwr: number): { label: string; color: string; desc: string } {
   if (acwr === 0) return { label: "N/A", color: "var(--text-muted)", desc: "No training history." };
-  if (acwr < 0.8) return { label: "Under-training", color: "var(--color-info)", desc: "Low training load. Elevated injury risk due to detraining." };
-  if (acwr <= 1.3) return { label: "Sweet Spot", color: "var(--color-success)", desc: "Optimal workload. Fitness building, low injury risk." };
-  if (acwr <= 1.5) return { label: "Overreaching", color: "var(--color-warning)", desc: "Increased fatigue. High workload, manage recovery closely." };
-  return { label: "Danger Zone", color: "var(--color-danger)", desc: "Overtraining. Extremely high injury risk. Rest is advised." };
+  if (acwr < 0.8) return { label: "Under-training", color: "var(--color-info)", desc: "Low load. Elevated detraining risk." };
+  if (acwr <= 1.3) return { label: "Sweet Spot", color: "var(--color-success)", desc: "Optimal workload. Low injury risk." };
+  if (acwr <= 1.5) return { label: "Overreaching", color: "var(--color-warning)", desc: "High fatigue. Manage recovery closely." };
+  return { label: "Danger Zone", color: "var(--color-danger)", desc: "Overtraining risk. Rest is advised." };
 }
+
+/* ─── Stat column — clean, no icon ──────────────────────────────────────── */
+
+function StatColumn({
+  label,
+  value,
+  sub,
+  color,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  color?: string;
+}) {
+  return (
+    <div className="flex flex-col items-center gap-0.5 flex-1">
+      <span className="section-label">{label}</span>
+      <span
+        className="font-metric tabular-nums"
+        style={{ fontSize: "var(--text-2xl)", fontWeight: 700, color: color ?? "var(--text-primary)" }}
+      >
+        {value}
+      </span>
+      {sub && (
+        <span style={{ fontSize: "11px", color: color ?? "var(--text-muted)", fontWeight: 500 }}>
+          {sub}
+        </span>
+      )}
+    </div>
+  );
+}
+
+/* ─── Main component ─────────────────────────────────────────────────────── */
 
 interface Props {
   data: FitnessStatus;
@@ -53,7 +68,7 @@ interface Props {
 
 export function FitnessStatusBadge({ data, className }: Props) {
   const formColor = tsbColor(data.tsb);
-  const acwr = calculateAcwr(data.atl, data.ctl);
+  const acwr = data.atl && data.ctl ? Number((data.atl / data.ctl).toFixed(2)) : 0;
   const acwrInfo = acwrLabel(acwr);
 
   return (
@@ -63,111 +78,67 @@ export function FitnessStatusBadge({ data, className }: Props) {
         className
       )}
     >
-      {/* Metrics Row */}
-      <div className="flex items-center justify-between gap-2">
-        {/* CTL */}
-        <div className="flex flex-col items-center gap-0.5 flex-1">
-          <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", fontWeight: 500 }}>
-            Fitness
-          </span>
-          <span
-            className="font-metric tabular-nums font-extrabold"
-            style={{ fontSize: "var(--text-2xl)", color: "var(--color-fitness)" }}
-          >
-            {Math.round(data.ctl)}
-          </span>
-          <span style={{ fontSize: "10px", color: "var(--text-muted)", fontWeight: 600 }}>
-            CTL (Chronic)
-          </span>
-        </div>
-
-        <div style={{ width: 1, background: "var(--border-subtle)", height: 32 }} />
-
-        {/* ATL */}
-        <div className="flex flex-col items-center gap-0.5 flex-1">
-          <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", fontWeight: 500 }}>
-            Fatigue
-          </span>
-          <span
-            className="font-metric tabular-nums font-extrabold"
-            style={{ fontSize: "var(--text-2xl)", color: "var(--color-fatigue)" }}
-          >
-            {Math.round(data.atl)}
-          </span>
-          <span style={{ fontSize: "10px", color: "var(--text-muted)", fontWeight: 600 }}>
-            ATL (Acute)
-          </span>
-        </div>
-
-        <div style={{ width: 1, background: "var(--border-subtle)", height: 32 }} />
-
-        {/* TSB — Form */}
-        <div className="flex flex-col items-center gap-0.5 flex-1">
-          <div className="flex items-center gap-1">
-            <TrendIcon trend={data.trend} />
-            <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", fontWeight: 500 }}>
-              Form
-            </span>
-          </div>
-          <span
-            className="font-metric tabular-nums font-extrabold"
-            style={{ fontSize: "var(--text-2xl)", color: formColor }}
-          >
-            {data.tsb > 0 ? "+" : ""}
-            {Math.round(data.tsb)}
-          </span>
-          <span style={{ fontSize: "10px", color: formColor, fontWeight: 600 }}>
-            {tsbLabel(data.tsb)}
-          </span>
-        </div>
+      {/* Metrics Row — CTL / ATL / TSB */}
+      <div className="flex items-center gap-2">
+        <StatColumn
+          label="Fitness"
+          value={String(Math.round(data.ctl))}
+          sub="CTL"
+          color="var(--color-fitness)"
+        />
+        <div style={{ width: 1, background: "var(--border-subtle)", height: 40 }} />
+        <StatColumn
+          label="Fatigue"
+          value={String(Math.round(data.atl))}
+          sub="ATL"
+          color="var(--color-fatigue)"
+        />
+        <div style={{ width: 1, background: "var(--border-subtle)", height: 40 }} />
+        <StatColumn
+          label="Form"
+          value={`${data.tsb > 0 ? "+" : ""}${Math.round(data.tsb)}`}
+          sub={tsbLabel(data.tsb)}
+          color={formColor}
+        />
       </div>
 
       {/* ACWR Section */}
       {acwr > 0 && (
-        <div 
-          className="border-t border-[var(--border-subtle)] pt-3 flex flex-col gap-2"
-        >
-          <div className="flex justify-between items-center text-xs">
-            <span className="flex items-center gap-1" style={{ color: "var(--text-secondary)", fontWeight: 500 }}>
-              AC Workload Ratio (ACWR)
-              <span title="Acute-to-Chronic Workload Ratio (Fatigue / Fitness). Elite standard for injury prevention.">
-                <Info size={11} className="text-muted cursor-help" />
-              </span>
+        <div className="border-t border-[var(--border-subtle)] pt-3 flex flex-col gap-2">
+          <div className="flex justify-between items-center">
+            <span style={{ fontSize: "var(--text-xs)", color: "var(--text-secondary)", fontWeight: 500 }}>
+              Workload Ratio (ACWR)
             </span>
-            <span className="font-bold font-metric" style={{ color: acwrInfo.color }}>
-              {acwr} <span style={{ fontSize: "9px", fontWeight: 500, color: "var(--text-muted)" }}>({acwrInfo.label})</span>
+            <span className="font-metric font-bold" style={{ fontSize: "var(--text-sm)", color: acwrInfo.color }}>
+              {acwr}{" "}
+              <span style={{ fontSize: "11px", fontWeight: 500, color: "var(--text-muted)" }}>
+                {acwrInfo.label}
+              </span>
             </span>
           </div>
 
-          {/* Graphical Gauge Bar */}
-          <div 
-            className="w-full h-2 rounded-full relative" 
-            style={{ background: "rgba(255,255,255,0.05)" }}
+          {/* Gauge Bar */}
+          <div
+            className="w-full h-1.5 rounded-full relative"
+            style={{ background: "var(--border-subtle)" }}
           >
-            {/* Color Zone Ranges (0.0 to 2.0 scaled to 100%) */}
-            {/* 0.0 - 0.8: Under (40% width) */}
-            {/* 0.8 - 1.3: Sweet Spot (25% width) */}
-            {/* 1.3 - 1.5: Warning (10% width) */}
-            {/* 1.5+: Danger (25% width) */}
-            <div className="absolute inset-0 flex rounded-full overflow-hidden opacity-30">
+            <div className="absolute inset-0 flex rounded-full overflow-hidden opacity-20">
               <div style={{ width: "40%", background: "var(--color-info)" }} />
               <div style={{ width: "25%", background: "var(--color-success)" }} />
               <div style={{ width: "10%", background: "var(--color-warning)" }} />
               <div style={{ width: "25%", background: "var(--color-danger)" }} />
             </div>
-
-            {/* Indicator Dot */}
-            <div 
-              className="absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full border border-black transition-all duration-500 shadow-md"
+            <div
+              className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full transition-all duration-500"
               style={{
-                left: `${Math.min((acwr / 2.0) * 100, 98)}%`,
+                left: `calc(${Math.min((acwr / 2.0) * 100, 97)}% - 6px)`,
                 background: acwrInfo.color,
-                boxShadow: "none"
+                border: "2px solid var(--bg-surface)",
               }}
             />
           </div>
 
-          <p className="text-[10px]" style={{ color: "var(--text-muted)", lineHeight: 1.3 }}>
+          <p style={{ fontSize: "11px", color: "var(--text-muted)", lineHeight: 1.4 }}>
             {acwrInfo.desc}
           </p>
         </div>

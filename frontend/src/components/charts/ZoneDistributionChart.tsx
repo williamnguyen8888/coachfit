@@ -249,7 +249,7 @@ function EmptyState() {
 
 function SummaryStats({ data }: { data: ZoneDistributionResponse }) {
   const totalHours = data.totalSeconds / 3600;
-  const topZone = [...data.zones].sort((a, b) => b.seconds - a.seconds)[0];
+  const topZone = [...(data.zones ?? [])].sort((a, b) => b.seconds - a.seconds)[0];
   const topZoneCfg = topZone ? ZONE_CONFIG.find((c) => c.zone === topZone.zone) : null;
 
   return (
@@ -274,7 +274,7 @@ function SummaryStats({ data }: { data: ZoneDistributionResponse }) {
           Zones
         </span>
         <span className="font-metric tabular-nums font-bold" style={{ fontSize: "var(--text-lg)", color: "var(--text-primary)" }}>
-          {data.zones.filter((z) => z.seconds > 0).length}
+          {(data.zones ?? []).filter((z) => z.seconds > 0).length}
         </span>
         <span style={{ fontSize: "9px", color: "var(--text-muted)" }}>active</span>
       </div>
