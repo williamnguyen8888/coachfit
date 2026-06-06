@@ -13,12 +13,13 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
-import { Layers } from "lucide-react";
+import { Heart, Layers, Zap } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import type { ActivityDetail, StreamPoint, Sport } from "@/lib/types/activity";
 import { fmtPace, fmtClock } from "@/lib/utils/streamUtils";
@@ -119,6 +120,45 @@ function paceColor(splits: SplitRow[], pace: number): string {
   return "#ef4444";
 }
 
+function paceBucket(splits: SplitRow[], pace: number): "fast" | "mid" | "slow" {
+  if (splits.length === 0) return "mid";
+  const paces = splits.map((s) => s.paceSecsPerUnit);
+  const min = Math.min(...paces);
+  const max = Math.max(...paces);
+  if (max === min) return "mid";
+  const ratio = (pace - min) / (max - min);
+  if (ratio < 0.33) return "fast";
+  if (ratio < 0.66) return "mid";
+  return "slow";
+}
+
+function PaceBadge({ bucket, label }: { bucket: "fast" | "mid" | "slow"; label: string }) {
+  const styles = {
+    fast: "bg-green-500/15 text-green-400 border border-green-500/30",
+    mid: "bg-amber-500/15 text-amber-400 border border-amber-500/30",
+    slow: "bg-red-500/15 text-red-400 border border-red-500/30",
+  };
+  return (
+    <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-mono font-semibold ${styles[bucket]}`}>
+      {label}
+    </span>
+  );
+}
+
+function TrendIndicator({ current, previous }: { current: number; previous: number | null }) {
+  if (previous === null) return <span className="text-text-muted text-xs">—</span>;
+  const diff = current - previous;
+  const threshold = previous * 0.005; // 0.5% tolerance = same
+  if (Math.abs(diff) <= threshold) {
+    return <span className="text-text-muted text-xs font-bold">=</span>;
+  }
+  // Lower pace = faster
+  if (diff < 0) {
+    return <span className="text-green-400 text-xs font-bold leading-none">↑</span>;
+  }
+  return <span className="text-red-400 text-xs font-bold leading-none">↓</span>;
+}
+
 export function ActivitySplitsPanel({ activity, points }: Props) {
   const splits = useMemo(() => computeSplits(points, activity.sport), [points, activity.sport]);
 
@@ -138,14 +178,27 @@ export function ActivitySplitsPanel({ activity, points }: Props) {
       ? "5 km Splits"
       : "Km Splits";
 
+  const formatPaceDisplay = (s: SplitRow) => {
+    if (activity.sport === "cycling") {
+      return `${((1000 / s.paceSecsPerUnit) * 3.6).toFixed(1)} km/h`;
+    }
+    if (activity.sport === "swimming") {
+      // Bug fix: removed incorrect /10
+      return fmtPace(s.paceSecsPerUnit, "/100m");
+    }
+    return fmtPace(s.paceSecsPerUnit, "/km");
+  };
+
   if (splits.length === 0) {
     return (
       <Card>
-        <div className="flex items-start gap-3">
-          <Layers size={16} className="mt-0.5 text-text-muted" />
+        <div className="flex flex-col items-center gap-3 py-8 text-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-bg-elevated border border-border-subtle">
+            <Layers size={20} className="text-text-muted" />
+          </div>
           <div>
             <h3 className="text-sm font-semibold text-text-primary">No splits available</h3>
-            <p className="mt-1 text-sm text-text-secondary">
+            <p className="mt-1 text-xs text-text-secondary max-w-xs">
               Splits require GPS distance data. Upload a file that includes distance stream.
             </p>
           </div>
@@ -154,130 +207,275 @@ export function ActivitySplitsPanel({ activity, points }: Props) {
     );
   }
 
-  const barColor = activity.sport === "cycling" ? "#3b82f6" : activity.sport === "swimming" ? "#06b6d4" : "#22c55e";
+  const paces = splits.map((s) => s.paceSecsPerUnit);
+  const avgPace = paces.reduce((a, b) => a + b, 0) / paces.length;
+  const bestSplit = splits.reduce((a, b) => a.paceSecsPerUnit < b.paceSecsPerUnit ? a : b);
+  const worstSplit = splits.reduce((a, b) => a.paceSecsPerUnit > b.paceSecsPerUnit ? a : b);
+
+  const barAccentColor = activity.sport === "cycling" ? "#3b82f6" : activity.sport === "swimming" ? "#06b6d4" : "#22c55e";
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Pace/speed trend bar chart */}
+
+      {/* Chart card */}
       <Card>
+        {/* Header */}
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Layers size={16} style={{ color: barColor }} />
-            <h2 className="text-base font-bold text-text-primary">{splitLabel}</h2>
+            <Layers size={15} style={{ color: barAccentColor }} />
+            <h2 className="text-sm font-bold text-text-primary">{splitLabel}</h2>
           </div>
-          <span className="text-[10px] text-text-muted">{splits.length} splits</span>
+          <span className="rounded-full bg-bg-elevated border border-border-subtle px-2.5 py-0.5 text-[10px] font-semibold text-text-muted">
+            {splits.length} splits
+          </span>
         </div>
 
-        <ResponsiveContainer width="100%" height={160}>
-          <BarChart data={splits} margin={{ top: 4, right: 8, bottom: 0, left: 0 }} barSize={20}>
+        {/* Summary stat pills */}
+        <div className="mb-5 grid grid-cols-3 gap-3">
+          {/* Best */}
+          <div className="flex flex-col gap-1 rounded-lg border border-green-500/20 bg-green-500/8 px-3 py-2.5">
+            <span className="text-[9px] font-bold uppercase tracking-widest text-green-500/70">Best</span>
+            <span className="font-mono text-sm font-bold text-green-400">{formatPaceDisplay(bestSplit)}</span>
+            <span className="text-[10px] text-text-muted">{bestSplit.label}</span>
+          </div>
+          {/* Avg */}
+          <div className="flex flex-col gap-1 rounded-lg border border-amber-500/20 bg-amber-500/8 px-3 py-2.5">
+            <span className="text-[9px] font-bold uppercase tracking-widest text-amber-500/70">Avg</span>
+            <span className="font-mono text-sm font-bold text-amber-400">
+              {activity.sport === "cycling"
+                ? `${((1000 / avgPace) * 3.6).toFixed(1)} km/h`
+                : activity.sport === "swimming"
+                ? fmtPace(avgPace, "/100m")
+                : fmtPace(avgPace, "/km")}
+            </span>
+            <span className="text-[10px] text-text-muted">average</span>
+          </div>
+          {/* Worst */}
+          <div className="flex flex-col gap-1 rounded-lg border border-red-500/20 bg-red-500/8 px-3 py-2.5">
+            <span className="text-[9px] font-bold uppercase tracking-widest text-red-500/70">Worst</span>
+            <span className="font-mono text-sm font-bold text-red-400">{formatPaceDisplay(worstSplit)}</span>
+            <span className="text-[10px] text-text-muted">{worstSplit.label}</span>
+          </div>
+        </div>
+
+        {/* Bar chart */}
+        <ResponsiveContainer width="100%" height={220}>
+          <BarChart data={splits} margin={{ top: 4, right: 12, bottom: 8, left: 0 }} barGap={4} barCategoryGap="20%">
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" strokeOpacity={0.4} vertical={false} />
             <XAxis
               dataKey="label"
-              tick={{ fill: "var(--text-muted)", fontSize: 9 }}
+              tick={{ fill: "#8b8b9e", fontSize: 9 }}
               axisLine={false}
               tickLine={false}
             />
             <YAxis
-              tick={{ fill: "var(--text-muted)", fontSize: 9 }}
+              tick={{ fill: "#8b8b9e", fontSize: 9 }}
               axisLine={false}
               tickLine={false}
-              unit=" s"
-              width={38}
+              tickFormatter={(v: number) => {
+                const m = Math.floor(v / 60);
+                const s = Math.round(v % 60);
+                return `${m}:${s.toString().padStart(2, "0")}`;
+              }}
+              width={42}
               domain={["auto", "auto"]}
             />
             <Tooltip
               contentStyle={{
-                background: "var(--bg-elevated)",
-                border: "1px solid var(--border-subtle)",
+                background: "#1e1e30",
+                border: "1px solid #2e2e44",
                 borderRadius: 8,
                 fontSize: 12,
+                color: "#e8e8ed",
+                boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
               }}
+              itemStyle={{ color: "#e8e8ed" }}
+              labelStyle={{ color: "#8b8b9e", fontWeight: 600, marginBottom: 4 }}
+              cursor={{ fill: "rgba(255,255,255,0.04)" }}
               formatter={(v) => [
                 activity.sport === "swimming"
-                  ? fmtPace(Number(v) / 10, "/100m")
+                  ? fmtPace(Number(v), "/100m")
+                  : activity.sport === "cycling"
+                  ? `${((1000 / Number(v)) * 3.6).toFixed(1)} km/h`
                   : fmtPace(Number(v), "/km"),
-                "Pace",
+                activity.sport === "cycling" ? "Speed" : "Pace",
               ]}
             />
-            <Bar dataKey="paceSecsPerUnit" radius={[4, 4, 0, 0]}>
+            <ReferenceLine
+              y={avgPace}
+              stroke="#f59e0b"
+              strokeDasharray="5 4"
+              strokeWidth={1.5}
+              strokeOpacity={0.7}
+            />
+            <Bar dataKey="paceSecsPerUnit" radius={[4, 4, 0, 0]} maxBarSize={44}>
               {splits.map((s) => (
-                <Cell key={s.splitIndex} fill={paceColor(splits, s.paceSecsPerUnit)} fillOpacity={0.85} />
+                <Cell
+                  key={s.splitIndex}
+                  fill={paceColor(splits, s.paceSecsPerUnit)}
+                  fillOpacity={0.85}
+                />
               ))}
             </Bar>
           </BarChart>
         </ResponsiveContainer>
 
-        <p className="mt-2 text-[10px] text-text-muted">
-          🟢 fastest · 🟡 average · 🔴 slowest
-        </p>
+        {/* Legend pills */}
+        <div className="mt-3 flex items-center gap-2">
+          <span className="text-[10px] text-text-muted mr-1">Legend:</span>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-green-500/30 bg-green-500/10 px-2.5 py-0.5 text-[10px] font-semibold text-green-400">
+            <span className="h-1.5 w-1.5 rounded-full bg-green-400 inline-block" />
+            Fastest
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-[10px] font-semibold text-amber-400">
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-400 inline-block" />
+            Average
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-red-500/30 bg-red-500/10 px-2.5 py-0.5 text-[10px] font-semibold text-red-400">
+            <span className="h-1.5 w-1.5 rounded-full bg-red-400 inline-block" />
+            Slowest
+          </span>
+        </div>
       </Card>
 
-      {/* Splits detail table */}
+      {/* Split detail table */}
       <Card noPadding>
-        <div className="px-5 py-3 border-b border-border-subtle">
-          <h3 className="text-sm font-bold text-text-primary">Split Detail</h3>
+        {/* Table header */}
+        <div className="px-5 py-3 border-b border-border-subtle flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Layers size={13} className="text-text-muted" />
+            <h3 className="text-xs font-bold uppercase tracking-widest text-text-primary">Split Detail</h3>
+          </div>
+          <span className="text-[10px] text-text-muted">{splits.length} splits · {unitLabel}</span>
         </div>
-        <div className="overflow-x-auto">
+
+        <div
+          className="overflow-x-auto"
+          style={{
+            scrollbarWidth: "thin",
+            scrollbarColor: "var(--border-subtle) transparent",
+          }}
+        >
           <table className="w-full text-xs">
             <thead>
-              <tr className="border-b border-border-subtle bg-bg-elevated/30">
-                <th className="px-4 py-2.5 text-left font-semibold text-text-muted">Split</th>
-                <th className="px-4 py-2.5 text-right font-semibold text-text-muted">Time</th>
-                <th className="px-4 py-2.5 text-right font-semibold text-text-muted">
+              <tr className="border-b border-border-subtle">
+                <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-text-muted whitespace-nowrap">
+                  #
+                </th>
+                <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-text-muted whitespace-nowrap">
                   {activity.sport === "cycling" ? "Speed" : `Pace ${unitLabel}`}
                 </th>
+                <th className="px-4 py-2.5 text-right text-[10px] font-bold uppercase tracking-wider text-text-muted whitespace-nowrap">
+                  Time
+                </th>
+                <th className="px-4 py-2.5 text-center text-[10px] font-bold uppercase tracking-wider text-text-muted whitespace-nowrap">
+                  Trend
+                </th>
                 {hasHR && (
-                  <th className="px-4 py-2.5 text-right font-semibold text-text-muted">Avg HR</th>
+                  <th className="px-4 py-2.5 text-right text-[10px] font-bold uppercase tracking-wider text-text-muted whitespace-nowrap">
+                    <span className="flex items-center justify-end gap-1">
+                      <Heart size={9} className="text-red-400" />
+                      HR
+                    </span>
+                  </th>
                 )}
                 {hasPower && (
-                  <th className="px-4 py-2.5 text-right font-semibold text-text-muted">Avg W</th>
+                  <th className="px-4 py-2.5 text-right text-[10px] font-bold uppercase tracking-wider text-text-muted whitespace-nowrap">
+                    <span className="flex items-center justify-end gap-1">
+                      <Zap size={9} className="text-blue-400" />
+                      Power
+                    </span>
+                  </th>
                 )}
                 {hasCadence && (
-                  <th className="px-4 py-2.5 text-right font-semibold text-text-muted">Cadence</th>
+                  <th className="px-4 py-2.5 text-right text-[10px] font-bold uppercase tracking-wider text-text-muted whitespace-nowrap">
+                    Cadence
+                  </th>
                 )}
               </tr>
             </thead>
             <tbody>
-              {splits.map((s, i) => (
-                <tr
-                  key={s.splitIndex}
-                  className={`border-b border-border-subtle/50 last:border-0 ${
-                    i % 2 === 0 ? "bg-bg-elevated/20" : ""
-                  }`}
-                >
-                  <td className="px-4 py-2.5 font-bold text-text-primary">{s.label}</td>
-                  <td className="px-4 py-2.5 text-right font-mono text-text-secondary">
-                    {fmtClock(s.durationSeconds)}
-                  </td>
-                  <td
-                    className="px-4 py-2.5 text-right font-bold"
-                    style={{ color: paceColor(splits, s.paceSecsPerUnit) }}
+              {splits.map((s, i) => {
+                const prev = i > 0 ? splits[i - 1] : null;
+                const bucket = paceBucket(splits, s.paceSecsPerUnit);
+                return (
+                  <tr
+                    key={s.splitIndex}
+                    className="group border-b border-border-subtle/40 last:border-0 transition-colors hover:bg-bg-elevated/40"
+                    style={{
+                      borderLeft: "2px solid transparent",
+                    }}
+                    onMouseEnter={(e) => {
+                      (e.currentTarget as HTMLTableRowElement).style.borderLeftColor = barAccentColor;
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLTableRowElement).style.borderLeftColor = "transparent";
+                    }}
                   >
-                    {activity.sport === "cycling"
-                      ? `${((1000 / s.paceSecsPerUnit) * 3.6).toFixed(1)} km/h`
-                      : activity.sport === "swimming"
-                      ? fmtPace(s.paceSecsPerUnit / 10, "/100m")
-                      : fmtPace(s.paceSecsPerUnit, "/km")}
-                  </td>
-                  {hasHR && (
-                    <td className="px-4 py-2.5 text-right text-text-secondary">
-                      {s.avgHR != null ? `${s.avgHR} bpm` : "—"}
+                    {/* Split number badge */}
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <span className="inline-flex items-center justify-center rounded-md bg-bg-elevated border border-border-subtle px-1.5 py-0.5 text-[10px] font-bold text-text-muted min-w-[28px]">
+                        #{s.splitIndex}
+                      </span>
                     </td>
-                  )}
-                  {hasPower && (
-                    <td className="px-4 py-2.5 text-right text-text-secondary">
-                      {s.avgPower != null ? `${s.avgPower} W` : "—"}
+
+                    {/* Pace badge */}
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <PaceBadge bucket={bucket} label={formatPaceDisplay(s)} />
                     </td>
-                  )}
-                  {hasCadence && (
-                    <td className="px-4 py-2.5 text-right text-text-secondary">
-                      {s.avgCadence != null
-                        ? `${s.avgCadence} ${activity.sport === "swimming" ? "spm" : "rpm"}`
-                        : "—"}
+
+                    {/* Time */}
+                    <td className="px-4 py-3 text-right font-mono text-text-secondary whitespace-nowrap">
+                      {fmtClock(s.durationSeconds)}
                     </td>
-                  )}
-                </tr>
-              ))}
+
+                    {/* Trend */}
+                    <td className="px-4 py-3 text-center whitespace-nowrap">
+                      <TrendIndicator
+                        current={s.paceSecsPerUnit}
+                        previous={prev ? prev.paceSecsPerUnit : null}
+                      />
+                    </td>
+
+                    {/* HR */}
+                    {hasHR && (
+                      <td className="px-4 py-3 text-right whitespace-nowrap">
+                        {s.avgHR != null ? (
+                          <span className="flex items-center justify-end gap-1 font-mono text-text-secondary">
+                            <Heart size={9} className="text-red-400/60" />
+                            {s.avgHR}
+                          </span>
+                        ) : (
+                          <span className="text-text-muted">—</span>
+                        )}
+                      </td>
+                    )}
+
+                    {/* Power */}
+                    {hasPower && (
+                      <td className="px-4 py-3 text-right whitespace-nowrap">
+                        {s.avgPower != null ? (
+                          <span className="flex items-center justify-end gap-1 font-mono text-text-secondary">
+                            <Zap size={9} className="text-blue-400/60" />
+                            {s.avgPower} W
+                          </span>
+                        ) : (
+                          <span className="text-text-muted">—</span>
+                        )}
+                      </td>
+                    )}
+
+                    {/* Cadence */}
+                    {hasCadence && (
+                      <td className="px-4 py-3 text-right font-mono text-text-secondary whitespace-nowrap">
+                        {s.avgCadence != null
+                          ? `${s.avgCadence} ${activity.sport === "swimming" ? "spm" : "rpm"}`
+                          : <span className="text-text-muted">—</span>}
+                      </td>
+                    )}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

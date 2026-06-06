@@ -354,7 +354,9 @@ export function ActivityLapsTable({ laps, sport, selectedLapIndex, onSelectLap }
                 width={24}
               />
               <Tooltip
-                contentStyle={{ background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", borderRadius: 8, fontSize: 12 }}
+                contentStyle={{ background: "#1e1e30", border: "1px solid #2e2e44", borderRadius: 8, fontSize: 12, color: "#e8e8ed", boxShadow: "0 8px 24px rgba(0,0,0,0.5)" }}
+                itemStyle={{ color: "#e8e8ed" }}
+                labelStyle={{ color: "#8b8b9e", marginBottom: 2 }}
                 formatter={(v) => [formatChartValue(Number(v)), hasPowerLaps ? "Avg Power" : "Avg Pace"]}
                 labelFormatter={(v) => `Lap ${v}`}
               />

@@ -586,58 +586,96 @@ export function InteractiveMultiLaneChart({
       </div>
 
       {selectedRange && selectionStats ? (
-        <div className="animate-fade-in flex flex-col items-start justify-between gap-3 rounded-lg border border-accent-30 bg-accent-10 p-3 text-xs text-text-primary shadow-inner sm:flex-row sm:items-center">
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-1.5 font-bold text-accent">
-              <Activity size={14} />
-              Selected Range Analysis: {formatTime(selectedRange.startTime)} to {formatTime(selectedRange.endTime)} ({formatTime(selectionStats.duration)})
+        <div
+          className="relative overflow-hidden rounded-2xl border p-4"
+          style={{
+            background: "linear-gradient(135deg, rgba(139,92,246,0.08) 0%, rgba(59,130,246,0.06) 100%)",
+            borderColor: "rgba(139,92,246,0.3)",
+            boxShadow: "0 0 0 1px rgba(139,92,246,0.1), 0 8px 32px rgba(139,92,246,0.12)",
+            animation: "fadeInScale 220ms cubic-bezier(0.4, 0, 0.2, 1) both",
+          }}
+        >
+          {/* Accent top line */}
+          <div
+            className="pointer-events-none absolute inset-x-0 top-0 h-px"
+            style={{ background: "linear-gradient(90deg, transparent, rgba(139,92,246,0.6), transparent)" }}
+          />
+
+          {/* Header */}
+          <div className="mb-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-accent/20">
+                <Activity size={12} className="text-accent" />
+              </div>
+              <span className="text-xs font-bold text-accent">Selection Analysis</span>
+              <span className="rounded-full bg-accent/10 px-2 py-0.5 font-mono text-[10px] font-bold text-accent">
+                {formatTime(selectionStats.duration)}
+              </span>
+              <span className="text-[10px] text-text-muted">
+                {formatTime(selectedRange.startTime)} → {formatTime(selectedRange.endTime)}
+              </span>
             </div>
-            <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 font-mono text-text-secondary">
-              {selectionStats.paceFormatted ? (
-                <span>
-                  Avg Pace: <strong className="text-text-primary">{selectionStats.paceFormatted}</strong>
-                </span>
-              ) : null}
-              {selectionStats.avgPower != null ? (
-                <span>
-                  Power: <strong className="text-text-primary">{selectionStats.avgPower}W</strong>
-                  {selectionStats.maxPower != null ? ` (Max: ${selectionStats.maxPower}W)` : ""}
-                </span>
-              ) : null}
-              {selectionStats.avgHeartRate != null ? (
-                <span>
-                  HR: <strong className="text-text-primary">{selectionStats.avgHeartRate} bpm</strong>
-                  {selectionStats.maxHeartRate != null ? ` (Max: ${selectionStats.maxHeartRate} bpm)` : ""}
-                </span>
-              ) : null}
-              {selectionStats.avgCadence != null ? (
-                <span>
-                  {sport === "cycling" ? "Cadence" : "Stroke"}:{" "}
-                  <strong className="text-text-primary">
-                    {selectionStats.avgCadence} {sport === "cycling" ? "rpm" : "spm"}
-                  </strong>
-                </span>
-              ) : null}
-              {selectionStats.distanceKm !== "0.00" ? (
-                <span>
-                  Dist: <strong className="text-text-primary">{selectionStats.distanceKm} km</strong>
-                </span>
-              ) : null}
+            <div className="flex gap-2">
+              <button
+                onClick={zoomToSelection}
+                className="flex cursor-pointer items-center gap-1 rounded-lg bg-accent px-2.5 py-1.5 text-[11px] font-bold text-white shadow-sm transition-all hover:bg-accent/90 hover:shadow-md"
+              >
+                <ZoomIn size={11} />
+                Zoom
+              </button>
+              <button
+                onClick={() => setSelectedRange(null)}
+                className="flex cursor-pointer items-center gap-1 rounded-lg border border-border-default px-2.5 py-1.5 text-[11px] text-text-secondary transition-colors hover:bg-bg-input hover:text-text-primary"
+              >
+                Dismiss
+              </button>
             </div>
           </div>
-          <div className="flex gap-2 self-end sm:self-auto">
-            <button
-              onClick={zoomToSelection}
-              className="cursor-pointer rounded bg-accent px-2.5 py-1.5 font-bold text-white shadow-sm transition-colors hover:bg-accent/80"
-            >
-              Zoom Range
-            </button>
-            <button
-              onClick={() => setSelectedRange(null)}
-              className="cursor-pointer rounded border border-border-default px-2.5 py-1.5 text-text-secondary transition-colors hover:bg-bg-input hover:text-text-primary"
-            >
-              Dismiss
-            </button>
+
+          {/* Metrics grid */}
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+            {selectionStats.paceFormatted ? (
+              <div className="rounded-xl border border-border-subtle bg-bg-elevated/60 px-3 py-2">
+                <div className="mb-0.5 text-[9px] font-bold uppercase tracking-widest text-text-muted">
+                  {sport === "swimming" ? "Swim Pace" : sport === "cycling" ? "Speed" : "Pace"}
+                </div>
+                <div className="font-mono text-sm font-bold text-text-primary">
+                  {selectionStats.paceFormatted}
+                </div>
+              </div>
+            ) : null}
+            {selectionStats.avgPower != null ? (
+              <div className="rounded-xl border border-blue-500/20 bg-blue-500/8 px-3 py-2">
+                <div className="mb-0.5 text-[9px] font-bold uppercase tracking-widest text-blue-400/70">Avg Power</div>
+                <div className="font-mono text-sm font-bold text-blue-300">{selectionStats.avgPower} W</div>
+                {selectionStats.maxPower != null && (
+                  <div className="text-[9px] text-text-muted">Max: {selectionStats.maxPower} W</div>
+                )}
+              </div>
+            ) : null}
+            {selectionStats.avgHeartRate != null ? (
+              <div className="rounded-xl border border-red-500/20 bg-red-500/8 px-3 py-2">
+                <div className="mb-0.5 text-[9px] font-bold uppercase tracking-widest text-red-400/70">Avg HR</div>
+                <div className="font-mono text-sm font-bold text-red-300">{selectionStats.avgHeartRate} bpm</div>
+                {selectionStats.maxHeartRate != null && (
+                  <div className="text-[9px] text-text-muted">Max: {selectionStats.maxHeartRate} bpm</div>
+                )}
+              </div>
+            ) : null}
+            {selectionStats.avgCadence != null ? (
+              <div className="rounded-xl border border-purple-500/20 bg-purple-500/8 px-3 py-2">
+                <div className="mb-0.5 text-[9px] font-bold uppercase tracking-widest text-purple-400/70">Cadence</div>
+                <div className="font-mono text-sm font-bold text-purple-300">
+                  {selectionStats.avgCadence} {sport === "cycling" ? "rpm" : "spm"}
+                </div>
+              </div>
+            ) : null}
+            {selectionStats.distanceKm !== "0.00" ? (
+              <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/8 px-3 py-2">
+                <div className="mb-0.5 text-[9px] font-bold uppercase tracking-widest text-emerald-400/70">Distance</div>
+                <div className="font-mono text-sm font-bold text-emerald-300">{selectionStats.distanceKm} km</div>
+              </div>
+            ) : null}
           </div>
         </div>
       ) : null}

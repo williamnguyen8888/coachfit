@@ -118,24 +118,57 @@ interface MapInnerProps {
 
 const MapInner = React.lazy(async () => {
   ensureLeafletCss();
-  const { MapContainer, TileLayer, Polyline, CircleMarker } = await import("react-leaflet");
+  const { MapContainer, TileLayer, Polyline, CircleMarker, useMap } = await import("react-leaflet");
+  const L = (await import("leaflet")).default;
+
+  // ── FitBoundsController ─────────────────────────────────────────────────────
+  // Mounts inside MapContainer so it has access to useMap().
+  // Calls fitBounds whenever positions change or Re-center is clicked.
+  function FitBoundsController({ positions }: { positions: [number, number][] }) {
+    const map = useMap();
+
+    function fitAll() {
+      if (!positions.length) return;
+      try {
+        const bounds = L.latLngBounds(positions);
+        map.fitBounds(bounds, { padding: [40, 40], maxZoom: 17, animate: true });
+      } catch {
+        // bounds can throw if all points are identical
+      }
+    }
+
+    React.useEffect(() => {
+      fitAll();
+      const handler = () => fitAll();
+      window.addEventListener("coachfit:recenter-map", handler);
+      return () => window.removeEventListener("coachfit:recenter-map", handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [positions]);
+    return null;
+  }
 
   function Inner({ points, sportColor, colorMode, mapStyle, hoveredPoint }: MapInnerProps) {
     const validPoints = points.filter((p) => p.lat != null && p.lng != null);
     if (validPoints.length < 2) return null;
 
     const positions: [number, number][] = validPoints.map((p) => [p.lat!, p.lng!]);
-    const center = positions[Math.floor(positions.length / 2)];
+
+    // Compute geographic centre for initial render (fitBounds overrides zoom/centre immediately)
+    const lats  = positions.map(([lat]) => lat);
+    const lngs  = positions.map(([, lng]) => lng);
+    const centerLat = (Math.min(...lats) + Math.max(...lats)) / 2;
+    const centerLng = (Math.min(...lngs) + Math.max(...lngs)) / 2;
+    const center: [number, number] = [centerLat, centerLng];
 
     // Dynamic styles based on mapStyle selection
     const tileUrls = {
-      dark: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+      dark:    "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
       streets: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
       terrain: "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
     };
 
     const tileAttributions = {
-      dark: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+      dark:    '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
       streets: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> contributors',
       terrain: '&copy; <a href="https://opentopomap.org">OpenTopoMap</a>',
     };
@@ -171,33 +204,48 @@ const MapInner = React.lazy(async () => {
         attributionControl={false}
         zoomControl={true}
       >
+        {/* Auto-fit bounds to the full route */}
+        <FitBoundsController positions={positions} />
+
         <TileLayer
           url={tileUrls[mapStyle]}
           attribution={tileAttributions[mapStyle]}
         />
+
+        {/* Coloured or plain polyline */}
         {segments ? (
           segments.map((seg, i) => (
             <Polyline
               key={i}
               positions={seg.pos}
-              pathOptions={{ color: seg.color, weight: 4.5, opacity: 0.95 }}
+              pathOptions={{ color: seg.color, weight: 5, opacity: 0.95, lineCap: "round", lineJoin: "round" }}
             />
           ))
         ) : (
-          <Polyline
-            positions={positions}
-            pathOptions={{ color: sportColor, weight: 4.5, opacity: 0.95 }}
-          />
+          <>
+            {/* Shadow for depth */}
+            <Polyline
+              positions={positions}
+              pathOptions={{ color: "#000", weight: 7, opacity: 0.25, lineCap: "round" }}
+            />
+            <Polyline
+              positions={positions}
+              pathOptions={{ color: sportColor, weight: 4.5, opacity: 1, lineCap: "round" }}
+            />
+          </>
         )}
+
+        {/* Start marker — green */}
         <CircleMarker
           center={positions[0]}
-          radius={6}
-          pathOptions={{ color: "#22C55E", fillColor: "#22C55E", fillOpacity: 1, weight: 2 }}
+          radius={8}
+          pathOptions={{ color: "#fff", fillColor: "#22C55E", fillOpacity: 1, weight: 2.5 }}
         />
+        {/* Finish marker — red */}
         <CircleMarker
           center={positions[positions.length - 1]}
-          radius={6}
-          pathOptions={{ color: "#EF4444", fillColor: "#EF4444", fillOpacity: 1, weight: 2 }}
+          radius={8}
+          pathOptions={{ color: "#fff", fillColor: "#EF4444", fillOpacity: 1, weight: 2.5 }}
         />
 
         {/* Pulsing indicator synced to timeline scrubber */}
@@ -205,7 +253,7 @@ const MapInner = React.lazy(async () => {
           <>
             <CircleMarker
               center={[hoveredPoint.lat, hoveredPoint.lng]}
-              radius={14}
+              radius={16}
               pathOptions={{
                 color: "#22D3EE",
                 fillColor: "transparent",
@@ -232,6 +280,7 @@ const MapInner = React.lazy(async () => {
 
   return { default: Inner };
 });
+
 
 function NoGpsState() {
   return (
@@ -412,11 +461,14 @@ export function ActivityMap({ points, sportColor = "#8B5CF6", sport = "other" }:
         )}
 
         {/* The Leaflet Map box */}
-        <div className="relative h-[250px] sm:h-[400px] w-full bg-bg-surface overflow-hidden">
+        <div className="relative h-[320px] sm:h-[480px] w-full bg-bg-surface overflow-hidden">
           <Suspense
             fallback={
               <div className="flex h-full items-center justify-center text-sm text-text-muted bg-bg-elevated/30">
-                Loading interactive map...
+                <div className="flex flex-col items-center gap-2">
+                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-accent border-t-transparent" />
+                  <span>Loading interactive map…</span>
+                </div>
               </div>
             }
           >
@@ -429,30 +481,57 @@ export function ActivityMap({ points, sportColor = "#8B5CF6", sport = "other" }:
             />
           </Suspense>
 
+          {/* Re-center button — bottom-left above zoom controls */}
+          <button
+            onClick={() => {
+              // Trigger re-render of FitBoundsController by bumping a key would be complex,
+              // so instead reload the map by toggling mapStyle briefly. Simple workaround:
+              // We'll dispatch a custom event the FitBoundsController can listen to.
+              window.dispatchEvent(new CustomEvent("coachfit:recenter-map"));
+            }}
+            className="absolute bottom-24 left-3 z-[1000] flex items-center gap-1.5 rounded-xl border border-white/10 bg-bg-surface/90 px-2.5 py-1.5 text-[10px] font-bold text-text-secondary shadow-xl backdrop-blur-md transition-colors hover:bg-bg-surface hover:text-text-primary"
+            title="Fit route to screen"
+          >
+            <Compass size={11} />
+            Re-center
+          </button>
+
+          {/* Start / Finish legend — bottom-right */}
+          <div className="absolute bottom-3 left-3 z-[1000] flex items-center gap-3 rounded-xl border border-white/10 bg-bg-surface/90 px-3 py-1.5 text-[10px] font-semibold text-text-secondary shadow-xl backdrop-blur-md">
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-3 w-3 rounded-full border-2 border-white bg-green-500" />
+              Start
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-3 w-3 rounded-full border-2 border-white bg-red-500" />
+              Finish
+            </span>
+          </div>
+
           {/* Floating Glassmorphic HUD overlay (Desktop only) */}
           {stats && (
-            <div className="hidden sm:block absolute top-4 right-4 z-[1000] min-w-[210px] max-w-[280px] rounded-xl border border-border-subtle bg-bg-surface/85 p-3 shadow-2xl backdrop-blur-md">
-              <div className="flex items-center gap-2 border-b border-border-subtle/50 pb-1.5">
+            <div className="hidden sm:block absolute top-4 right-4 z-[1000] min-w-[200px] max-w-[260px] rounded-2xl border border-white/10 bg-bg-surface/80 p-3.5 shadow-2xl backdrop-blur-xl">
+              <div className="flex items-center gap-2 border-b border-white/10 pb-2 mb-2">
                 <span className={`h-2 w-2 rounded-full ${hoveredPoint ? "bg-cyan-400 animate-ping" : "bg-accent"}`} />
                 <h4 className="text-[10px] font-extrabold uppercase tracking-widest text-text-primary">
-                  {hoveredPoint ? "Scrubbing Route" : "Activity Stats"}
+                  {hoveredPoint ? "Live Position" : "Activity Stats"}
                 </h4>
               </div>
 
-              <div className="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-2 font-mono text-[11px] leading-tight">
+              <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 font-mono text-[11px] leading-tight">
                 {hoveredPoint ? (
                   <>
                     <div>
-                      <span className="text-[9px] font-semibold text-text-muted">Time</span>
+                      <span className="text-[9px] font-semibold text-text-muted block">Time</span>
                       <div className="font-bold text-text-primary mt-0.5">{fmtDuration(hoveredPoint.t - points![0].t)}</div>
                     </div>
                     <div>
-                      <span className="text-[9px] font-semibold text-text-muted">Distance</span>
+                      <span className="text-[9px] font-semibold text-text-muted block">Distance</span>
                       <div className="font-bold text-text-primary mt-0.5">{(((hoveredPoint.distance ?? 0) - (points![0].distance ?? 0)) / 1000).toFixed(2)} km</div>
                     </div>
                     {hoveredPoint.speed != null && (
                       <div>
-                        <span className="text-[9px] font-semibold text-text-muted">Speed</span>
+                        <span className="text-[9px] font-semibold text-text-muted block">Speed</span>
                         <div className="font-bold text-cyan-400 mt-0.5">
                           {sport === "running" ? formatPace(hoveredPoint.speed) : formatSpeedKmh(hoveredPoint.speed)}
                         </div>
@@ -460,19 +539,19 @@ export function ActivityMap({ points, sportColor = "#8B5CF6", sport = "other" }:
                     )}
                     {hoveredPoint.hr != null && (
                       <div>
-                        <span className="text-[9px] font-semibold text-text-muted">HR</span>
+                        <span className="text-[9px] font-semibold text-text-muted block">HR</span>
                         <div className="font-bold text-red-400 mt-0.5">{Math.round(hoveredPoint.hr)} bpm</div>
                       </div>
                     )}
                     {hoveredPoint.power != null && (
                       <div>
-                        <span className="text-[9px] font-semibold text-text-muted">Power</span>
+                        <span className="text-[9px] font-semibold text-text-muted block">Power</span>
                         <div className="font-bold text-blue-400 mt-0.5">{Math.round(hoveredPoint.power)} W</div>
                       </div>
                     )}
                     {hoveredPoint.altitude != null && (
                       <div>
-                        <span className="text-[9px] font-semibold text-text-muted">Elev</span>
+                        <span className="text-[9px] font-semibold text-text-muted block">Elev</span>
                         <div className="font-bold text-green-400 mt-0.5">{Math.round(hoveredPoint.altitude)} m</div>
                       </div>
                     )}
@@ -480,16 +559,16 @@ export function ActivityMap({ points, sportColor = "#8B5CF6", sport = "other" }:
                 ) : (
                   <>
                     <div>
-                      <span className="text-[9px] font-semibold text-text-muted">Distance</span>
+                      <span className="text-[9px] font-semibold text-text-muted block">Distance</span>
                       <div className="font-bold text-text-primary mt-0.5">{stats.distanceKm} km</div>
                     </div>
                     <div>
-                      <span className="text-[9px] font-semibold text-text-muted">Duration</span>
+                      <span className="text-[9px] font-semibold text-text-muted block">Duration</span>
                       <div className="font-bold text-text-primary mt-0.5">{fmtDuration(stats.duration)}</div>
                     </div>
                     {stats.avgSpeed != null && (
                       <div>
-                        <span className="text-[9px] font-semibold text-text-muted">Avg Speed</span>
+                        <span className="text-[9px] font-semibold text-text-muted block">Avg Speed</span>
                         <div className="font-bold text-text-primary mt-0.5">
                           {sport === "running" ? formatPace(stats.avgSpeed) : formatSpeedKmh(stats.avgSpeed)}
                         </div>
@@ -497,12 +576,12 @@ export function ActivityMap({ points, sportColor = "#8B5CF6", sport = "other" }:
                     )}
                     {stats.avgHr != null && (
                       <div>
-                        <span className="text-[9px] font-semibold text-text-muted">Avg HR</span>
+                        <span className="text-[9px] font-semibold text-text-muted block">Avg HR</span>
                         <div className="font-bold text-red-400 mt-0.5">{stats.avgHr} bpm</div>
                       </div>
                     )}
                     <div>
-                      <span className="text-[9px] font-semibold text-text-muted">Elev Gain</span>
+                      <span className="text-[9px] font-semibold text-text-muted block">Elev Gain</span>
                       <div className="font-bold text-green-400 mt-0.5">+{stats.elevGain} m</div>
                     </div>
                   </>

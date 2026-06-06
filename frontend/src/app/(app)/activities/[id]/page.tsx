@@ -33,6 +33,7 @@ import { ActivityNotesCard } from "@/components/activities/detail/ActivityNotesC
 import { ActivityRunningFormPanel } from "@/components/activities/detail/ActivityRunningFormPanel";
 import { ActivitySplitsPanel } from "@/components/activities/detail/ActivitySplitsPanel";
 import { ActivityQuickStats } from "@/components/activities/detail/ActivityQuickStats";
+import { ActivitySidebar } from "@/components/activities/detail/ActivitySidebar";
 import { DeleteConfirmModal } from "@/components/activities/detail/DeleteConfirmModal";
 
 // Services & types
@@ -404,6 +405,15 @@ export default function ActivityDetailPage({ params }: Props) {
   const hasGPS = streamPoints.some((p) => p.lat != null);
   const hasAlt = streamPoints.some((p) => p.altitude != null);
 
+  // Average temperature from stream
+  const avgTempFromStream = (() => {
+    const temps = streamPoints
+      .filter((p) => p.temperature != null && Number.isFinite(p.temperature!))
+      .map((p) => p.temperature!);
+    if (temps.length === 0) return activity.avgTemperature ?? null;
+    return Math.round(temps.reduce((a, b) => a + b, 0) / temps.length);
+  })();
+
   const isPaceActivity = activity.sport === "running" || activity.sport === "swimming";
   const powerTabLabel = isPaceActivity ? "PACE" : "POWER";
 
@@ -468,105 +478,114 @@ export default function ActivityDetailPage({ params }: Props) {
         />
 
         {/* Main content + sidebar */}
-        <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-          {/* Main panel — full width, Notes inline at bottom */}
-        <div
-          id="activity-main-panel"
-          className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4"
-        >
-          <div className="flex flex-col gap-4">
+        <div className="flex min-h-0 flex-1" style={{ overflow: "hidden" }}>
+          {/* ── Main panel ──────────────────────────────────── */}
+          <div
+            id="activity-main-panel"
+            className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4"
+          >
+            <div className="flex flex-col gap-4">
 
-            {/* TIMELINE */}
-            {effectiveTab === "TIMELINE" && (
-              <>
-                <InteractiveMultiLaneChart
+              {/* TIMELINE */}
+              {effectiveTab === "TIMELINE" && (
+                <>
+                  <InteractiveMultiLaneChart
+                    points={streamPoints}
+                    sport={activity.sport}
+                    selectedRange={selectedTimeRange}
+                    onRangeSelect={setSelectedTimeRange}
+                    laps={laps}
+                  />
+                  {streamPoints.length === 0 && (
+                    <div className="rounded-xl border border-dashed border-border-default bg-bg-elevated/30 p-6 text-center text-sm text-text-secondary">
+                      This activity has no telemetry streams — only summary metrics are available.
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* POWER / PACE */}
+              {effectiveTab === "POWER" && (
+                isPaceActivity ? (
+                  <ActivityAnalyticsTab
+                    mode="pace"
+                    activity={activity}
+                    points={streamPoints}
+                    zoneConfig={paceZoneConfig}
+                  />
+                ) : (
+                  <ActivityPowerPanel
+                    activity={activity}
+                    points={streamPoints}
+                    zoneConfig={powerZoneConfig}
+                  />
+                )
+              )}
+
+              {/* HR */}
+              {effectiveTab === "HR" && (
+                <ActivityHRPanel
+                  activity={activity}
                   points={streamPoints}
-                  sport={activity.sport}
-                  selectedRange={selectedTimeRange}
-                  onRangeSelect={setSelectedTimeRange}
+                  zoneConfig={heartRateZoneConfig}
+                />
+              )}
+
+              {/* ELEVATION */}
+              {effectiveTab === "ELEVATION" && (
+                <ActivityElevationPanel activity={activity} points={streamPoints} />
+              )}
+
+              {/* ROUTE */}
+              {effectiveTab === "ROUTE" && (
+                <ActivityMap points={streamPoints} sportColor={sportColor} sport={activity.sport} />
+              )}
+
+              {/* LAPS */}
+              {effectiveTab === "LAPS" && (
+                <ActivityLapsTable
                   laps={laps}
+                  sport={activity.sport}
+                  selectedLapIndex={selectedLapIndex}
+                  onSelectLap={handleLapSelect}
                 />
-                {streamPoints.length === 0 && (
-                  <div className="rounded-xl border border-dashed border-border-default bg-bg-elevated/30 p-6 text-center text-sm text-text-secondary">
-                    This activity has no telemetry streams — only summary metrics are available.
-                  </div>
-                )}
-              </>
-            )}
+              )}
 
-            {/* POWER / PACE */}
-            {effectiveTab === "POWER" && (
-              isPaceActivity ? (
-                <ActivityAnalyticsTab
-                  mode="pace"
-                  activity={activity}
-                  points={streamPoints}
-                  zoneConfig={paceZoneConfig}
+              {/* DATA */}
+              {effectiveTab === "DATA" && (
+                <ActivityDataPanel activity={activity} />
+              )}
+
+              {/* RUNNING FORM */}
+              {effectiveTab === "RUNNING_FORM" && (
+                <ActivityRunningFormPanel activity={activity} points={streamPoints} />
+              )}
+
+              {/* SPLITS */}
+              {effectiveTab === "SPLITS" && (
+                <ActivitySplitsPanel activity={activity} points={streamPoints} />
+              )}
+
+              {/* Notes — mobile only (bottom of main panel). On desktop it lives in the sidebar. */}
+              <div className="lg:hidden">
+                <ActivityNotesCard
+                  activityId={activity.id}
+                  description={activity.description}
+                  onDescriptionSaved={handleDescriptionSaved}
                 />
-              ) : (
-                <ActivityPowerPanel
-                  activity={activity}
-                  points={streamPoints}
-                  zoneConfig={powerZoneConfig}
-                />
-              )
-            )}
+              </div>
 
-            {/* HR */}
-            {effectiveTab === "HR" && (
-              <ActivityHRPanel
-                activity={activity}
-                points={streamPoints}
-                zoneConfig={heartRateZoneConfig}
-              />
-            )}
-
-            {/* ELEVATION */}
-            {effectiveTab === "ELEVATION" && (
-              <ActivityElevationPanel activity={activity} points={streamPoints} />
-            )}
-
-            {/* ROUTE */}
-            {effectiveTab === "ROUTE" && (
-              <ActivityMap points={streamPoints} sportColor={sportColor} sport={activity.sport} />
-            )}
-
-            {/* LAPS */}
-            {effectiveTab === "LAPS" && (
-              <ActivityLapsTable
-                laps={laps}
-                sport={activity.sport}
-                selectedLapIndex={selectedLapIndex}
-                onSelectLap={handleLapSelect}
-              />
-            )}
-
-            {/* DATA */}
-            {effectiveTab === "DATA" && (
-              <ActivityDataPanel activity={activity} />
-            )}
-
-            {/* RUNNING FORM */}
-            {effectiveTab === "RUNNING_FORM" && (
-              <ActivityRunningFormPanel activity={activity} points={streamPoints} />
-            )}
-
-            {/* SPLITS */}
-            {effectiveTab === "SPLITS" && (
-              <ActivitySplitsPanel activity={activity} points={streamPoints} />
-            )}
-
-            {/* Notes — always visible, inline at bottom, elegant and minimal */}
-            <ActivityNotesCard
-              activityId={activity.id}
-              description={activity.description}
-              onDescriptionSaved={handleDescriptionSaved}
-            />
-
+            </div>
           </div>
+
+          {/* ── Sticky right sidebar (desktop only) ─────────── */}
+          <ActivitySidebar
+            activity={activity}
+            avgTemperature={avgTempFromStream}
+            onDescriptionSaved={handleDescriptionSaved}
+          />
         </div>
-      </div>
-    </main>
+      </main>
 
       {/* Delete confirmation modal — rendered outside main to avoid clipping */}
       {showDeleteModal && (

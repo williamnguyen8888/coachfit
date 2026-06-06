@@ -8,16 +8,25 @@
 import * as React from "react";
 import { useState } from "react";
 import {
+  Activity,
   AlertCircle,
+  Bike,
+  Clock,
   Database,
   Download,
+  Flame,
+  Heart,
   Info,
-  Activity,
-  Bike,
+  Loader2,
+  Mountain,
+  Ruler,
+  Settings2,
+  Tag,
   Waves,
+  Zap,
 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
-import type { ActivityDetail, Sport } from "@/lib/types/activity";
+import type { ActivityDetail, ActivitySource, Sport } from "@/lib/types/activity";
 import { activitiesService } from "@/lib/services/activities";
 import { fmtClock, fmtPace, fmtSpeedKph, fmtDuration } from "@/lib/utils/streamUtils";
 
@@ -30,6 +39,8 @@ interface DataRow {
   value: string | null;
   emphasis?: boolean;
 }
+
+// ─── Data builders (unchanged logic) ──────────────────────────────────────────
 
 function buildTimeSection(activity: ActivityDetail): DataRow[] {
   return [
@@ -216,35 +227,85 @@ function buildSwimmingSection(activity: ActivityDetail): DataRow[] {
   return rows.filter(Boolean) as DataRow[];
 }
 
-function DataSection({ title, rows }: { title: string; rows: DataRow[] }) {
+// ─── UI sub-components ─────────────────────────────────────────────────────────
+
+interface SectionHeaderProps {
+  icon: React.ReactNode;
+  title: string;
+  iconColor?: string;
+}
+
+function SectionHeader({ icon, title, iconColor = "#8b8b9e" }: SectionHeaderProps) {
+  return (
+    <div className="mb-3 flex items-center gap-2">
+      <span style={{ color: iconColor }}>{icon}</span>
+      <span className="text-[11px] font-bold uppercase tracking-widest text-text-muted">{title}</span>
+      <div className="flex-1 border-t border-border-subtle/60" />
+    </div>
+  );
+}
+
+function DataRowItem({ row, isLast }: { row: DataRow; isLast: boolean }) {
+  return (
+    <div
+      className={`flex items-center justify-between gap-4 px-0 py-2.5 ${
+        !isLast ? "border-b border-border-subtle/40" : ""
+      }`}
+    >
+      <span className="text-[11px] text-text-secondary shrink-0">{row.label}</span>
+      <span
+        className={`font-mono font-bold truncate text-right ${
+          row.emphasis
+            ? "text-sm text-accent"
+            : "text-xs text-text-primary"
+        }`}
+      >
+        {row.value ?? "—"}
+      </span>
+    </div>
+  );
+}
+
+interface DataSectionProps {
+  title: string;
+  rows: DataRow[];
+  icon: React.ReactNode;
+  iconColor?: string;
+}
+
+function DataSection({ title, rows, icon, iconColor }: DataSectionProps) {
   if (rows.length === 0) return null;
   return (
     <div>
-      <div className="mb-2 text-[10px] font-bold uppercase tracking-widest text-text-muted">
-        {title}
-      </div>
-      <div className="rounded-xl border border-border-subtle overflow-hidden">
+      <SectionHeader icon={icon} title={title} iconColor={iconColor} />
+      <div>
         {rows.map((row, i) => (
-          <div
-            key={row.label}
-            className={`flex items-center justify-between px-4 py-2.5 text-xs ${
-              i < rows.length - 1 ? "border-b border-border-subtle/50" : ""
-            } ${i % 2 === 0 ? "bg-bg-elevated/20" : ""}`}
-          >
-            <span className="text-text-secondary">{row.label}</span>
-            <span
-              className={`font-semibold ${
-                row.emphasis ? "text-accent" : "text-text-primary"
-              }`}
-            >
-              {row.value ?? "—"}
-            </span>
-          </div>
+          <DataRowItem key={row.label} row={row} isLast={i === rows.length - 1} />
         ))}
       </div>
     </div>
   );
 }
+
+function SourceBadge({ source }: { source: ActivitySource }) {
+  const styles: Record<ActivitySource, string> = {
+    garmin: "bg-blue-500/15 text-blue-400 border-blue-500/30",
+    strava: "bg-orange-500/15 text-orange-400 border-orange-500/30",
+    manual: "bg-zinc-500/15 text-zinc-400 border-zinc-500/30",
+    upload: "bg-violet-500/15 text-violet-400 border-violet-500/30",
+  };
+  return (
+    <span
+      className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold capitalize ${
+        styles[source] ?? "bg-zinc-500/15 text-zinc-400 border-zinc-500/30"
+      }`}
+    >
+      {source}
+    </span>
+  );
+}
+
+// ─── Main component ────────────────────────────────────────────────────────────
 
 export function ActivityDataPanel({ activity }: Props) {
   const [downloading, setDownloading] = useState(false);
@@ -272,144 +333,192 @@ export function ActivityDataPanel({ activity }: Props) {
   const cyclingTechSection = buildCyclingTechSection(activity);
   const swimmingSection = buildSwimmingSection(activity);
 
+  const sportIcon =
+    activity.sport === "cycling" ? <Bike size={13} /> :
+    activity.sport === "swimming" ? <Waves size={13} /> :
+    <Activity size={13} />;
+
+  const sportIconColor =
+    activity.sport === "cycling" ? "#3b82f6" :
+    activity.sport === "swimming" ? "#06b6d4" :
+    "#22c55e";
+
+  const rightColSections =
+    runningDynamicsSection.length > 0 || cyclingTechSection.length > 0 || swimmingSection.length > 0;
+
   return (
-    <div className="flex flex-col gap-5">
-      <Card>
-        <div className="mb-4 flex items-center gap-2">
-          <Database size={15} className="text-text-muted" />
-          <h2 className="text-base font-bold text-text-primary">Activity Data</h2>
+    <div className="flex flex-col gap-4">
+
+      {/* 2-column grid on desktop */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+
+        {/* ── Left column ── */}
+        <div className="flex flex-col gap-4">
+
+          {/* Time & Performance */}
+          <Card>
+            <div className="flex flex-col gap-0">
+              <DataSection
+                title="Time"
+                rows={timeSection}
+                icon={<Clock size={13} />}
+                iconColor="#8b8b9e"
+              />
+              {perfSection.length > 0 && (
+                <div className="mt-4">
+                  <DataSection
+                    title="Performance"
+                    rows={perfSection}
+                    icon={sportIcon}
+                    iconColor={sportIconColor}
+                  />
+                </div>
+              )}
+              {extendedSection.length > 0 && (
+                <div className="mt-4">
+                  <DataSection
+                    title="Extended Metrics"
+                    rows={extendedSection}
+                    icon={<Mountain size={13} />}
+                    iconColor="#a78bfa"
+                  />
+                </div>
+              )}
+            </div>
+          </Card>
+
+          {/* Power section */}
+          {powerSection.length > 0 && (
+            <Card>
+              <DataSection
+                title="Power & Training Load"
+                rows={powerSection}
+                icon={<Zap size={13} />}
+                iconColor="#3b82f6"
+              />
+            </Card>
+          )}
+
+          {/* HR section */}
+          {hrSection.length > 0 && (
+            <Card>
+              <DataSection
+                title="Heart Rate"
+                rows={hrSection}
+                icon={<Heart size={13} />}
+                iconColor="#ef4444"
+              />
+            </Card>
+          )}
         </div>
 
+        {/* ── Right column ── */}
         <div className="flex flex-col gap-4">
-          <DataSection title="Time" rows={timeSection} />
-          <DataSection title="Performance" rows={perfSection} />
-          {hrSection.length > 0 && <DataSection title="Heart Rate" rows={hrSection} />}
-          {powerSection.length > 0 && <DataSection title="Power & Training Load" rows={powerSection} />}
-          {extendedSection.length > 0 && <DataSection title="Extended Metrics" rows={extendedSection} />}
 
-          {/* Running dynamics — conditional */}
+          {/* Sport-specific sections */}
           {runningDynamicsSection.length > 0 && (
-            <div>
-              <div className="mb-2 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-text-muted">
-                <Activity size={11} />
-                Running Dynamics
-              </div>
-              <div className="rounded-xl border border-border-subtle overflow-hidden">
-                {runningDynamicsSection.map((row, i) => (
-                  <div
-                    key={row.label}
-                    className={`flex items-center justify-between px-4 py-2.5 text-xs ${
-                      i < runningDynamicsSection.length - 1 ? "border-b border-border-subtle/50" : ""
-                    } ${i % 2 === 0 ? "bg-bg-elevated/20" : ""}`}
-                  >
-                    <span className="text-text-secondary">{row.label}</span>
-                    <span className="font-semibold text-text-primary">{row.value ?? "—"}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <Card>
+              <DataSection
+                title="Running Dynamics"
+                rows={runningDynamicsSection}
+                icon={<Activity size={13} />}
+                iconColor="#22c55e"
+              />
+            </Card>
           )}
 
-          {/* Cycling technique — conditional */}
           {cyclingTechSection.length > 0 && (
-            <div>
-              <div className="mb-2 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-text-muted">
-                <Bike size={11} />
-                Cycling Technique
-              </div>
-              <div className="rounded-xl border border-border-subtle overflow-hidden">
-                {cyclingTechSection.map((row, i) => (
-                  <div
-                    key={row.label}
-                    className={`flex items-center justify-between px-4 py-2.5 text-xs ${
-                      i < cyclingTechSection.length - 1 ? "border-b border-border-subtle/50" : ""
-                    } ${i % 2 === 0 ? "bg-bg-elevated/20" : ""}`}
-                  >
-                    <span className="text-text-secondary">{row.label}</span>
-                    <span className="font-semibold text-text-primary">{row.value ?? "—"}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <Card>
+              <DataSection
+                title="Cycling Technique"
+                rows={cyclingTechSection}
+                icon={<Bike size={13} />}
+                iconColor="#3b82f6"
+              />
+            </Card>
           )}
 
-          {/* Swimming — conditional */}
           {swimmingSection.length > 0 && (
+            <Card>
+              <DataSection
+                title="Swimming"
+                rows={swimmingSection}
+                icon={<Waves size={13} />}
+                iconColor="#06b6d4"
+              />
+            </Card>
+          )}
+
+          {/* Source & File info */}
+          <Card>
+            <SectionHeader icon={<Database size={13} />} title="Source & File" iconColor="#8b8b9e" />
             <div>
-              <div className="mb-2 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-text-muted">
-                <Waves size={11} />
-                Swimming
+              <div className="flex items-center justify-between py-2.5 border-b border-border-subtle/40">
+                <span className="text-[11px] text-text-secondary">Source</span>
+                <SourceBadge source={activity.source} />
               </div>
-              <div className="rounded-xl border border-border-subtle overflow-hidden">
-                {swimmingSection.map((row, i) => (
-                  <div
-                    key={row.label}
-                    className={`flex items-center justify-between px-4 py-2.5 text-xs ${
-                      i < swimmingSection.length - 1 ? "border-b border-border-subtle/50" : ""
-                    } ${i % 2 === 0 ? "bg-bg-elevated/20" : ""}`}
-                  >
-                    <span className="text-text-secondary">{row.label}</span>
-                    <span className="font-semibold text-text-primary">{row.value ?? "—"}</span>
-                  </div>
-                ))}
+              {activity.rawFileFormat && (
+                <div className="flex items-center justify-between py-2.5 border-b border-border-subtle/40">
+                  <span className="text-[11px] text-text-secondary">File Format</span>
+                  <span className="font-mono text-xs font-bold text-accent uppercase">
+                    .{activity.rawFileFormat.toLowerCase()}
+                  </span>
+                </div>
+              )}
+              <div className="flex items-center justify-between py-2.5">
+                <span className="text-[11px] text-text-secondary">Activity ID</span>
+                <span className="font-mono text-[10px] text-text-muted truncate max-w-[160px]">{activity.id}</span>
               </div>
             </div>
-          )}
+          </Card>
 
           {/* Gear */}
           {activity.gear && (
-            <div>
-              <div className="mb-2 text-[10px] font-bold uppercase tracking-widest text-text-muted">Equipment</div>
-              <div className="rounded-xl border border-border-subtle bg-bg-elevated/20 px-4 py-2.5">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-text-secondary">Gear</span>
-                  <span className="font-semibold text-text-primary">{activity.gear.name}</span>
-                </div>
+            <Card>
+              <SectionHeader icon={<Settings2 size={13} />} title="Equipment" iconColor="#8b8b9e" />
+              <div className="flex items-center justify-between py-2.5">
+                <span className="text-[11px] text-text-secondary">Gear</span>
+                <span className="flex items-center gap-1.5">
+                  <Tag size={11} className="text-text-muted" />
+                  <span className="text-xs font-semibold text-text-primary">{activity.gear.name}</span>
+                </span>
               </div>
-            </div>
+            </Card>
           )}
-
-          {/* Source & file info */}
-          <div>
-            <div className="mb-2 text-[10px] font-bold uppercase tracking-widest text-text-muted">Source</div>
-            <div className="rounded-xl border border-border-subtle overflow-hidden">
-              <div className="flex items-center justify-between border-b border-border-subtle/50 bg-bg-elevated/20 px-4 py-2.5 text-xs">
-                <span className="text-text-secondary">Source</span>
-                <span className="capitalize font-semibold text-text-primary">{activity.source}</span>
-              </div>
-              {activity.rawFileFormat && (
-                <div className="flex items-center justify-between border-b border-border-subtle/50 px-4 py-2.5 text-xs">
-                  <span className="text-text-secondary">File Format</span>
-                  <span className="font-mono font-bold text-accent uppercase">{activity.rawFileFormat}</span>
-                </div>
-              )}
-              <div className="flex items-center justify-between bg-bg-elevated/20 px-4 py-2.5 text-xs">
-                <span className="text-text-secondary">Activity ID</span>
-                <span className="font-mono text-text-muted truncate max-w-[200px]">{activity.id}</span>
-              </div>
-            </div>
-          </div>
         </div>
-      </Card>
+      </div>
 
-      {/* Download original file */}
+      {/* ── Download CTA ── */}
       {activity.rawFileFormat && (
         <Card>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h3 className="text-sm font-semibold text-text-primary">Download Original File</h3>
               <p className="mt-0.5 text-xs text-text-secondary">
-                Download the raw {activity.rawFileFormat} file that was uploaded.
+                Download the raw{" "}
+                <span className="font-mono font-bold text-accent uppercase">
+                  .{activity.rawFileFormat.toLowerCase()}
+                </span>{" "}
+                file that was uploaded.
               </p>
             </div>
             <button
               id="download-original-btn"
               onClick={handleDownload}
               disabled={downloading}
-              className="flex items-center gap-2 rounded-lg border border-border-subtle bg-bg-elevated px-4 py-2 text-xs font-semibold text-text-primary transition-all hover:bg-accent/10 hover:border-accent/50 disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-2 rounded-lg border border-accent/40 bg-accent/10 px-5 py-2.5 text-xs font-bold text-accent transition-all hover:bg-accent/20 hover:border-accent/70 disabled:opacity-50 sm:w-auto"
             >
-              <Download size={14} />
-              {downloading ? "Generating link…" : `Download .${activity.rawFileFormat.toLowerCase()}`}
+              {downloading ? (
+                <>
+                  <Loader2 size={13} className="animate-spin" />
+                  Generating link…
+                </>
+              ) : (
+                <>
+                  <Download size={13} />
+                  Download .{activity.rawFileFormat.toLowerCase()}
+                </>
+              )}
             </button>
           </div>
           {downloadError && (
@@ -421,10 +530,12 @@ export function ActivityDataPanel({ activity }: Props) {
         </Card>
       )}
 
-      {/* Methodology note */}
+      {/* ── Data integrity note ── */}
       <Card>
         <div className="flex items-start gap-3">
-          <Info size={15} className="mt-0.5 shrink-0 text-text-muted" />
+          <div className="mt-0.5 shrink-0 flex h-7 w-7 items-center justify-center rounded-full bg-bg-elevated border border-border-subtle">
+            <Info size={13} className="text-text-muted" />
+          </div>
           <div>
             <h3 className="text-xs font-semibold text-text-primary">Data Integrity Note</h3>
             <p className="mt-1 text-xs text-text-secondary leading-relaxed">
