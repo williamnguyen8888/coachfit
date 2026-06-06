@@ -30,6 +30,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -146,7 +147,7 @@ class ActivityUploadServiceTest {
         ActivityStreamPersistencePort.StreamData streamData = streamCaptor.getValue();
         assertThat(streamData.timestamps()).containsExactly(0, 30);
         assertThat(streamData.heartRate()).containsExactly((short) 145, Short.MIN_VALUE); // null → sentinel
-        assertThat(streamData.grade()).containsExactly(0.0f, 3.5f);  // null → Float.NaN handled by toFloatArray
+        assertThat(streamData.grade()).containsExactly(Float.NaN, 3.5f);  // null → Float.NaN handled by toFloatArray
 
         // Verify lap conversion
         List<ActivityLapPersistencePort.LapData> lapData = lapsCaptor.getValue();
@@ -165,7 +166,7 @@ class ActivityUploadServiceTest {
 
         when(detector.detect("ride.fit", fileBytes)).thenReturn(FileFormatDetector.Format.FIT);
         when(fitParser.parse(fileBytes)).thenReturn(parsed);
-        when(activityPort.findDuplicate(any(), any(), any(), any())).thenReturn(Optional.empty());
+        when(activityPort.findDuplicate(any(), any(), any(), anyInt())).thenReturn(Optional.empty());
         when(storagePort.storeRawFile(any(), any(), any(), any())).thenReturn("activities/raw/ride.fit");
         when(orchestrator.persist(any(), any(), any(), any(), anyBoolean(), any(), any()))
                 .thenThrow(new RuntimeException("DB down"));

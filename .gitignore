@@ -4,6 +4,11 @@ target/
 build/
 .next/
 out/
+!backend/src/main/java/com/coachfit/calendar/adapter/out/
+!backend/src/main/java/com/coachfit/calendar/adapter/out/persistence/
+!backend/src/main/java/com/coachfit/calendar/adapter/out/persistence/ExternalCalendarEventPersistenceAdapter.java
+!backend/src/main/java/com/coachfit/calendar/application/port/out/
+!backend/src/main/java/com/coachfit/calendar/application/port/out/ExternalCalendarEventPersistencePort.java
 dist/
 
 # Dependencies

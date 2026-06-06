@@ -288,6 +288,61 @@ stateDiagram-v2
 | PUT | `/calendar/{id}/skip` | Mark skipped | 🆓 |
 | POST | `/calendar/reorder` | Reorder same-day events | 🆓 |
 
+### External Athlete Events API
+
+API này dành cho hệ thống ngoài hoặc athlete dùng API key để đẩy planned workout/note vào calendar.
+Đây là JSON subset tương thích Intervals.icu cho các workflow CoachFit đang hỗ trợ; path `{id}=0`
+nghĩa là athlete của token/API key hiện tại.
+
+| Method | Endpoint | Mô tả |
+|---|---|---|
+| GET | `/athlete/{id}/events?oldest=YYYY-MM-DD&newest=YYYY-MM-DD&category=WORKOUT` | List calendar events |
+| POST | `/athlete/{id}/events?upsert=true` | Create/upsert one event by `external_id` |
+| POST | `/athlete/{id}/events?upsertOnUid=true` | Create/upsert one event by `uid` |
+| POST | `/athlete/{id}/events/bulk?upsert=true` | Create/upsert multiple events by `external_id` |
+| PUT | `/athlete/{id}/events/{eventId}` | Update one event |
+| DELETE | `/athlete/{id}/events/{eventId}` | Delete one event |
+| PUT | `/athlete/{id}/events/bulk-delete` | Delete by `id` or `external_id` |
+| DELETE | `/athlete/{id}/events?oldest=YYYY-MM-DD&newest=YYYY-MM-DD&category=WORKOUT` | Delete external events in range |
+
+`external_source` defaults to `api`, or can be set with `?source=trainingpeaks` / `X-CoachFit-Source`.
+Range delete only deletes events created via the same `external_source`, so third-party clients do not wipe user/coach-created calendar entries.
+CoachFit uses UUID event ids, not Intervals numeric ids. File payload fields are accepted for compatibility,
+but `.zwo/.mrc/.erg/.fit` parsing, CSV export, workout download, `mark-done`, and `apply-plan` are not implemented yet.
+Full endpoint reference and description grammar: [`docs/external-athlete-events-api.md`](external-athlete-events-api.md).
+
+```json
+// POST /api/v1/athlete/0/events?upsert=true
+{
+  "category": "WORKOUT",
+  "start_date_local": "2026-06-10T00:00:00",
+  "name": "Tempo Ride",
+  "description": "3x10min tempo",
+  "type": "Ride",
+  "moving_time": 3600,
+  "icu_training_load": 80,
+  "external_id": "tp-workout-123"
+}
+```
+
+```json
+// Response 200
+{
+  "id": "uuid",
+  "athlete_id": "uuid",
+  "start_date_local": "2026-06-10T00:00:00",
+  "category": "WORKOUT",
+  "name": "Tempo Ride",
+  "type": "cycling",
+  "moving_time": 3600,
+  "icu_training_load": 80,
+  "workout_id": "uuid",
+  "external_id": "tp-workout-123",
+  "external_source": "api",
+  "status": "planned"
+}
+```
+
 ### GET /calendar
 
 ```

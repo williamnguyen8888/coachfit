@@ -23,7 +23,7 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class CalendarActivityEventListenerTest {
 
-    @Mock CalendarEventPersistencePort port;
+    @Mock(lenient = true) CalendarEventPersistencePort port;
     @Mock JdbcClient jdbcClient;
 
     CalendarActivityEventListener listener;

@@ -216,15 +216,23 @@ Max nesting depth: 1 (repeat không chứa repeat).
 
 ---
 
-## Import Formats (Phase 2+)
+## Import Formats
 
-### Intervals.icu Text Format
+### Structured Text Description
+
+Implemented for the External Athlete Events API when no explicit `steps`,
+`workout.steps`, or `workout_doc` is supplied. The parser is deterministic:
+all non-empty lines must match the supported grammar, otherwise the API falls
+back to an open workout block.
+
 ```
 - 10min z2           →  warmup, 600s, power_zone 2
 - 3x10min 88-92%     →  repeat 3: work 600s power_pct 88-92%
   5min z1             →  rest 300s power_zone 1
 - 10min z1           →  cooldown 600s power_zone 1
 ```
+
+Full grammar and API examples: [`docs/external-athlete-events-api.md`](external-athlete-events-api.md).
 
 ### ZWO (Zwift Workout) XML
 ```xml

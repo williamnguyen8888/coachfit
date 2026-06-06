@@ -281,7 +281,7 @@ public class CalendarController {
     // ── Validation helpers ────────────────────────────────────────────────────
 
     private static final List<String> VALID_EVENT_TYPES =
-            List.of("workout", "note", "race", "rest");
+            List.of("workout");
 
     private static void validateRequest(CalendarEventRequest req) {
         if (req.date() == null) {
