@@ -8,6 +8,9 @@ import com.coachfit.shared.domain.event.ActivityDeletedEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
+import org.springframework.transaction.event.TransactionalEventListener;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,8 +45,15 @@ public class CalendarActivityEventListener {
         this.jdbcClient = jdbcClient;
     }
 
-    @EventListener
-    @Transactional
+    /**
+     * Runs in a brand-new transaction AFTER the activity upload transaction has
+     * committed.  This guarantees the activity row exists in the DB before we
+     * attempt to set calendar_events.activity_id, avoiding the FK violation
+     * that occurred when the listener joined the still-open upload transaction
+     * (BUG-17 fix).
+     */
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void onActivityCreated(ActivityCreatedEvent event) {
         log.info("Handling ActivityCreatedEvent: userId={} activityId={} sport={}",
                 event.userId(), event.activityId(), event.sport());
