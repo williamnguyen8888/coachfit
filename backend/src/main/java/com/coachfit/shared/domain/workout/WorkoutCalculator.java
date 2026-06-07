@@ -7,6 +7,13 @@ import java.math.RoundingMode;
 
 /**
  * Utility to parse steps JSON and calculate estimated duration, training load (TSS), and distance.
+ *
+ * <p>Two call sites exist:
+ * <ul>
+ *   <li>{@link #calculate(String, String)} — backward-compatible, uses {@link ZoneContext#defaults()}
+ *   <li>{@link #calculate(String, String, ZoneContext)} — preferred; uses the athlete's actual
+ *       threshold settings (FTP, LTHR, threshold pace) so estimated TSS is accurate.
+ * </ul>
  */
 public class WorkoutCalculator {
 
@@ -14,7 +21,22 @@ public class WorkoutCalculator {
 
     public record CalculationResult(int durationSeconds, java.math.BigDecimal tss, double distanceMeters, int averageIntensity) {}
 
+    /**
+     * Backward-compatible overload that falls back to {@link ZoneContext#defaults()}.
+     * Callers that do not have access to the user's sport zones will use generic threshold values.
+     */
     public static CalculationResult calculate(String stepsJson, String sport) {
+        return calculate(stepsJson, sport, ZoneContext.defaults());
+    }
+
+    /**
+     * Preferred entry point. Uses the athlete's actual threshold settings for accurate TSS estimation.
+     *
+     * @param stepsJson workout steps as JSON array
+     * @param sport     sport string (e.g. {@code "cycling"}, {@code "running"})
+     * @param ctx       threshold context loaded from the user's {@code sport_zones} configuration
+     */
+    public static CalculationResult calculate(String stepsJson, String sport, ZoneContext ctx) {
         if (stepsJson == null || stepsJson.isBlank()) {
             return new CalculationResult(0, BigDecimal.ZERO, 0.0, 70);
         }
@@ -30,11 +52,11 @@ public class WorkoutCalculator {
             boolean hasDistanceStep = false;
 
             for (JsonNode step : root) {
-                CalculationResult stepRes = calculateStep(step, sport);
+                CalculationResult stepRes = calculateStep(step, sport, ctx);
                 totalDuration += stepRes.durationSeconds();
                 totalTss += stepRes.tss().doubleValue();
                 totalIntensityWeighted += stepRes.averageIntensity() * stepRes.durationSeconds();
-                
+
                 // Track if we had any explicit distance-based steps
                 if (stepRes.distanceMeters() > 0) {
                     totalDistance += stepRes.distanceMeters();
@@ -61,7 +83,7 @@ public class WorkoutCalculator {
         }
     }
 
-    private static CalculationResult calculateStep(JsonNode step, String sport) {
+    private static CalculationResult calculateStep(JsonNode step, String sport, ZoneContext ctx) {
         String type = step.has("type") ? step.get("type").asText() : "work";
         if ("repeat".equals(type)) {
             int count = step.has("count") ? step.get("count").asInt() : 1;
@@ -71,7 +93,7 @@ public class WorkoutCalculator {
             double innerIntensityWeighted = 0;
             if (step.has("steps") && step.get("steps").isArray()) {
                 for (JsonNode inner : step.get("steps")) {
-                    CalculationResult innerRes = calculateStep(inner, sport);
+                    CalculationResult innerRes = calculateStep(inner, sport, ctx);
                     innerDuration += innerRes.durationSeconds();
                     innerTss += innerRes.tss().doubleValue();
                     innerDistance += innerRes.distanceMeters();
@@ -120,7 +142,7 @@ public class WorkoutCalculator {
                 case "power_pct", "hr_pct", "hr_bpm", "power_watts", "pace", "rpe", "cadence" -> {
                     double min = target.has("min") && !target.get("min").isNull() ? target.get("min").asDouble() : 0.0;
                     double max = target.has("max") && !target.get("max").isNull() ? target.get("max").asDouble() : 0.0;
-                    ifValue = estimateIfForType(targetType, min, max, sport);
+                    ifValue = estimateIfForType(targetType, min, max, sport, ctx);
                 }
                 default -> ifValue = 0.70;
             }
@@ -139,21 +161,26 @@ public class WorkoutCalculator {
         return new CalculationResult((int) Math.round(duration), BigDecimal.valueOf(tss), distance, (int) Math.round(ifValue * 100));
     }
 
-    private static double estimateIfForType(String targetType, double min, double max, String sport) {
+    /**
+     * Estimates intensity factor for a concrete target type using user-specific thresholds.
+     *
+     * @param ctx  the athlete's threshold context — FTP, LTHR, threshold pace loaded from sport_zones
+     */
+    private static double estimateIfForType(String targetType, double min, double max,
+                                            String sport, ZoneContext ctx) {
         double avg = (min + max) / 2.0;
         if (avg <= 0) return 0.70;
 
         return switch (targetType) {
-            case "power_pct", "hr_pct" -> avg;
-            case "power_watts" -> avg / 250.0; // reference to 250W FTP
-            case "hr_bpm" -> avg / 160.0; // reference to 160 bpm LTHR
+            case "power_pct", "hr_pct" -> avg / 100.0;  // already a percentage — normalise to 0..1
+            case "power_watts"         -> avg / ctx.ftpWatts();        // user's actual FTP
+            case "hr_bpm"              -> avg / ctx.lthrBpm();         // user's actual LTHR
             case "pace" -> {
-                // Running pace (sec/km): threshold pace reference is 270 sec/km (4:30/km)
-                // Speed is inversely proportional to pace: IF = ThresholdPace / AvgPace
-                yield 270.0 / avg;
+                // Running/swim pace in sec/unit: IF = thresholdPace / avgPace (faster = higher IF)
+                yield (double) ctx.thresholdPace() / avg;
             }
             case "rpe", "cadence" -> {
-                // RPE maps 1-10 to 0.1-1.0 IF (cadence is repurposed as RPE in older client DTOs)
+                // RPE 1-10 maps to IF 0.1-1.0 (cadence repurposed as RPE in older DTOs)
                 yield avg / 10.0;
             }
             default -> 0.70;

@@ -5,6 +5,8 @@ import com.coachfit.activity.application.port.out.ActivityLapPersistencePort.Lap
 import com.coachfit.activity.application.port.out.ActivityPersistencePort;
 import com.coachfit.activity.application.port.out.ActivityStreamPersistencePort;
 import com.coachfit.activity.application.port.out.ActivityStreamPersistencePort.StreamData;
+import com.coachfit.athlete.application.port.out.SportZonePersistencePort;
+import com.coachfit.athlete.domain.model.SportZone;
 import com.coachfit.auth.adapter.in.StravaOAuthProperties;
 import com.coachfit.auth.adapter.out.persistence.AesTokenEncryptionUtil;
 import com.coachfit.auth.application.port.out.OAuthConnectionPersistencePort;
@@ -15,6 +17,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.HttpClientErrorException;
@@ -66,6 +69,8 @@ public class StravaActivitySyncService {
     private final ActivityLapPersistencePort     lapPort;
     private final SyncLogPersistencePort         syncLogPort;
     private final RestClient                     restClient;
+    private final SportZonePersistencePort       sportZonePort;
+    private final JdbcClient                     jdbcClient;
     private final org.springframework.context.ApplicationEventPublisher eventPublisher;
 
     public StravaActivitySyncService(StravaTokenPort stravaTokenPort,
@@ -77,6 +82,8 @@ public class StravaActivitySyncService {
                                      ActivityLapPersistencePort lapPort,
                                      SyncLogPersistencePort syncLogPort,
                                      RestClient restClient,
+                                     SportZonePersistencePort sportZonePort,
+                                     JdbcClient jdbcClient,
                                      org.springframework.context.ApplicationEventPublisher eventPublisher) {
         this.stravaTokenPort  = stravaTokenPort;
         this.oauthPort        = oauthPort;
@@ -87,6 +94,8 @@ public class StravaActivitySyncService {
         this.lapPort          = lapPort;
         this.syncLogPort      = syncLogPort;
         this.restClient       = restClient;
+        this.sportZonePort    = sportZonePort;
+        this.jdbcClient       = jdbcClient;
         this.eventPublisher   = eventPublisher;
     }
 
@@ -121,10 +130,15 @@ public class StravaActivitySyncService {
         if ("activity_deleted".equals(eventType)) {
             activityPort.findIdByUserSourceAndSourceId(userId, PROVIDER, stravaActivityId)
                     .ifPresent(id -> {
+                        // Load detail before soft-delete so we have sport + startedAt for PMC recalc
+                        var detail = activityPort.findDetailById(userId, id).orElse(null);
                         activityPort.softDelete(id);
                         log.info("Soft-deleted Strava activity: userId={} activityId={}", userId, stravaActivityId);
                         syncLogPort.complete(logId, "success", id, null);
-                        eventPublisher.publishEvent(new com.coachfit.shared.domain.event.ActivityDeletedEvent(userId, id));
+                        eventPublisher.publishEvent(new com.coachfit.shared.domain.event.ActivityDeletedEvent(
+                                userId, id,
+                                detail != null ? detail.sport()     : null,
+                                detail != null ? detail.startedAt() : null));
                     });
             if (activityPort.findIdByUserSourceAndSourceId(userId, PROVIDER, stravaActivityId).isEmpty()) {
                 log.debug("Delete event for unknown activity: userId={} activityId={}", userId, stravaActivityId);
@@ -172,11 +186,13 @@ public class StravaActivitySyncService {
         StravaStreamsResponse streams = fetchStreams(stravaActivityId, accessToken);
 
         // ── Step 6: Persist activity row ─────────────────────────────────────
+        String sport = normalizeSport(activity.type(), activity.sportType());
+
         UUID activityId = activityPort.save(
                 userId,
                 PROVIDER,
                 stravaActivityId,
-                normalizeSport(activity.type(), activity.sportType()),
+                sport,
                 null,
                 activity.name() != null ? activity.name() : "Strava Activity",
                 activity.startDateLocal() != null
@@ -195,23 +211,44 @@ public class StravaActivitySyncService {
         int[] powerStream = extractPowerStream(streams);
         Integer np = StravaMetricsCalculator.calculateNp(powerStream);
 
-        // TODO: load FTP from sport_zones when that module is implemented (Phase 2)
-        // For now, metrics requiring FTP (IF, TSS) are left null until FTP is configured
-        BigDecimal tss = null;
-        BigDecimal intensityFactor = null;
-        Integer normalizedPower = np;
+        // Load user's power zone to get FTP for IF/TSS calculation
+        Optional<SportZone> powerZone = sportZonePort.findLatestBySportAndType(userId, sport, "power");
+        Integer ftp = powerZone.map(SportZone::ftp).orElse(null);
 
-        // HR-based TSS fallback when no power data
-        if (np == null && activity.averageHeartrate() != null && activity.maxHeartrate() != null
+        BigDecimal intensityFactor = null;
+        BigDecimal tss             = null;
+        Integer    normalizedPower = np;
+
+        if (np != null && ftp != null && ftp > 0) {
+            // Power-based TSS (most accurate — use when power stream is available)
+            intensityFactor = StravaMetricsCalculator.calculateIf(np, ftp);
+            if (intensityFactor != null && activity.movingTime() != null && activity.movingTime() > 0) {
+                tss = StravaMetricsCalculator.calculateTss(
+                        activity.movingTime(), np, intensityFactor, ftp);
+            }
+            log.debug("Power TSS: userId={} sport={} np={}W ftp={}W if={} tss={}",
+                    userId, sport, np, ftp, intensityFactor, tss);
+        } else if (np == null && activity.averageHeartrate() != null && activity.maxHeartrate() != null
                 && activity.movingTime() != null && activity.movingTime() > 0) {
+            // HR-based TSS fallback when no power data — load athlete-specific values
+            Optional<SportZone> hrZone = sportZonePort.findLatestBySportAndType(userId, sport, "heart_rate");
+            int athleteMaxHr  = hrZone.map(SportZone::maxHr)
+                                      .filter(v -> v != null && v > 0)
+                                      .orElse(activity.maxHeartrate().intValue());
+            int restingHr     = loadLatestRestingHr(userId);
+            boolean isMale    = loadIsMale(userId);
+
             tss = StravaMetricsCalculator.calculateHrTss(
                     activity.movingTime(),
                     activity.averageHeartrate().intValue(),
                     activity.maxHeartrate().intValue(),
-                    60,     // default resting HR — will be refined when wellness logs are loaded
-                    190,    // default max HR
-                    true    // default male — will be refined from athlete profile
+                    restingHr,
+                    athleteMaxHr,
+                    isMale
             );
+            log.debug("hrTSS: userId={} sport={} avgHr={} maxHr={} restingHr={} athleteMaxHr={} male={} tss={}",
+                    userId, sport, activity.averageHeartrate(), activity.maxHeartrate(),
+                    restingHr, athleteMaxHr, isMale, tss);
         }
 
         // Update activity row with all computed metrics + Strava-specific fields
@@ -249,7 +286,7 @@ public class StravaActivitySyncService {
         eventPublisher.publishEvent(new com.coachfit.shared.domain.event.ActivityCreatedEvent(
                 userId,
                 activityId,
-                normalizeSport(activity.type(), activity.sportType()),
+                sport,
                 activity.name() != null ? activity.name() : "Strava Activity",
                 activity.description(),
                 activity.startDateLocal() != null
@@ -338,7 +375,43 @@ public class StravaActivitySyncService {
         }
     }
 
+    // ── Athlete profile helpers ────────────────────────────────────────────────
+
+    /**
+     * Loads the athlete's most recent resting heart rate from the wellness log.
+     * Falls back to 60 bpm if no wellness entry exists.
+     */
+    private int loadLatestRestingHr(UUID userId) {
+        return jdbcClient.sql("""
+                SELECT resting_hr FROM wellness_log
+                 WHERE user_id   = :userId
+                   AND resting_hr IS NOT NULL
+                 ORDER BY date DESC
+                 LIMIT 1
+                """)
+                .param("userId", userId)
+                .query(Integer.class)
+                .optional()
+                .orElse(60);
+    }
+
+    /**
+     * Determines whether the athlete is male by querying the users table.
+     * Returns {@code true} (male) if no gender data is available.
+     */
+    private boolean loadIsMale(UUID userId) {
+        return jdbcClient.sql("""
+                SELECT COALESCE(gender, 'male') FROM users WHERE id = :userId
+                """)
+                .param("userId", userId)
+                .query(String.class)
+                .optional()
+                .map(g -> !"female".equalsIgnoreCase(g))
+                .orElse(true);
+    }
+
     // ── Normalization helpers ─────────────────────────────────────────────────
+
 
     private void updateActivity(UUID activityId, StravaActivityResponse a) {
         activityPort.updateFromStrava(

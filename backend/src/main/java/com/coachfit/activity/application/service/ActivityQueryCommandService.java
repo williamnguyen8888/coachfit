@@ -161,15 +161,16 @@ public class ActivityQueryCommandService
     @Override
     @Transactional
     public void delete(UUID userId, UUID activityId) {
-        // Verify ownership before soft-delete
-        activityPort.findDetailById(userId, activityId)
+        // Verify ownership before soft-delete and capture sport/startedAt for PMC recalc
+        ActivityDetail detail = activityPort.findDetailById(userId, activityId)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "Activity not found"));
 
         activityPort.softDelete(activityId);
         log.info("Activity soft-deleted: id={} user={}", activityId, userId);
 
-        eventPublisher.publishEvent(new com.coachfit.shared.domain.event.ActivityDeletedEvent(userId, activityId));
+        eventPublisher.publishEvent(new com.coachfit.shared.domain.event.ActivityDeletedEvent(
+                userId, activityId, detail.sport(), detail.startedAt()));
     }
 
     // ── DownloadActivityUseCase ───────────────────────────────────────────────

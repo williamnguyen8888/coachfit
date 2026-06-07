@@ -53,6 +53,11 @@ public final class SportNormalizer {
         return normalized;
     }
 
+    /** Alias for {@link #canonical(String)} — returns the canonical sport name. */
+    public static String normalize(String sport) {
+        return canonical(sport);
+    }
+
     public static boolean sameSport(String left, String right) {
         return canonical(left).equals(canonical(right));
     }

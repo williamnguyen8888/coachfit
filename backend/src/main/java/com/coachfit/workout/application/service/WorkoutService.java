@@ -107,7 +107,9 @@ public class WorkoutService
         Integer estDur = command.estimatedDurationSeconds();
         java.math.BigDecimal estTss = command.estimatedTss();
         if (estDur == null || estDur == 0 || estTss == null || estTss.compareTo(java.math.BigDecimal.ZERO) == 0) {
-            var calc = WorkoutCalculator.calculate(command.stepsJson(), command.sport());
+            // Load user's threshold settings for accurate TSS estimation
+            ZoneContext zoneContext = buildZoneContext(userId, command.sport());
+            var calc = WorkoutCalculator.calculate(command.stepsJson(), command.sport(), zoneContext);
             if (estDur == null || estDur == 0) {
                 estDur = calc.durationSeconds();
             }
@@ -144,7 +146,9 @@ public class WorkoutService
         Integer estDur = command.estimatedDurationSeconds();
         java.math.BigDecimal estTss = command.estimatedTss();
         if (estDur == null || estDur == 0 || estTss == null || estTss.compareTo(java.math.BigDecimal.ZERO) == 0) {
-            var calc = WorkoutCalculator.calculate(command.stepsJson(), command.sport());
+            // Load user's threshold settings for accurate TSS estimation
+            ZoneContext zoneContext = buildZoneContext(userId, command.sport());
+            var calc = WorkoutCalculator.calculate(command.stepsJson(), command.sport(), zoneContext);
             if (estDur == null || estDur == 0) {
                 estDur = calc.durationSeconds();
             }

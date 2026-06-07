@@ -11,6 +11,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -41,6 +42,37 @@ class SportZonePersistenceAdapter implements SportZonePersistencePort {
         return jpaRepo.findLatestByUserId(userId).stream()
                 .map(this::toDomain)
                 .toList();
+    }
+
+    @Override
+    public Optional<SportZone> findLatestBySportAndType(UUID userId, String sport, String zoneType) {
+        return jdbcClient.sql("""
+                SELECT * FROM sport_zones
+                 WHERE user_id   = :userId
+                   AND sport     = :sport
+                   AND zone_type = :zoneType
+                 ORDER BY effective_date DESC, created_at DESC
+                 LIMIT 1
+                """)
+                .param("userId",   userId)
+                .param("sport",    sport)
+                .param("zoneType", zoneType)
+                .query((rs, rowNum) -> {
+                    SportZoneEntity e = new SportZoneEntity();
+                    e.id            = (UUID) rs.getObject("id");
+                    e.userId        = (UUID) rs.getObject("user_id");
+                    e.sport         = rs.getString("sport");
+                    e.zoneType      = rs.getString("zone_type");
+                    e.ftp           = rs.getObject("ftp",    Integer.class);
+                    e.lthr          = rs.getObject("lthr",   Integer.class);
+                    e.maxHr         = rs.getObject("max_hr", Integer.class);
+                    e.zonesJson     = rs.getString("zones");
+                    e.effectiveDate = rs.getObject("effective_date", java.time.LocalDate.class);
+                    e.createdAt     = rs.getTimestamp("created_at").toInstant();
+                    return e;
+                })
+                .optional()
+                .map(this::toDomain);
     }
 
     @Override
