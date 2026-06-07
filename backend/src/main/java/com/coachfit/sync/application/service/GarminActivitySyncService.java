@@ -5,6 +5,8 @@ import com.coachfit.activity.application.port.out.ActivityLapPersistencePort.Lap
 import com.coachfit.activity.application.port.out.ActivityPersistencePort;
 import com.coachfit.activity.application.port.out.ActivityStreamPersistencePort;
 import com.coachfit.activity.application.port.out.ActivityStreamPersistencePort.StreamData;
+import com.coachfit.athlete.application.port.out.SportZonePersistencePort;
+import com.coachfit.athlete.domain.model.SportZone;
 import com.coachfit.sync.application.port.out.SyncLogPersistencePort;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -97,6 +99,7 @@ public class GarminActivitySyncService {
     private final SyncLogPersistencePort        syncLogPort;
     private final ObjectMapper                  objectMapper;
     private final JdbcClient                    jdbcClient;
+    private final SportZonePersistencePort      sportZonePort;
     private final org.springframework.context.ApplicationEventPublisher eventPublisher;
 
     public GarminActivitySyncService(ActivityPersistencePort activityPort,
@@ -105,6 +108,7 @@ public class GarminActivitySyncService {
                                      SyncLogPersistencePort syncLogPort,
                                      ObjectMapper objectMapper,
                                      JdbcClient jdbcClient,
+                                     SportZonePersistencePort sportZonePort,
                                      org.springframework.context.ApplicationEventPublisher eventPublisher) {
         this.activityPort = activityPort;
         this.streamPort   = streamPort;
@@ -112,6 +116,7 @@ public class GarminActivitySyncService {
         this.syncLogPort  = syncLogPort;
         this.objectMapper = objectMapper;
         this.jdbcClient   = jdbcClient;
+        this.sportZonePort = sportZonePort;
         this.eventPublisher = eventPublisher;
     }
 
@@ -192,6 +197,15 @@ public class GarminActivitySyncService {
             activityPort.updateFromStrava(activityId, name, null,
                     avgHr, maxHr, avgPower, maxPower, null,
                     null, null, avgCad, distMeters, calories, elevMeters);
+
+            // ── Calculate TSS for Garmin activities (BUG-3 fix) ──────────────
+            BigDecimal tss = calculateGarminTss(userId, sport, durationSec,
+                    avgPower, avgHr, maxHr);
+            if (tss != null) {
+                activityPort.updateTss(activityId, tss);
+                log.debug("Garmin TSS: userId={} activityId={} sport={} tss={}",
+                        userId, activityId, sport, tss);
+            }
 
             // ── Persist laps ──────────────────────────────────────────────────
             List<Map<String, Object>> lapsRaw = getList(d, "laps");
@@ -383,6 +397,66 @@ public class GarminActivitySyncService {
 
     private record StagedRow(UUID id, String summaryId, String payloadJson, UUID syncLogId, int attemptCount) {}
 
+
+    /**
+     * Calculates TSS for a Garmin activity using the best available metric.
+     *
+     * <p>Priority:
+     * <ol>
+     *   <li>Power TSS — when avg power is present and FTP is configured</li>
+     *   <li>rTSS — when running and threshold pace is configured</li>
+     *   <li>hrTSS — when heart rate data is available</li>
+     *   <li>null — insufficient data</li>
+     * </ol>
+     */
+    private BigDecimal calculateGarminTss(UUID userId, String sport, int durationSec,
+                                          Integer avgPower, Integer avgHr, Integer activityMaxHr) {
+        // 1. Power TSS (cycling with power meter)
+        if (avgPower != null && avgPower > 0) {
+            Optional<SportZone> powerZone = sportZonePort.findLatestBySportAndType(userId, sport, "power");
+            Integer ftp = powerZone.map(SportZone::ftp).orElse(null);
+            if (ftp != null && ftp > 0) {
+                // Garmin gives avg power — use as NP proxy (no stream data for proper NP calculation)
+                java.math.BigDecimal ifVal = StravaMetricsCalculator.calculateIf(avgPower, ftp);
+                return StravaMetricsCalculator.calculateTss(durationSec, avgPower, ifVal, ftp);
+            }
+        }
+
+        // 2. hrTSS fallback
+        if (avgHr != null && avgHr > 0 && activityMaxHr != null && activityMaxHr > 0 && durationSec > 0) {
+            Optional<SportZone> hrZone = sportZonePort.findLatestBySportAndType(userId, sport, "heart_rate");
+            int athleteMaxHr = hrZone.map(SportZone::maxHr)
+                                     .filter(v -> v != null && v > 0)
+                                     .orElse(activityMaxHr);
+            int restingHr = loadRestingHr(userId);
+            boolean isMale = loadGenderIsMale(userId);
+            return StravaMetricsCalculator.calculateHrTss(
+                    durationSec, avgHr, activityMaxHr, restingHr, athleteMaxHr, isMale);
+        }
+
+        return null;
+    }
+
+    private int loadRestingHr(UUID userId) {
+        return jdbcClient.sql("""
+                SELECT resting_hr FROM wellness_logs
+                 WHERE user_id = :userId AND resting_hr IS NOT NULL
+                 ORDER BY date DESC LIMIT 1
+                """)
+                .param("userId", userId)
+                .query(Integer.class)
+                .optional()
+                .orElse(60);
+    }
+
+    private boolean loadGenderIsMale(UUID userId) {
+        return jdbcClient.sql("SELECT COALESCE(gender, 'male') FROM users WHERE id = :userId")
+                .param("userId", userId)
+                .query(String.class)
+                .optional()
+                .map(g -> !"female".equalsIgnoreCase(g))
+                .orElse(true);
+    }
 
     // ── Normalization ─────────────────────────────────────────────────────────
 

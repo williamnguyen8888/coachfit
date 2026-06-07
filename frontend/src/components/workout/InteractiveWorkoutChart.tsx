@@ -255,12 +255,10 @@ export function InteractiveWorkoutChart({ steps, sport, athleteZones }: Interact
   if (athleteZones) {
     if (sport === "cycling" && athleteZones.ftp && athleteZones.ftp > 0) {
       userFtp = athleteZones.ftp;
-    } else if (sport === "running" && athleteZones.thresholdPace) {
-      const parsed = parsePaceToSeconds(athleteZones.thresholdPace);
-      if (parsed > 0) userThresholdPaceSecs = parsed;
-    } else if (sport === "swimming" && athleteZones.thresholdPace) {
-      const parsed = parsePaceToSeconds(athleteZones.thresholdPace);
-      if (parsed > 0) userThresholdPaceSecs = parsed;
+    } else if (sport === "running" && athleteZones.thresholdPace && athleteZones.thresholdPace > 0) {
+      userThresholdPaceSecs = athleteZones.thresholdPace;  // already seconds (integer)
+    } else if (sport === "swimming" && athleteZones.thresholdPace && athleteZones.thresholdPace > 0) {
+      userThresholdPaceSecs = athleteZones.thresholdPace;  // already seconds (integer)
     }
   }
 

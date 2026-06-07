@@ -141,6 +141,8 @@ public class AthleteController {
                 req.ftp(),
                 req.lthr(),
                 req.maxHr(),
+                req.thresholdPace(),
+                req.css(),
                 bands,
                 req.effectiveDate()
         );
@@ -216,6 +218,8 @@ public class AthleteController {
                 z.ftp(),
                 z.lthr(),
                 z.maxHr(),
+                z.thresholdPace(),
+                z.css(),
                 bands,
                 z.effectiveDate()
         );

@@ -12,6 +12,30 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { Save, CheckCircle, Zap, HeartPulse, Timer, Bike, Waves, Activity } from "lucide-react";
 import type { Sport, SportZones, ZonesResponse } from "@/lib/types/settings";
 
+/* ─── Pace conversion helpers ───────────────────────────────────────── */
+
+/** Convert seconds (integer) to display string "mm:ss" */
+function secsToMmSs(secs: number | null | undefined): string {
+  if (!secs || secs <= 0) return "";
+  const m = Math.floor(secs / 60);
+  const s = secs % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+/** Parse "mm:ss" string to integer seconds. Returns null if invalid. */
+function mmSsToSecs(mmss: string): number | null {
+  if (!mmss.trim()) return null;
+  const parts = mmss.trim().split(":");
+  if (parts.length === 2) {
+    const m = parseInt(parts[0], 10);
+    const s = parseInt(parts[1], 10);
+    if (!isNaN(m) && !isNaN(s) && s < 60) return m * 60 + s;
+  }
+  // Allow plain number input (treat as seconds)
+  const plain = parseInt(mmss, 10);
+  return isNaN(plain) ? null : plain;
+}
+
 /* ─── Zone colors (aligned to design system doc) ─────────────────────────── */
 
 const ZONE_COLORS: Record<number, string> = {
@@ -173,7 +197,10 @@ function SportZonesEditor({
   const [ftp, setFtp] = useState(data?.ftp ? String(data.ftp) : "");
   const [lthr, setLthr] = useState(data?.lthr ? String(data.lthr) : "");
   const [maxHr, setMaxHr] = useState(data?.maxHr ? String(data.maxHr) : "");
-  const [pace, setPace] = useState(data?.thresholdPace ?? "");
+  // thresholdPace stored as integer seconds; display as mm:ss
+  const [paceDisplay, setPaceDisplay] = useState(secsToMmSs(data?.thresholdPace));
+  // CSS (Critical Swim Speed) stored as integer seconds; display as mm:ss
+  const [cssDisplay, setCssDisplay] = useState(secsToMmSs(data?.css));
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -186,7 +213,8 @@ function SportZonesEditor({
         ftp: ftp ? parseInt(ftp) : null,
         lthr: lthr ? parseInt(lthr) : null,
         maxHr: maxHr ? parseInt(maxHr) : null,
-        thresholdPace: pace || null,
+        thresholdPace: mmSsToSecs(paceDisplay),   // integer seconds
+        css: mmSsToSecs(cssDisplay),               // integer seconds
       });
       setSaved(true);
       onSaved();
@@ -218,13 +246,25 @@ function SportZonesEditor({
         )}
 
         {sport === "running" && (
-          <InputGroup label="Threshold pace" htmlFor={`${sport}-pace`}>
+          <InputGroup label="Threshold pace (mm:ss/km)" htmlFor={`${sport}-pace`}>
             <Input
               id={`${sport}-pace`}
-              value={pace}
-              onChange={(e) => setPace(e.target.value)}
-              placeholder="mm:ss"
+              value={paceDisplay}
+              onChange={(e) => setPaceDisplay(e.target.value)}
+              placeholder="e.g. 4:45"
               leftAdornment={<Timer size={13} />}
+            />
+          </InputGroup>
+        )}
+
+        {sport === "swimming" && (
+          <InputGroup label="CSS (mm:ss/100m)" htmlFor={`${sport}-css`}>
+            <Input
+              id={`${sport}-css`}
+              value={cssDisplay}
+              onChange={(e) => setCssDisplay(e.target.value)}
+              placeholder="e.g. 1:45"
+              leftAdornment={<Waves size={13} />}
             />
           </InputGroup>
         )}

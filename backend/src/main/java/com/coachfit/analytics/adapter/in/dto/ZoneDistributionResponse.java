@@ -20,6 +20,9 @@ import java.util.List;
  *   ],
  *   "powerZones": [
  *     { "zone": 1, "label": "Z1 — Active Recovery", "seconds": 7200, "percentage": 6.7 }
+ *   ],
+ *   "paceZones": [
+ *     { "zone": 1, "label": "Z1 — Easy", "seconds": 5400, "percentage": 5.0 }
  *   ]
  * }
  * </pre>
@@ -30,7 +33,8 @@ public record ZoneDistributionResponse(
         String       sport,
         long         totalSeconds,
         List<Band>   hrZones,
-        List<Band>   powerZones
+        List<Band>   powerZones,
+        List<Band>   paceZones
 ) {
 
     public record Band(
@@ -50,7 +54,8 @@ public record ZoneDistributionResponse(
                 dist.sport(),
                 dist.totalSeconds(),
                 toBands(dist.hrZones()),
-                toBands(dist.powerZones())
+                toBands(dist.powerZones()),
+                toBands(dist.paceZones())
         );
     }
 

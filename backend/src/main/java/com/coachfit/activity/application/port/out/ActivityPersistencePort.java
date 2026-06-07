@@ -82,7 +82,7 @@ public interface ActivityPersistencePort {
     Optional<UUID> findIdByUserSourceAndSourceId(UUID userId, String source, String sourceId);
 
     /**
-     * Partially updates an activity row from a Strava "activity_updated" event.
+     * Partially updates an activity row from a Strava \"activity_updated\" event.
      * Only non-null fields are applied.
      */
     void updateFromStrava(UUID activityId, String name, String description,
@@ -91,6 +91,17 @@ public interface ActivityPersistencePort {
                           java.math.BigDecimal tss, java.math.BigDecimal intensityFactor,
                           Integer avgCadence, java.math.BigDecimal distanceMeters,
                           Integer calories, java.math.BigDecimal elevationGainMeters);
+
+    /**
+     * Updates only the {@code tss} column for an activity.
+     *
+     * <p>Used by Garmin sync to apply post-insert TSS calculation
+     * without touching other fields.
+     *
+     * @param activityId the target activity UUID
+     * @param tss        calculated TSS value
+     */
+    void updateTss(UUID activityId, java.math.BigDecimal tss);
 
     /** Soft-deletes an activity by setting {@code deleted_at = now()}. */
     void softDelete(UUID activityId);

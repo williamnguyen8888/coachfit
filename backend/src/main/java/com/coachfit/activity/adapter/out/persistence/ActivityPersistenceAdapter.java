@@ -213,6 +213,20 @@ class ActivityPersistenceAdapter implements ActivityPersistencePort {
                 .update();
     }
 
+    @Override
+    @Transactional
+    public void updateTss(UUID activityId, java.math.BigDecimal tss) {
+        jdbcClient.sql("""
+                UPDATE activities
+                   SET tss = :tss, updated_at = now()
+                 WHERE id = :id AND deleted_at IS NULL
+                """)
+                .param("tss", tss)
+                .param("id",  activityId)
+                .update();
+    }
+
+
     private static final Set<String> ALLOWED_SORT_FIELDS = Set.of(
             "startedAt", "durationSeconds", "distanceMeters", "tss", "createdAt"
     );

@@ -70,8 +70,12 @@ export interface SportZones {
   lthr?: number | null;
   /** Max heart rate in bpm — backend field: `maxHr` */
   maxHr?: number | null;
-  /** Threshold pace as mm:ss string (running) */
-  thresholdPace?: string | null;
+  /** Threshold pace in seconds per km (running) or seconds per 100m (swimming).
+   *  Backend field: `threshold_pace` (INTEGER). Display as mm:ss in UI. */
+  thresholdPace?: number | null;
+  /** Critical Swim Speed in seconds per 100m.
+   *  Backend field: `css` (INTEGER). Display as mm:ss in UI. */
+  css?: number | null;
   zones: ZoneDefinition[];
   effectiveDate?: string | null; // YYYY-MM-DD
 }

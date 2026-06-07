@@ -574,14 +574,14 @@ function formatStepToReadableText(step: WorkoutStep, sport: string, zones?: Spor
         
         let absStr = "";
         if (zones?.thresholdPace && sport === "running") {
-          const thresholdSecs = parsePaceToSeconds(zones.thresholdPace);
+          const thresholdSecs = zones.thresholdPace;  // already seconds (integer)
           if (thresholdSecs > 0) {
             const maxPaceSecs = Math.round(thresholdSecs / step.target.max);
             const minPaceSecs = Math.round(thresholdSecs / step.target.min);
             absStr = ` (${formatSecondsToPace(maxPaceSecs)}-${formatSecondsToPace(minPaceSecs)}/km)`;
           }
         } else if (zones?.thresholdPace && sport === "swimming") {
-          const thresholdSecs = parsePaceToSeconds(zones.thresholdPace);
+          const thresholdSecs = zones.thresholdPace;  // already seconds (integer)
           if (thresholdSecs > 0) {
             const maxPaceSecs = Math.round(thresholdSecs / step.target.max);
             const minPaceSecs = Math.round(thresholdSecs / step.target.min);

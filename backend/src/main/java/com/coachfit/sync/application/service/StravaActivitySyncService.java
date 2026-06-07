@@ -228,27 +228,42 @@ public class StravaActivitySyncService {
             }
             log.debug("Power TSS: userId={} sport={} np={}W ftp={}W if={} tss={}",
                     userId, sport, np, ftp, intensityFactor, tss);
+        } else if (np == null && "running".equals(sport)
+                && activity.averageSpeed() != null && activity.averageSpeed() > 0
+                && activity.movingTime() != null && activity.movingTime() > 0) {
+            // rTSS: Running TSS — pace-based, no power meter needed
+            Optional<SportZone> paceZone = sportZonePort.findLatestBySportAndType(userId, sport, "pace");
+            Integer thresholdPace = paceZone.map(SportZone::thresholdPace).orElse(null);
+            if (thresholdPace != null && thresholdPace > 0) {
+                // Convert m/s speed to sec/km pace
+                double avgPaceSecPerKm = 1000.0 / activity.averageSpeed();
+                tss = StravaMetricsCalculator.calculateRtss(
+                        activity.movingTime(), avgPaceSecPerKm, thresholdPace);
+                log.debug("rTSS: userId={} sport={} pace={:.1f}s/km threshold={}s/km tss={}",
+                        userId, sport, avgPaceSecPerKm, thresholdPace, tss);
+            } else {
+                // Fallback to hrTSS when no threshold pace is configured
+                tss = computeHrTss(userId, sport, activity);
+            }
+        } else if (np == null && "swimming".equals(sport)
+                && activity.averageSpeed() != null && activity.averageSpeed() > 0
+                && activity.movingTime() != null && activity.movingTime() > 0) {
+            // sTSS: Swim TSS — CSS-based
+            Optional<SportZone> paceZone = sportZonePort.findLatestBySportAndType(userId, sport, "pace");
+            Integer css = paceZone.map(SportZone::css).orElse(null);
+            if (css != null && css > 0) {
+                // Convert m/s speed to sec/100m pace
+                double avgPaceSecPer100m = 100.0 / activity.averageSpeed();
+                tss = StravaMetricsCalculator.calculateStss(
+                        activity.movingTime(), avgPaceSecPer100m, css);
+                log.debug("sTSS: userId={} css={}s/100m tss={}", userId, css, tss);
+            } else {
+                tss = computeHrTss(userId, sport, activity);
+            }
         } else if (np == null && activity.averageHeartrate() != null && activity.maxHeartrate() != null
                 && activity.movingTime() != null && activity.movingTime() > 0) {
-            // HR-based TSS fallback when no power data — load athlete-specific values
-            Optional<SportZone> hrZone = sportZonePort.findLatestBySportAndType(userId, sport, "heart_rate");
-            int athleteMaxHr  = hrZone.map(SportZone::maxHr)
-                                      .filter(v -> v != null && v > 0)
-                                      .orElse(activity.maxHeartrate().intValue());
-            int restingHr     = loadLatestRestingHr(userId);
-            boolean isMale    = loadIsMale(userId);
-
-            tss = StravaMetricsCalculator.calculateHrTss(
-                    activity.movingTime(),
-                    activity.averageHeartrate().intValue(),
-                    activity.maxHeartrate().intValue(),
-                    restingHr,
-                    athleteMaxHr,
-                    isMale
-            );
-            log.debug("hrTSS: userId={} sport={} avgHr={} maxHr={} restingHr={} athleteMaxHr={} male={} tss={}",
-                    userId, sport, activity.averageHeartrate(), activity.maxHeartrate(),
-                    restingHr, athleteMaxHr, isMale, tss);
+            // hrTSS fallback: all other sports or when no pace threshold configured
+            tss = computeHrTss(userId, sport, activity);
         }
 
         // Update activity row with all computed metrics + Strava-specific fields
@@ -383,7 +398,7 @@ public class StravaActivitySyncService {
      */
     private int loadLatestRestingHr(UUID userId) {
         return jdbcClient.sql("""
-                SELECT resting_hr FROM wellness_log
+                SELECT resting_hr FROM wellness_logs
                  WHERE user_id   = :userId
                    AND resting_hr IS NOT NULL
                  ORDER BY date DESC
@@ -409,6 +424,37 @@ public class StravaActivitySyncService {
                 .map(g -> !"female".equalsIgnoreCase(g))
                 .orElse(true);
     }
+
+    /**
+     * Computes hrTSS for an activity, loading athlete-specific values (maxHr, restingHr, gender)
+     * from the database. Returns {@code null} if heart rate data is not available.
+     */
+    private BigDecimal computeHrTss(UUID userId, String sport, StravaActivityResponse activity) {
+        if (activity.averageHeartrate() == null || activity.maxHeartrate() == null
+                || activity.movingTime() == null || activity.movingTime() <= 0) {
+            return null;
+        }
+        Optional<SportZone> hrZone = sportZonePort.findLatestBySportAndType(userId, sport, "heart_rate");
+        int athleteMaxHr = hrZone.map(SportZone::maxHr)
+                                 .filter(v -> v != null && v > 0)
+                                 .orElse(activity.maxHeartrate().intValue());
+        int restingHr    = loadLatestRestingHr(userId);
+        boolean isMale   = loadIsMale(userId);
+
+        BigDecimal tss = StravaMetricsCalculator.calculateHrTss(
+                activity.movingTime(),
+                activity.averageHeartrate().intValue(),
+                activity.maxHeartrate().intValue(),
+                restingHr,
+                athleteMaxHr,
+                isMale
+        );
+        log.debug("hrTSS: userId={} sport={} avgHr={} maxHr={} restingHr={} athleteMaxHr={} male={} tss={}",
+                userId, sport, activity.averageHeartrate(), activity.maxHeartrate(),
+                restingHr, athleteMaxHr, isMale, tss);
+        return tss;
+    }
+
 
     // ── Normalization helpers ─────────────────────────────────────────────────
 

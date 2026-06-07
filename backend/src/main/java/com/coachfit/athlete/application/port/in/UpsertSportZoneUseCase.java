@@ -29,13 +29,19 @@ public interface UpsertSportZoneUseCase {
             String zoneType,        // power | heart_rate | pace
 
             @Positive
-            Integer ftp,            // nullable
+            Integer ftp,            // nullable — cycling FTP in watts
 
             @Positive @Max(250)
-            Integer lthr,           // nullable
+            Integer lthr,           // nullable — bpm
 
             @Positive @Max(250)
-            Integer maxHr,          // nullable
+            Integer maxHr,          // nullable — bpm
+
+            @Positive
+            Integer thresholdPace,  // nullable — sec/km (running) | sec/100m (swimming)
+
+            @Positive
+            Integer css,            // nullable — Critical Swim Speed (sec/100m)
 
             @NotEmpty @Valid
             List<ZoneBandInput> zones,

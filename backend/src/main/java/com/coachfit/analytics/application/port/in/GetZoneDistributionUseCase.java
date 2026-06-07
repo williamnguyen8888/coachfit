@@ -56,6 +56,7 @@ public interface GetZoneDistributionUseCase {
      * @param totalSeconds total seconds of analysed stream data (denominator for percentages)
      * @param hrZones     time-in-heart-rate-zone breakdown (empty if no HR stream data)
      * @param powerZones  time-in-power-zone breakdown (empty if no power stream data)
+     * @param paceZones   time-in-pace-zone breakdown (empty if no speed stream data or pace zones configured)
      */
     record ZoneDistribution(
             LocalDate       from,
@@ -63,6 +64,7 @@ public interface GetZoneDistributionUseCase {
             String          sport,
             long            totalSeconds,
             List<ZoneBand>  hrZones,
-            List<ZoneBand>  powerZones
+            List<ZoneBand>  powerZones,
+            List<ZoneBand>  paceZones
     ) {}
 }

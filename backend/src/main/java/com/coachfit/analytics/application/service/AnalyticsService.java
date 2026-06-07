@@ -134,17 +134,22 @@ public class AnalyticsService
                 .filter(b -> b.powerMin() != null || b.powerMax() != null)
                 .toList();
 
+        // Load pace zone boundaries separately from the pace zone_type
+        List<ZoneBoundaryRow> paceBounds = queryPort.findPaceZoneBoundaries(userId, boundaryLookupSport);
+
         ZoneTimeData raw = queryPort.aggregateZoneTimes(
-                userId, sport, query.from(), query.to(), hrBounds, powerBounds);
+                userId, sport, query.from(), query.to(), hrBounds, powerBounds, paceBounds);
 
         long totalHrSeconds    = raw.hrZoneTotals().stream().mapToLong(z -> z.seconds()).sum();
         long totalPowerSeconds = raw.powerZoneTotals().stream().mapToLong(z -> z.seconds()).sum();
-        long totalSeconds      = Math.max(totalHrSeconds, totalPowerSeconds);
+        long totalPaceSeconds  = raw.paceZoneTotals().stream().mapToLong(z -> z.seconds()).sum();
+        long totalSeconds      = Math.max(Math.max(totalHrSeconds, totalPowerSeconds), totalPaceSeconds);
 
         List<ZoneBand> hrZones    = assembleBands(raw.hrZoneTotals(),    hrBounds,    totalHrSeconds);
         List<ZoneBand> powerZones = assembleBands(raw.powerZoneTotals(), powerBounds, totalPowerSeconds);
+        List<ZoneBand> paceZones  = assembleBands(raw.paceZoneTotals(),  paceBounds,  totalPaceSeconds);
 
-        return new ZoneDistribution(query.from(), query.to(), sport, totalSeconds, hrZones, powerZones);
+        return new ZoneDistribution(query.from(), query.to(), sport, totalSeconds, hrZones, powerZones, paceZones);
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

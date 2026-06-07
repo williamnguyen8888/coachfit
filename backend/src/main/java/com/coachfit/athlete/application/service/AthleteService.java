@@ -11,7 +11,11 @@ import com.coachfit.athlete.domain.model.OAuthConnection;
 import com.coachfit.athlete.domain.model.SportZone;
 import com.coachfit.athlete.domain.model.SportZone.ZoneBand;
 import com.coachfit.athlete.domain.model.UserSummary;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -45,6 +49,8 @@ public class AthleteService
                    GetConnectionsUseCase,
                    DisconnectProviderUseCase {
 
+    private static final Logger log = LoggerFactory.getLogger(AthleteService.class);
+
     /** Supported sports — keeps validation in sync with schema docs. */
     private static final Set<String> SUPPORTED_SPORTS =
             Set.of("cycling", "running", "swimming");
@@ -57,15 +63,21 @@ public class AthleteService
     private final AthleteProfilePersistencePort profilePort;
     private final SportZonePersistencePort      zonePort;
     private final ConnectionsPersistencePort    connectionsPort;
+    private final JdbcClient                   jdbcClient;
+    private final ObjectMapper                 objectMapper;
 
     public AthleteService(UserSummaryPersistencePort userPort,
                           AthleteProfilePersistencePort profilePort,
                           SportZonePersistencePort zonePort,
-                          ConnectionsPersistencePort connectionsPort) {
+                          ConnectionsPersistencePort connectionsPort,
+                          JdbcClient jdbcClient,
+                          ObjectMapper objectMapper) {
         this.userPort        = userPort;
         this.profilePort     = profilePort;
         this.zonePort        = zonePort;
         this.connectionsPort = connectionsPort;
+        this.jdbcClient      = jdbcClient;
+        this.objectMapper    = objectMapper;
     }
 
     // ── GET /athlete ──────────────────────────────────────────────────────────
@@ -164,6 +176,9 @@ public class AthleteService
                 .map(b -> new ZoneBand(b.zone(), b.name(), b.min(), b.max()))
                 .toList();
 
+        // Capture old value for audit log
+        String oldValueJson = captureCurrentZoneJson(cmd.userId(), cmd.sport(), cmd.zoneType());
+
         SportZone zone = new SportZone(
                 null,                // id assigned by DB
                 cmd.userId(),
@@ -172,12 +187,60 @@ public class AthleteService
                 cmd.ftp(),
                 cmd.lthr(),
                 cmd.maxHr(),
+                cmd.thresholdPace(),
+                cmd.css(),
                 domainBands,
                 cmd.effectiveDate() != null ? cmd.effectiveDate() : LocalDate.now(),
                 null
         );
 
-        return zonePort.upsert(zone);
+        SportZone saved = zonePort.upsert(zone);
+
+        // BUG-4 fix: write zone change to audit_log
+        writeAuditLog(cmd.userId(), "zone_updated",
+                "sport_zones", saved.id(), oldValueJson, saved);
+
+        return saved;
+    }
+
+    // ── Audit helpers ─────────────────────────────────────────────────────────
+
+    /** Returns the current zone as a JSON string for audit logging (null if none exists). */
+    private String captureCurrentZoneJson(UUID userId, String sport, String zoneType) {
+        return zonePort.findLatestBySportAndType(userId, sport, zoneType)
+                .map(z -> {
+                    try {
+                        return objectMapper.writeValueAsString(z);
+                    } catch (Exception ex) {
+                        return null;
+                    }
+                })
+                .orElse(null);
+    }
+
+    /** Inserts a row into the {@code audit_log} table for zone changes. */
+    private void writeAuditLog(UUID userId, String action, String entityType,
+                               java.util.UUID entityId, String oldValueJson, SportZone newZone) {
+        try {
+            String newValueJson = objectMapper.writeValueAsString(newZone);
+            jdbcClient.sql("""
+                    INSERT INTO audit_log (user_id, action, entity_type, entity_id, old_value, new_value)
+                    VALUES (:userId, :action, :entityType, :entityId,
+                            :oldValue::jsonb, :newValue::jsonb)
+                    """)
+                    .param("userId",     userId)
+                    .param("action",     action)
+                    .param("entityType", entityType)
+                    .param("entityId",   entityId)
+                    .param("oldValue",   oldValueJson)
+                    .param("newValue",   newValueJson)
+                    .update();
+            log.debug("Audit log written: userId={} action={} entityType={}", userId, action, entityType);
+        } catch (Exception ex) {
+            // Non-critical: log and continue — zone was saved successfully
+            log.warn("Failed to write zone audit log: userId={} action={} error={}",
+                    userId, action, ex.getMessage());
+        }
     }
 
     // ── GET /athlete/connections ──────────────────────────────────────────────

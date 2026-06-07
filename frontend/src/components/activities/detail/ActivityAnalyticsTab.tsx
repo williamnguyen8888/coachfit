@@ -123,7 +123,12 @@ function getThresholdPaceSeconds(zoneConfig: SportZones | null | undefined): num
     return zoneConfig.ftp;
   }
 
-  return parseThresholdPaceString(zoneConfig.thresholdPace);
+  // thresholdPace is stored as integer seconds (sec/km for running, sec/100m for swimming)
+  if (typeof zoneConfig.thresholdPace === "number" && zoneConfig.thresholdPace > 0) {
+    return zoneConfig.thresholdPace;
+  }
+
+  return null;
 }
 
 function buildSampleDuration(points: StreamPoint[], index: number): number {

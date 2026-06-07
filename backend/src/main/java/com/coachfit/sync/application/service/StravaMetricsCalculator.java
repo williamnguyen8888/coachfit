@@ -1,7 +1,6 @@
 package com.coachfit.sync.application.service;
 
 import java.math.BigDecimal;
-import java.math.MathContext;
 import java.math.RoundingMode;
 
 /**
@@ -14,6 +13,8 @@ import java.math.RoundingMode;
 final class StravaMetricsCalculator {
 
     private StravaMetricsCalculator() {}
+
+    // ── Power-based metrics ───────────────────────────────────────────────────
 
     /**
      * Normalized Power (NP) from a 1-second-resolution power stream.
@@ -61,7 +62,7 @@ final class StravaMetricsCalculator {
     }
 
     /**
-     * Training Stress Score.
+     * Training Stress Score (power-based TSS).
      *
      * <pre>TSS = (durationSeconds × NP × IF) / (FTP × 3600) × 100</pre>
      *
@@ -77,6 +78,95 @@ final class StravaMetricsCalculator {
                 / ((double) ftp * 3600.0) * 100.0;
         return BigDecimal.valueOf(tss).setScale(1, RoundingMode.HALF_UP);
     }
+
+    /**
+     * Variability Index (VI) — measures power distribution evenness.
+     *
+     * <pre>VI = NP / AvgPower</pre>
+     *
+     * <p>VI ≈ 1.0 for very steady-state efforts (TT). Higher values indicate more
+     * variability (criterium, climbs). Industry benchmark: good pacing = VI ≤ 1.05.
+     *
+     * @param np       normalized power in watts
+     * @param avgPower average power in watts
+     * @return VI rounded to 3 decimal places, or {@code null} if avgPower ≤ 0
+     */
+    static BigDecimal calculateVi(int np, int avgPower) {
+        if (avgPower <= 0) return null;
+        return BigDecimal.valueOf((double) np / avgPower).setScale(3, RoundingMode.HALF_UP);
+    }
+
+    /**
+     * Efficiency Factor (EF) — measures aerobic efficiency (power vs HR).
+     *
+     * <pre>EF = NP / AvgHR</pre>
+     *
+     * <p>Higher EF = more power per heartbeat = better aerobic fitness.
+     * Tracking EF over a season is a key fitness indicator. Typical values: 1.0–2.5 for cycling.
+     *
+     * @param np    normalized power in watts
+     * @param avgHr average heart rate in bpm
+     * @return EF rounded to 3 decimal places, or {@code null} if avgHr ≤ 0
+     */
+    static BigDecimal calculateEf(int np, int avgHr) {
+        if (avgHr <= 0) return null;
+        return BigDecimal.valueOf((double) np / avgHr).setScale(3, RoundingMode.HALF_UP);
+    }
+
+    // ── Pace-based metrics ────────────────────────────────────────────────────
+
+    /**
+     * Running TSS (rTSS) — pace-based TSS for running activities without a power meter.
+     *
+     * <pre>
+     * pace_IF  = thresholdPace / avgPace   (lower pace = faster, so IF > 1 when faster than threshold)
+     * rTSS     = (durationSeconds × pace_IF²) / 3600 × 100
+     * </pre>
+     *
+     * <p>Uses the same mathematical structure as power TSS (Coggan) but substitutes
+     * pace intensity for power intensity. When {@code avgPace ≥ thresholdPace}, the athlete
+     * is at or below threshold intensity and IF ≤ 1.
+     *
+     * @param durationSeconds       activity duration in seconds
+     * @param avgPaceSecPerKm       average pace in seconds per km (lower = faster)
+     * @param thresholdPaceSecPerKm threshold pace in seconds per km from sport_zones
+     * @return rTSS rounded to 1 decimal place, or {@code null} if pace data is missing/invalid
+     */
+    static BigDecimal calculateRtss(int durationSeconds, double avgPaceSecPerKm,
+                                    int thresholdPaceSecPerKm) {
+        if (thresholdPaceSecPerKm <= 0 || avgPaceSecPerKm <= 0) return null;
+        if (durationSeconds <= 0) return BigDecimal.ZERO;
+
+        // IF: threshold / avg — faster pace gives IF > 1 (more intense)
+        double paceIf = (double) thresholdPaceSecPerKm / avgPaceSecPerKm;
+        double rtss = ((double) durationSeconds * paceIf * paceIf) / 3600.0 * 100.0;
+        return BigDecimal.valueOf(rtss).setScale(1, RoundingMode.HALF_UP);
+    }
+
+    /**
+     * Swim TSS (sTSS) — CSS-based TSS for swimming activities.
+     *
+     * <pre>
+     * swim_IF = css / avgPace100m   (lower pace = faster swim)
+     * sTSS    = (durationSeconds × swim_IF²) / 3600 × 100
+     * </pre>
+     *
+     * @param durationSeconds    activity duration in seconds
+     * @param avgPaceSecPer100m  average pace in seconds per 100m
+     * @param cssSecPer100m      Critical Swim Speed from sport_zones (sec/100m)
+     * @return sTSS rounded to 1 decimal place, or {@code null} if CSS data is missing/invalid
+     */
+    static BigDecimal calculateStss(int durationSeconds, double avgPaceSecPer100m,
+                                    int cssSecPer100m) {
+        if (cssSecPer100m <= 0 || avgPaceSecPer100m <= 0) return null;
+        if (durationSeconds <= 0) return BigDecimal.ZERO;
+
+        double swimIf = (double) cssSecPer100m / avgPaceSecPer100m;
+        double stss = ((double) durationSeconds * swimIf * swimIf) / 3600.0 * 100.0;
+        return BigDecimal.valueOf(stss).setScale(1, RoundingMode.HALF_UP);
+    }
+
+    // ── HR-based metrics ──────────────────────────────────────────────────────
 
     /**
      * HR-based TSS (hrTSS) using the TRIMP-based formula for activities without power data.
@@ -96,7 +186,7 @@ final class StravaMetricsCalculator {
      *
      * @param durationSeconds activity duration
      * @param avgHr           average heart rate during activity
-     * @param maxHr           max heart rate during activity (used as proxy for athlete maxHR if HR zones not set)
+     * @param maxHr           max heart rate during activity
      * @param restingHr       athlete resting heart rate (default 60 if unknown)
      * @param athleteMaxHr    athlete's known max HR (default 190 if unknown)
      * @param isMale          true for male weighting, false for female

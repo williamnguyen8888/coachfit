@@ -42,6 +42,12 @@ class SportZoneEntity {
     @Column(name = "max_hr")
     Integer maxHr;
 
+    @Column(name = "threshold_pace")
+    Integer thresholdPace;
+
+    @Column(name = "css")
+    Integer css;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "zones", nullable = false, columnDefinition = "jsonb")
     String zonesJson;  // raw JSON: [{zone:1,name:"Recovery",min:0,max:55},...]

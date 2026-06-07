@@ -2,6 +2,7 @@ package com.coachfit.athlete.application.port.out;
 
 import com.coachfit.athlete.domain.model.SportZone;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -29,6 +30,21 @@ public interface SportZonePersistencePort {
      * @return the most recent matching zone, or empty if none configured
      */
     Optional<SportZone> findLatestBySportAndType(UUID userId, String sport, String zoneType);
+
+    /**
+     * Returns the zone row effective at or before the given date.
+     *
+     * <p>Used for historical accuracy: Time-in-Zone and TSS are computed
+     * against the zone configuration that was active when the activity occurred.
+     *
+     * @param userId      the authenticated user
+     * @param sport       e.g. {@code "cycling"}
+     * @param zoneType    e.g. {@code "power"}, {@code "heart_rate"}, {@code "pace"}
+     * @param activityDate the date of the activity
+     * @return the zone config active on that date, or empty if none
+     */
+    Optional<SportZone> findBySportAndTypeAtDate(UUID userId, String sport, String zoneType,
+                                                  LocalDate activityDate);
 
     /** Upserts on {@code (user_id, sport, zone_type, effective_date)} unique constraint. */
     SportZone upsert(SportZone zone);

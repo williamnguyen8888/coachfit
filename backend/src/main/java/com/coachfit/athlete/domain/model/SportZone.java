@@ -14,11 +14,13 @@ import java.util.UUID;
 public record SportZone(
         UUID          id,
         UUID          userId,
-        String        sport,       // cycling | running | swimming
-        String        zoneType,   // power | heart_rate | pace
-        Integer       ftp,        // nullable — cycling: watts, running: sec/km
-        Integer       lthr,       // nullable — bpm
-        Integer       maxHr,      // nullable — bpm
+        String        sport,          // cycling | running | swimming
+        String        zoneType,       // power | heart_rate | pace
+        Integer       ftp,            // nullable — cycling FTP in watts
+        Integer       lthr,           // nullable — bpm (Lactate Threshold HR)
+        Integer       maxHr,          // nullable — bpm
+        Integer       thresholdPace,  // nullable — sec/km (running) | sec/100m (swimming)
+        Integer       css,            // nullable — Critical Swim Speed in sec/100m
         List<ZoneBand> zones,
         LocalDate     effectiveDate,
         Instant       createdAt

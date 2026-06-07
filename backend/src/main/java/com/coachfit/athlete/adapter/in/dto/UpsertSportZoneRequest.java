@@ -24,6 +24,14 @@ public record UpsertSportZoneRequest(
         @Max(value = 250, message = "maxHr must be ≤ 250 bpm")
         Integer maxHr,
 
+        @Positive(message = "thresholdPace must be positive (seconds per km or per 100m)")
+        @Max(value = 1800, message = "thresholdPace must be ≤ 1800 sec (30 min/km)")
+        Integer thresholdPace,
+
+        @Positive(message = "css must be positive (seconds per 100m)")
+        @Max(value = 600, message = "css must be ≤ 600 sec (10 min/100m)")
+        Integer css,
+
         @NotEmpty(message = "zones must not be empty")
         @Valid
         List<ZoneBandRequest> zones,

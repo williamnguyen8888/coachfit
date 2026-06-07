@@ -218,8 +218,12 @@ public class WorkoutService
     }
 
     /**
-     * Extracts FTP and LTHR from the athlete's zone list and wraps them in a {@link ZoneContext}.
-     * Falls back to {@link ZoneContext#defaults()} values if zones are absent or unconfigured.
+     * Extracts FTP, LTHR, and threshold pace from the athlete's zone list and wraps them
+     * in a {@link ZoneContext}. Falls back to {@link ZoneContext#defaults()} values if
+     * zones are absent or unconfigured.
+     *
+     * <p>FIX (BUG-2): threshold pace is now read from {@code zone.thresholdPace()} — the
+     * dedicated column — instead of the {@code ftp} column which was semantically wrong.
      */
     private ZoneContext buildZoneContext(UUID userId, String sport) {
         var zones = sportZonesUseCase.getZones(userId);
@@ -242,12 +246,14 @@ public class WorkoutService
                 .findFirst()
                 .orElse(160);
 
+        // BUG-2 FIX: use thresholdPace() — dedicated column added in V039 migration.
+        // Previously this incorrectly used z.ftp() for pace zones, always falling back to 300.
         int thresholdPace = zones.stream()
                 .filter(z -> sport != null
                         && sport.equalsIgnoreCase(z.sport())
                         && "pace".equalsIgnoreCase(z.zoneType())
-                        && z.ftp() != null)
-                .mapToInt(z -> z.ftp())
+                        && z.thresholdPace() != null)
+                .mapToInt(z -> z.thresholdPace())
                 .findFirst()
                 .orElse(300);
 
